@@ -1,0 +1,11 @@
+# 大文件与本地资源（不进 git）
+data/lettuce/
+tools/cas-offinder.exe
+
+# 环境缓存（env/environment.yml 本身必须进 git，它是交付物）
+env/.cache/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

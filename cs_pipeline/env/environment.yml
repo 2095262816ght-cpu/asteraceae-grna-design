@@ -1,0 +1,20 @@
+name: crispr
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.10
+  - r-base=4.3
+  - pandas
+  - scikit-learn
+  - biopython
+  - matplotlib
+  - joblib
+  - scipy
+  - pyfaidx
+  # samtools 无 win-64 构建，Windows 上不随环境安装；
+  # 9.20 需要交叉验证 .fai 时改用 WSL 或 samtools Windows 二进制（见分工详案 B1）
+  - r-essentials
+  - pip
+  - pip:
+      - streamlit>=1.28
