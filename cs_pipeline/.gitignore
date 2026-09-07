@@ -1,7 +1,8 @@
 # 大文件与本地资源（不进 git）
 data/lettuce/
 tools/cas-offinder.exe
-tools/CRISPRon/          # 第三方仓库克隆（RTH-tools/CRISPRon），由 env/setup_crispron_wsl.sh 组装
+# 第三方工具克隆（由 env/setup_crispron_wsl.sh 组装，不进 git）
+tools/CRISPRon/
 tools/CRISPRoff/
 
 # 环境缓存（env/environment.yml 本身必须进 git，它是交付物）
