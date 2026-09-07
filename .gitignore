@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env/secrets
+.env
+
+# 大文件存于网盘，不入库
+论文/
+*.pdf
+*.docx
+*.xlsx
