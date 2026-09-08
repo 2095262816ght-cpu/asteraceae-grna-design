@@ -35,3 +35,15 @@
 | 论文/ | 核心文献 PDF 原文与中文翻译（Chen2022、Kim2019、莴苣 T2T、LettuceGDB 等） |
 | 数据/ | LettuceGDB ATAC peaks、T2T 补充表 7–9 等原始数据文件 |
 | _archive/ | 已被取代的旧方案存档（迁移学习执行大纲、融合版 v2、多组学方向相关文档），**勿再引用** |
+| cs_pipeline/ | 计算机系流水线：scripts（01–11 脚本）、docs（报告）、results（结果数据）、env（环境） |
+
+## cs_pipeline 最近更新（9.8，计B B2 任务）
+
+| 产物 | 位置 | 说明 |
+|---|---|---|
+| 07_scan_lettuce.py | cs_pipeline/scripts/ | gRNA 扫描完整实现（替换骨架）：启动子 2kb + 外显子，NGG/CCN 双链 |
+| 09–11 脚本 | cs_pipeline/scripts/ | CDS 提取、v1.2→T2T 映射、NLR 回填 |
+| B2_工作报告_0922_0923.md | cs_pipeline/docs/ | B2 任务验收报告：13,867,270 候选、10/10 抽样核对通过 |
+| NLR_ID映射排查报告_0908最终.md | cs_pipeline/docs/ | lettuce_v2 系作者未公开内部注释，9 渠道排查结论 |
+| grna_candidates_lettuce_sample5k.csv | cs_pipeline/results/ | 候选示例 5000 行（全量 1.6GB 存网盘） |
+| scan_stats.md、nlr_*.csv、v12_to_t2t_mapping.csv | cs_pipeline/results/ | 扫描统计、NLR 回填（661 条 de novo）、映射表 37,296 条 |
