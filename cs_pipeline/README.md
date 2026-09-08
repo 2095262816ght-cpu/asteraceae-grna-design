@@ -21,12 +21,16 @@ cs_pipeline/
 ## 环境搭建
 
 ```bash
-conda env create -f env/environment.yml
+conda env create -f env/environment.yml   # 主管线环境 crispr（含 genet）
 conda activate crispr
-# R 侧依赖（R>=4.3）：
-#   if (!requireNamespace("BiocManager", quietly=TRUE)) install.packages("BiocManager")
-#   BiocManager::install("crisprScore")
 ```
+
+打分工具链（9.8 实测后按详案降级方案 1 确定，crisprScore 弃用——其 DeepSpCas9 环境 py2.7+TF1.4.1 无 Windows pip 包，且 crisprScore 任何版本均不含 CRISPRon）：
+
+- **DeepSpCas9**：genet 0.17.2（Python/TF2.9，Windows 原生，`crispr` 环境内）
+- **CRISPRon**：官方仓库 RTH-tools/CRISPRon（TF2.14），运行于 WSL Ubuntu-22.04 的 `crispron` 环境；一键重建：`wsl -d Ubuntu-22.04 -- bash env/setup_crispron_wsl.sh`
+- Streamlit demo 环境独立：`conda env create -f env/environment_demo.yml`（genet 的 protobuf 约束与 streamlit 冲突，打分经子进程调 crispr 环境）
+- R 侧 crisprScore 安装脚本保留在 `env/install_crisprscore.R`（含西湖大学 Bioc 镜像配置与 basilisk Windows 补丁 `env/patch_basilisk.R`），仅备用
 
 ## 复现流程
 
@@ -34,7 +38,8 @@ conda activate crispr
 
 ## 外部工具
 
-Cas-OFFinder（Windows release 二进制置于 `tools/`，不随代码包发布）。
+- Cas-OFFinder（Windows release 二进制置于 `tools/`，不随代码包发布）
+- CRISPRon / CRISPRoff（RTH，GPL/AGPL；仓库克隆与模型文件不入 git，由 `env/setup_crispron_wsl.sh` 重建）
 
 ## 数据说明
 
