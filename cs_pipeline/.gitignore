@@ -5,6 +5,9 @@ tools/cas-offinder.exe
 tools/CRISPRon/
 tools/CRISPRoff/
 
+# CRISPRon 打分的中间产物
+data/crispron_io/
+
 # 环境缓存（env/environment.yml 本身必须进 git，它是交付物）
 env/.cache/
 env/*.log

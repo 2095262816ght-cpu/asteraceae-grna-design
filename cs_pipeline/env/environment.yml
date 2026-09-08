@@ -17,4 +17,5 @@ dependencies:
   - r-essentials
   - pip
   - pip:
-      - streamlit>=1.28
+      - genet==0.17.2   # DeepSpCas9 打分（降级方案1）；锁 tensorflow<2.10/protobuf<3.20
+  # streamlit 不在此环境：与 genet 的 protobuf 约束冲突，demo 用 env/environment_demo.yml
