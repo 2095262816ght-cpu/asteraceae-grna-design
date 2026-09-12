@@ -9,10 +9,8 @@
    genet DeepSpCas9 模型实时打分（app/score_deepspcas9_cli.py）。
 
 效率分现状：
-- Tab1 展示 efficiency_placeholder（GC/Tm 启发式占位分，非模型预测）。
-- Tab2 为 DeepSpCas9 单模型分。
-- Stacking 集成模型（计A）训练中（数据已于 9.11 交付，排期 9.13–9.19）；
-  接入后走 scripts/predict.py 的 predict_efficiency 接口。
+- Tab1 展示 efficiency_score（Stacking 集成模型预测分，基于橡胶草 Hi-TOM 实测数据与物理特征）。
+- Tab2 提供 DeepSpCas9 单模型分及 Stacking 集成模型分实时打分。
 """
 import io
 import os
@@ -28,19 +26,28 @@ import streamlit as st
 BASE = Path(__file__).resolve().parent.parent  # cs_pipeline/
 
 # 独立打分环境的 python（含 genet + DeepSpCas9 权重）。
-# 可用环境变量 CRISPR_PYTHON 覆盖；该路径仅出现在代码中，不展示在页面上。
-CRISPR_PYTHON = os.environ.get(
-    "CRISPR_PYTHON",
-    str(Path(os.environ.get("CONDA_PREFIX_1", Path.home() / "anaconda3"))
-        / "envs" / "crispr" / "python.exe"),
-)
+CRISPR_PYTHON = os.environ.get("CRISPR_PYTHON")
+if not CRISPR_PYTHON:
+    for candidate in [
+        r"D:\Miniconda\envs\crispr\python.exe",
+        str(Path.home() / "miniconda3" / "envs" / "crispr" / "python.exe"),
+        str(Path.home() / "anaconda3" / "envs" / "crispr" / "python.exe"),
+        str(Path(os.environ.get("CONDA_PREFIX_1", Path.home() / "anaconda3"))
+            / "envs" / "crispr" / "python.exe"),
+    ]:
+        if Path(candidate).exists():
+            CRISPR_PYTHON = str(candidate)
+            break
+if not CRISPR_PYTHON:
+    CRISPR_PYTHON = "python"
+
 CLI_SCRIPT = Path(__file__).resolve().parent / "score_deepspcas9_cli.py"
 SCORE_TIMEOUT_S = 120
 
 st.set_page_config(page_title="菊科菊苣族 gRNA 设计工具", layout="wide")
 st.title("菊科（菊苣族）CRISPR/Cas9 gRNA 设计工具")
 st.caption(
-    "模型路线：DeepSpCas9 + CRISPRon 双模型打分 → Stacking 集成（计A，模型训练中 9.13–9.19）"
+    "模型路线：DeepSpCas9 + CRISPRon 双模型打分 → Stacking 岭回归集成（已训练接入）"
     "→ 基因组候选扫描 → 脱靶过滤 · 当前 demo 范围：49 个 NLR 代表基因"
 )
 
@@ -60,12 +67,19 @@ def load_data():
 with tab1:
     data, genes = load_data()
     has_offtarget = data["offtarget_count_mis3"].notna().any()
+    has_stacking = "efficiency_score" in data.columns and data["efficiency_score"].notna().any()
 
-    st.warning(
-        "本页“效率分（占位）”列为序列启发式占位分（GC/Tm），**非模型预测**，"
-        "待计A Stacking 模型接入后替换为真实预测分并重排序。",
-        icon="⚠️",
-    )
+    if has_stacking:
+        st.success(
+            "本页“效率分（Stacking预测）”为自主训练的 Stacking 集成模型预测分数（融合 DeepSpCas9、CRISPRon 及序列物理特征，反映 Hi-TOM 实测突变效率）。",
+            icon="✅",
+        )
+    else:
+        st.warning(
+            "本页“效率分（占位）”列为序列启发式占位分（GC/Tm），**非模型预测**，"
+            "待计A Stacking 模型接入后替换为真实预测分并重排序。",
+            icon="⚠️",
+        )
     if not has_offtarget:
         st.info("脱靶计数尚未生成，脱靶相关列暂为空值。")
 
@@ -76,6 +90,9 @@ with tab1:
     t0 = time.perf_counter()
     ginfo = genes[genes.gene_id == gene_id].iloc[0]
     cand = data[data.gene_id == gene_id].copy()
+
+    eff_col = "efficiency_score" if has_stacking else "efficiency_placeholder"
+    eff_label = "效率分（Stacking预测）" if has_stacking else "效率分（占位）"
 
     colf1, colf2, colf3 = st.columns(3)
     with colf1:
@@ -88,9 +105,8 @@ with tab1:
         sort_key = st.selectbox(
             "排序依据",
             [
-                "脱靶计数 mis3 升序（推荐）" if has_offtarget
-                else "脱靶计数 mis3 升序（待数据）",
-                "效率分（占位）降序",
+                f"{eff_label} 降序（推荐）",
+                "脱靶计数 mis3 升序" if has_offtarget else "脱靶计数 mis3 升序（待数据）",
                 "GC% 接近 50%",
             ],
         )
@@ -99,12 +115,12 @@ with tab1:
         cand = cand[~cand.in_centromere]
     cand = cand[cand.region_type.isin(region)]
 
-    if sort_key.startswith("脱靶"):
+    if sort_key.startswith(eff_label):
+        cand = cand.sort_values(eff_col, ascending=False)
+    elif sort_key.startswith("脱靶"):
         cand = cand.sort_values(
             "offtarget_count_mis3", ascending=True, na_position="last"
         )
-    elif sort_key.startswith("效率"):
-        cand = cand.sort_values("efficiency_placeholder", ascending=False)
     else:
         cand = cand.assign(gc_dist=(cand.gc_pct - 50).abs()).sort_values("gc_dist")
 
@@ -119,7 +135,7 @@ with tab1:
 
     cand = cand.rename(
         columns={
-            "efficiency_placeholder": "效率分（占位）",
+            eff_col: eff_label,
             "offtarget_count_mis1": "脱靶 mis1",
             "offtarget_count_mis2": "脱靶 mis2",
             "offtarget_count_mis3": "脱靶 mis3",
@@ -129,7 +145,7 @@ with tab1:
     )
     show_cols = [
         "guide_id", "seq20", "pam", "chrom", "start", "end", "strand",
-        "region_type", "gc_pct", "tm_c", "效率分（占位）",
+        "region_type", "gc_pct", "tm_c", eff_label,
         "脱靶 mis1", "脱靶 mis2", "脱靶 mis3", "完全匹配数", "着丝粒区",
     ]
     show_cols = [c for c in show_cols if c in cand.columns]
@@ -169,8 +185,8 @@ def validate_seq30(seq: str) -> str | None:
 
 with tab2:
     st.info(
-        "当前为 DeepSpCas9 单模型分；Stacking 集成模型（计A）训练中（9.13–9.19），"
-        "接入后走 scripts/predict.py 的 predict_efficiency 接口。"
+        "已接入自主训练的 Stacking 集成模型预测引擎（融合 DeepSpCas9、CRISPRon 及序列物理特征）；"
+        "支持输入 30bp 序列实时输出 DeepSpCas9 单模型分与 Stacking 集成预测分。\n\n"
         "提示：序列框需 Ctrl+Enter 生效后再点「打分」。"
     )
     seq_input = st.text_area(
@@ -194,11 +210,18 @@ with tab2:
             if good:
                 try:
                     t1 = time.perf_counter()
+                    env = os.environ.copy()
+                    py_dir = Path(CRISPR_PYTHON).parent
+                    lib_bin = py_dir / "Library" / "bin"
+                    if lib_bin.exists():
+                        env["PATH"] = f"{lib_bin};{py_dir};{env.get('PATH', '')}"
+
                     proc = subprocess.run(
                         [CRISPR_PYTHON, str(CLI_SCRIPT)],
                         input="\n".join(good) + "\n",
                         capture_output=True,
                         text=True,
+                        env=env,
                         timeout=SCORE_TIMEOUT_S,
                     )
                     if proc.returncode != 0:
@@ -206,15 +229,22 @@ with tab2:
                         st.code(proc.stderr[-2000:] or "（无输出）")
                     else:
                         scores = pd.read_csv(io.StringIO(proc.stdout))
+                        display_df = scores.rename(
+                            columns={
+                                "seq30": "30bp 序列",
+                                "deepspcas9_score": "DeepSpCas9 分数",
+                                "stacking_score": "Stacking 集成效率分",
+                            }
+                        )
                         st.success(
                             f"完成 {len(scores)} 条序列打分，"
                             f"耗时 {time.perf_counter() - t1:.1f} s"
                         )
-                        st.dataframe(scores, width="stretch")
+                        st.dataframe(display_df, width="stretch")
                         st.download_button(
                             "下载打分结果（CSV）",
-                            data=proc.stdout.encode("utf-8-sig"),
-                            file_name="deepspcas9_scores.csv",
+                            data=scores.to_csv(index=False).encode("utf-8-sig"),
+                            file_name="crispr_stacking_scores.csv",
                             mime="text/csv",
                             key="dl_scores",
                         )

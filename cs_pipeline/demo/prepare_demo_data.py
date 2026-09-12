@@ -56,22 +56,44 @@ def tm_wallace(seq):
 
 cand["tm_c"] = cand.seq20.map(tm_wallace)
 
-# --- 效率占位分（⚠️ 非模型预测，待计A predict.py 交付后替换） ---
-# 启发式：GC 偏离 50% 惩罚 + Tm 偏离 62℃ 惩罚，仅用于演示排序 UI
+# --- 效率分计算（Stacking 集成模型预测分，带启发式占位兜底） ---
 cand["efficiency_placeholder"] = (
     100 - (cand.gc_pct - 50).abs() * 1.5 - (cand.tm_c - 62).abs() * 0.8
 ).round(1)
 
+try:
+    import sys
+    if str(BASE) not in sys.path:
+        sys.path.insert(0, str(BASE))
+    from scripts.predict import predict_efficiency
+    print("Scoring candidates with Stacking meta model...")
+    batch_size = 5000
+    all_scores = []
+    seqs = cand.seq30.tolist()
+    for i in range(0, len(seqs), batch_size):
+        all_scores.extend(predict_efficiency(seqs[i : i + batch_size]))
+    cand["efficiency_score"] = all_scores
+    print(f"Stacking scoring complete: {len(all_scores)} guides scored.")
+except Exception as e:
+    print(f"Stacking scoring skipped ({e}), fallback to placeholder.")
+    cand["efficiency_score"] = cand["efficiency_placeholder"]
+
 # --- NLR 基因注释（供基因信息面板） ---
-nlr = pd.read_csv(SHARED / "nlr_with_coords.csv")
-nlr_cols = [c for c in ("t2t_gene_id", "chr", "start_bp", "end_bp", "strand", "nlr_type")
-            if c in nlr.columns]
-genes = nlr[nlr_cols].rename(columns={"t2t_gene_id": "gene_id", "chr": "g_chrom",
-                                      "start_bp": "g_start", "end_bp": "g_end",
-                                      "strand": "g_strand"})
-demo_genes = pd.read_csv(BASE / "data/demo_nlr50_genes.txt", header=None, names=["gene_id"])
-genes = genes.merge(demo_genes, on="gene_id")
-genes.to_csv(BASE / "demo/app_genes.csv", index=False)
+nlr_file = SHARED / "nlr_with_coords.csv"
+if nlr_file.exists():
+    nlr = pd.read_csv(nlr_file)
+    nlr_cols = [c for c in ("t2t_gene_id", "chr", "start_bp", "end_bp", "strand", "nlr_type")
+                if c in nlr.columns]
+    genes = nlr[nlr_cols].rename(columns={"t2t_gene_id": "gene_id", "chr": "g_chrom",
+                                          "start_bp": "g_start", "end_bp": "g_end",
+                                          "strand": "g_strand"})
+    demo_genes = pd.read_csv(BASE / "data/demo_nlr50_genes.txt", header=None, names=["gene_id"])
+    genes = genes.merge(demo_genes, on="gene_id")
+    genes.to_csv(BASE / "demo/app_genes.csv", index=False)
+elif (BASE / "demo/app_genes.csv").exists():
+    genes = pd.read_csv(BASE / "demo/app_genes.csv")
+else:
+    genes = pd.DataFrame(columns=["gene_id", "g_chrom", "g_start", "g_end", "g_strand", "nlr_type"])
 
 cand.to_csv(BASE / "demo/app_data.csv", index=False)
 print(f"app_data.csv: {len(cand)} rows | genes: {len(genes)} | offtarget: {offstatus}")
