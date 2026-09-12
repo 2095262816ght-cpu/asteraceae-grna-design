@@ -16,3 +16,26 @@ env/*.log
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# 0909 补充：大体积中间产物与二进制（不进 git）
+results/off_batch_*.txt
+tools/cas-offinder/
+tools/cas-offinder_windows.zip
+env/crisproff_dl/
+demo/*.log
+
+# A0 0909：CDS fasta 与 Hi-TOM 原始交付（留痕不入库）
+data/tks_cds.fasta
+data/hitom_raw/
+results/_sample.txt
+
+# A0 0909 win-native: ViennaRNA 安装包/下载缓存与 wheel 缓存（不进 git）
+tools/ViennaRNA/
+env/vienna_dl/
+env/wheels/
+
+# 9.27 整理：批处理中间产物与脱靶原始大文件（可再生，不入库）
+data/mini_*.txt
+results/off_mini_*.txt
+results/offtarget_raw_0924.txt
+demo/*.log

@@ -1,0 +1,4 @@
+#!/bin/bash
+# Make `python3` (and `#!/usr/bin/env python3`) resolve to the crispron-win
+# conda env python when this directory is first on PATH.
+exec "/c/Users/Lenovo/anaconda3/envs/crispron-win/python.exe" "$@"
