@@ -44,3 +44,15 @@
 | 07_scan_lettuce.py | cs_pipeline/scripts/ | gRNA 扫描完整实现（替换骨架）：启动子 2kb + 外显子，NGG/CCN 双链 |
 | B2_工作报告_0922_0923.md | cs_pipeline/docs/ | B2 任务验收报告：13,867,270 候选、10/10 抽样核对通过 |
 | scan_stats.md | cs_pipeline/results/ | 扫描统计（全量候选 CSV 1.6GB 存网盘） |
+
+## cs_pipeline 最近更新（9.27–10.4，计B：指标冻结 + 源码打包 + 匿名化）
+
+| 产物 | 位置 | 说明 |
+|---|---|---|
+| app/app.py + score_deepspcas9_cli.py | cs_pipeline/app/ | Streamlit demo 两页版（按基因检索 / 自定义序列打分） |
+| offtarget_runlog_0924.md + offtarget_counts_0924.csv | cs_pipeline/results/ | Cas-OFFinder v2.4.1 脱靶：19,839 guide、6,088,827 命中、mis3 中位 16 |
+| scan_stats_0923.md / CHANGELOG_0927.md | cs_pipeline/results/ | 9.27 指标冻结记录（计A 三项待补，详见 CHANGELOG） |
+| 09_aggregate_offtarget.py / run_mini_batches.ps1 | cs_pipeline/scripts/ | 脱靶汇总与 GPU 分批运行脚本 |
+| demo_screenshots_0926/ | cs_pipeline/results/ | demo 三基因端到端演示截图 7 张 |
+| B4_工作报告_0925/0926、匿名化检查清单_1003 | cs_pipeline/docs/ | demo 两日报告与 10.3 匿名化检查（零命中） |
+| README.md / requirements.txt | cs_pipeline/ | 10.2 打包重写（干净环境已验证可装可启动） |

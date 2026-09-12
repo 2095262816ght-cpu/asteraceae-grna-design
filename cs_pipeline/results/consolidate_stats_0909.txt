@@ -1,0 +1,72 @@
+读取 2022.01.30测序整理(1)(6)(2)(4).csv: 86 行
+读取 all-SY2198-USR-4411-Hi-TOM-sequencing-result（副）.csv: 109 行
+读取 all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv: 225 行
+合并后总行数: 420
+警告: indel_pct 无法解析的行数: 113
+剔除 seq20 非 [ACGT]{20} 或 pam 非 NGG 的行: 113
+剔除示例（前 10 条）:
+                                 source_file guide_id seq20  pam
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+all-SY4070-USR-8145-Hi-TOM-sequencing(1).csv     <NA>  <NA> <NA>
+guide_id 为空的行数（补 TKSAUTO 前缀）: 31
+uid (guide_id__batch) 重复行数（同 guide 同批多 rep，保留）: 0
+guide_id 去重后数量: 298；跨批次/多 rep 重复出现的 guide 行数: 9
+输出 data\hitom_clean_v1.csv: 307 行
+batch 分布:
+batch
+USR-8145    111
+USR-5713     86
+USR-4411     65
+USR-4445      1
+USR-4436      1
+USR-4437      1
+USR-4438      1
+USR-4439      1
+USR-4440      1
+USR-4441      1
+USR-4442      1
+USR-4443      1
+USR-4444      1
+USR-4446      1
+USR-4447      1
+USR-4448      1
+USR-4449      1
+USR-4450      1
+USR-4451      1
+USR-4452      1
+USR-4453      1
+USR-4454      1
+USR-4455      1
+USR-4435      1
+USR-4434      1
+USR-4433      1
+USR-4421      1
+USR-4412      1
+USR-4413      1
+USR-4414      1
+USR-4415      1
+USR-4416      1
+USR-4417      1
+USR-4418      1
+USR-4419      1
+USR-4420      1
+USR-4422      1
+USR-4432      1
+USR-4423      1
+USR-4424      1
+USR-4425      1
+USR-4426      1
+USR-4427      1
+USR-4428      1
+USR-4429      1
+USR-4430      1
+USR-4431      1
+USR-8146      1

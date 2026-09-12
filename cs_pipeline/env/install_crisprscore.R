@@ -4,7 +4,7 @@
 #   Rscript env/install_crisprscore.R
 #
 # 说明：bioconductor.org 在本网络不可达，BiocManager 无法校验版本，
-# 故绕过 BiocManager，直接把 repo 指向西湖大学镜像的 Bioc 3.18（对应 R 4.3）。
+# 故绕过 BiocManager，直接把 repo 指向westlake 镜像的 Bioc 3.18（对应 R 4.3）。
 options(repos = c(
   CRAN    = "https://mirrors.tuna.tsinghua.edu.cn/CRAN",
   BioCsoft = "https://mirrors.westlake.edu.cn/bioconductor/packages/3.18/bioc",
