@@ -1,6 +1,6 @@
 # 计B 组 9.25 日工作报告（B4 第一天：Streamlit demo）
 
-> 执行时间：2026-09-11 午 · 对应《分工详案_计算机系.md》B4 节 9.25 安排
+> 执行时间：2026-09-11 午 · 对应《分工详案_计算机系》（docs/plans/division_plan_cs.md）B4 节 9.25 安排
 > 项目目录：`D:\lifesciencechallenge\cs_pipeline\` · git commit `7a86d34`
 
 ---

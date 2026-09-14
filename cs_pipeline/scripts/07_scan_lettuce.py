@@ -18,8 +18,8 @@ import pandas as pd
 from Bio.Seq import Seq
 from pyfaidx import Fasta
 
-GFF_PATH = "data/lettuce/lettuce_t2t.gff3"
-FA_PATH = "data/lettuce/lettuce_t2t.fa"
+GFF_PATH = "data/reference_genomes/3-1_LsT2T.annotation.gff3"
+FA_PATH = "data/reference_genomes/3-1_LsT2T.genome.fa"
 OUT_CSV = "results/grna_candidates_lettuce_0923.csv"
 OUT_STATS = "results/scan_stats.md"
 PILOT_CHROM = None          # 设为 "Chr01" 可单染色体小跑验证

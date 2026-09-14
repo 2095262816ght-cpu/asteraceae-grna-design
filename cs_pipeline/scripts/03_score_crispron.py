@@ -10,11 +10,11 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-IO = ROOT / "data" / "crispron_io"
+IO = ROOT / "data" / "hitom" / "crispron_io"
 IN_FA = IO / "seq30_in.fa"
 OUT_DIR = IO / "out"
 
-df = pd.read_csv(ROOT / "data" / "hitom_seq30_0909.csv")
+df = pd.read_csv(ROOT / "data" / "hitom" / "hitom_seq30_0909.csv")
 IO.mkdir(parents=True, exist_ok=True)
 with open(IN_FA, "w") as f:
     for _, r in df.iterrows():

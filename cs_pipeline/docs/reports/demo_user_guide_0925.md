@@ -46,15 +46,19 @@ tensorflow<2.10 → protobuf<3.20，与 streamlit 冲突，因此打分不与应
 
 脱靶计数列部分为空（B3 跑批未完成部分）；着丝粒标注来自基因组着丝粒区间。
 
-## 效率分现状（重要）
+## 效率分现状（重要 · 9.13 更新）
 
-- **Tab 1 的「效率分（占位）」是 GC/Tm 序列启发式占位分，不是模型预测**，
-  仅用于演示排序与交互；页面已明确标注。
-- **Tab 2 为 DeepSpCas9 单模型分**（genet 0.17.2，离线推理）。
-- **Stacking 集成模型（计A）因实验数据未交付暂缓接入**；接入后统一走
-  `scripts/predict.py` 的 `predict_efficiency` 接口，Tab 1 替换占位分并重排序，
-  Tab 2 改报集成分。`scripts/predict.py` 当前为接口占位（NotImplementedError），
-  由计A 负责实现。
+- **Tab 1 的「效率分（Stacking预测）」已接入，但当前不可信**：`demo/app_data.csv`
+  的 `efficiency_score`（19,839 条全量）由 `scripts/predict.py` 的
+  `predict_efficiency` 产出，而该元模型在测试集上 ρ=-0.3435、AUC=0.3672
+  （低于随机），且其 `crispron_score` 输入在 `predict.py` 内是人工线性式而非
+  真实 CRISPRon 输出。**对外演示建议回退到 `efficiency_placeholder`
+  （GC/Tm 序列启发式占位分）并明确标注为占位，或在页面上加免责说明。**
+  详见 `results/CHANGELOG_0927.md` 的 9.13 更正记录。
+- **Tab 2 的 DeepSpCas9 分为真实离线推理**（genet 0.17.2），可正常演示；
+  同页的 Stacking 集成分受上述限制，不应作为效率结论解读。
+- 原「`scripts/predict.py` 为接口占位（NotImplementedError）」的说明已过期：
+  接口已于 9-12 实现并由计B 接通，问题不在链路连通，而在模型指标与特征来源。
 
 ## 常见问题
 

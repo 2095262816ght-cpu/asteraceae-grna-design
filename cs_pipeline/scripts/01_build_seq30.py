@@ -2,13 +2,13 @@
 
 seq30 = 4nt上游 + 20nt guide + 3nt PAM + 3nt下游（沿 guide 5'→3' 方向）。
 start/end 为 1-based 闭区间，覆盖 seq20+PAM 共 23nt。
-骨架见《分工详案_计算机系.md》A0 节。
+骨架见《分工详案_计算机系》（docs/plans/division_plan_cs.md）A0 节。
 """
 import pandas as pd
 from Bio import SeqIO
 
-genome = SeqIO.to_dict(SeqIO.parse("data/rubber_dandelion_ref.fa", "fasta"))
-df = pd.read_csv("data/hitom_clean_v1.csv")
+genome = SeqIO.to_dict(SeqIO.parse("data/reference_genomes/2-1_TKS.genome.fasta", "fasta"))
+df = pd.read_csv("data/hitom/hitom_clean_v1.csv")
 
 
 def get_seq30(row):
@@ -26,5 +26,5 @@ df["seq30"] = df.apply(get_seq30, axis=1)
 assert df.seq30.str.len().eq(30).all() and df.seq30.str.fullmatch(r"[ACGT]{30}").all()
 # 自校验：seq30 第 5-24 位必须等于 seq20，第 25-27 位必须等于 pam（防坐标取向反了）
 assert (df.seq30.str[4:24] == df.seq20).all() and (df.seq30.str[24:27] == df.pam).all()
-df.to_csv("data/hitom_seq30_0909.csv", index=False)
-print(f"OK: {len(df)} rows -> data/hitom_seq30_0909.csv")
+df.to_csv("data/hitom/hitom_seq30_0909.csv", index=False)
+print(f"OK: {len(df)} rows -> data/hitom/hitom_seq30_0909.csv")

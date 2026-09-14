@@ -3,8 +3,8 @@
 00_consolidate_hitom.py
 A0 / 9.9 任务收尾 —— 生物系 Hi-TOM 交付数据的机械清洗合并。
 
-输入：data/hitom_raw/ 下三份 GBK 编码 CSV（原始交付，留痕不入库）。
-输出：data/hitom_clean_v1.csv（UTF-8），以及打印统计。
+输入：data/raw/hitom_raw/ 下三份 GBK 编码 CSV（原始交付，留痕不入库）。
+输出：data/hitom/hitom_clean_v1.csv（UTF-8），以及打印统计。
 
 原则：只做机械清洗，不做任何生物学判断
 （不删批次、不归一化 —— 那是生物系的口径）。
@@ -14,8 +14,8 @@ import re
 import sys
 import pandas as pd
 
-RAW_DIR = os.path.join("data", "hitom_raw")
-OUT_CSV = os.path.join("data", "hitom_clean_v1.csv")
+RAW_DIR = os.path.join("data", "raw", "hitom_raw")
+OUT_CSV = os.path.join("data", "hitom", "hitom_clean_v1.csv")
 STATS_OUT = os.path.join("results", "consolidate_stats_0909.txt")
 
 # 原始列名（含空格/中文） -> 接口约定列名

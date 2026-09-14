@@ -1,6 +1,6 @@
 # 分工详案：计算机系两人（计A / 计B）
 
-> 依据：《项目执行方案_v3压缩版_0907.md》《项目技术要点笔记.md》《两篇CRISPR文献详细解读.md》
+> 依据：《项目执行方案_v3压缩版_0907》（docs/plans/project_plan_v3_condensed_0907.md）《项目技术要点笔记》（docs/knowledge/project_tech_notes.md）《两篇CRISPR文献详细解读》（docs/knowledge/CRISPR_core_papers_notes.md）
 > 硬约束：每天约 3 小时/人；10 月 4 日区赛提交硬截止；任何阶段超期 2 天以上触发砍项（先砍 demo 美化，保留命令行+结果表）。
 > 环境：Windows + Anaconda Prompt / Git Bash。所有命令均在此两终端可跑；R 命令在 Anaconda Prompt 内 `Rscript` 执行。
 
@@ -161,7 +161,7 @@ getCRISPRonScores("ATCGGCTAAGCTAGGCTAGCATCGTGGATC")
 
 **产出文件**：
 - `env/environment.yml`（用 `conda env export --no-builds > env/environment.yml` 生成）；
-- `data/hitom_seq30_0909.csv`：在生物系表格基础上新增 `seq30` 列（4nt 上游 + seq20 + pam + 3nt 下游，长度恰好 30，全大写，只含 ACGT）。
+- `data/hitom/hitom_seq30_0909.csv`：在生物系表格基础上新增 `seq30` 列（4nt 上游 + seq20 + pam + 3nt 下游，长度恰好 30，全大写，只含 ACGT）。
 
 **从基因组坐标补 30bp 上下文（`scripts/01_build_seq30.py` 骨架）**：
 
@@ -169,8 +169,8 @@ getCRISPRonScores("ATCGGCTAAGCTAGGCTAGCATCGTGGATC")
 import pandas as pd
 from Bio import SeqIO
 
-genome = SeqIO.to_dict(SeqIO.parse("data/rubber_dandelion_ref.fa", "fasta"))  # 橡胶草参考基因组（生物系 9.9 前提供，生A 负责）
-df = pd.read_csv("data/hitom_clean_v1.csv")
+genome = SeqIO.to_dict(SeqIO.parse("data/reference_genomes/2-1_TKS.genome.fasta", "fasta"))  # 橡胶草参考基因组（生物系 9.9 前提供，生A 负责）
+df = pd.read_csv("data/hitom/hitom_clean_v1.csv")
 
 def get_seq30(row):
     """start/end 已定稿：1-based 闭区间，为 seq20+PAM 合并区间共 23nt。
@@ -188,7 +188,7 @@ df["seq30"] = df.apply(get_seq30, axis=1)
 assert df.seq30.str.len().eq(30).all() and df.seq30.str.fullmatch(r"[ACGT]{30}").all()
 # 自校验：seq30 的第 5–24 位必须等于 seq20，第 25–27 位必须等于 pam
 assert (df.seq30.str[4:24] == df.seq20).all() and (df.seq30.str[24:27] == df.pam).all()
-df.to_csv("data/hitom_seq30_0909.csv", index=False)
+df.to_csv("data/hitom/hitom_seq30_0909.csv", index=False)
 ```
 
 **验收标准**：示例序列能打出两个模型的分；`hitom_seq30_0909.csv` 行数 = 生物系交付行数，seq30 全部通过断言。自校验断言是防"坐标取向搞反"的第一道防线（D2 复盘时 ρ<0.2 的头号嫌疑就是它）。
@@ -210,7 +210,7 @@ DeepSpCas9 与 CRISPRon 都吃这个 30nt 布局，一列 `seq30` 两用。PAM �
 
 ```r
 library(crisprScore)
-df <- read.csv("data/hitom_seq30_0909.csv")
+df <- read.csv("data/hitom/hitom_seq30_0909.csv")
 df$deepspcas9_score <- getDeepSpCas9Scores(df$seq30)
 write.csv(df[, c("guide_id", "deepspcas9_score")],
           "results/scores_deepspcas9_0910.csv", row.names = FALSE)
@@ -431,8 +431,8 @@ rho_mixed, _ = spearmanr(m.predict(X[te]), y[te])        # 评估仍只用自有
 conda activate crispr
 conda install -c bioconda pyfaidx samtools -y
 cd /d D:\lifesciencechallenge\cs_pipeline
-samtools faidx data/lettuce/lettuce_t2t.fa        # 生成 .fai 索引，2.59Gb 约几分钟
-python -c "from pyfaidx import Fasta; f=Fasta('data/lettuce/lettuce_t2t.fa'); print(len(f.keys()), '条序列')"
+samtools faidx data/reference_genomes/3-1_LsT2T.genome.fa        # 生成 .fai 索引，2.59Gb 约几分钟
+python -c "from pyfaidx import Fasta; f=Fasta('data/reference_genomes/3-1_LsT2T.genome.fa'); print(len(f.keys()), '条序列')"
 ```
 
 - 9.21：写 GFF 解析原型，统计基因/外显子数量，打印前 5 个基因坐标，与生物系核对注释文件里 feature 命名（有的 GFF 用 `mRNA` 有的用 `transcript`，必须先看实际文件再写死）。
@@ -456,9 +456,9 @@ from Bio.Seq import Seq
 from pyfaidx import Fasta
 
 GFF_COLS = ["chrom","source","feature","start","end","score","strand","frame","attr"]
-gff = pd.read_csv("data/lettuce/lettuce_t2t.gff3", sep="\t", comment="#",
+gff = pd.read_csv("data/reference_genomes/3-1_LsT2T.annotation.gff3", sep="\t", comment="#",
                   header=None, names=GFF_COLS, low_memory=False)
-fasta = Fasta("data/lettuce/lettuce_t2t.fa", as_raw=True)   # as_raw=True 更快
+fasta = Fasta("data/reference_genomes/3-1_LsT2T.genome.fa", as_raw=True)   # as_raw=True 更快
 
 genes = gff[gff.feature == "gene"].copy()        # 以实际GFF的命名为准
 genes["gene_id"] = genes.attr.str.extract(r"ID=([^;]+)")
@@ -532,7 +532,7 @@ cand.to_csv("results/grna_candidates_lettuce_0923.csv", index=False)
 # 从 GitHub Release 下载 Windows 版（sbgultom/cas-offinder 或原始 snyngki/cas-offinder 的 release 中有 win64 包）
 # 解压得到 cas-offinder.exe，放到 cs_pipeline/tools/
 # 准备染色体目录：Cas-OFFinder 要求 fasta 文件单独放在一个目录
-mkdir -p data/lettuce/chrs && cp data/lettuce/lettuce_t2t.fa data/lettuce/chrs/
+mkdir -p data/lettuce/chrs && cp data/reference_genomes/3-1_LsT2T.genome.fa data/lettuce/chrs/
 # 若基因组是多条 fasta 记录在一个文件，先用脚本拆成每条染色体一个 .fa（Cas-OFFinder 官方做法）
 ```
 
@@ -695,13 +695,13 @@ cat .git/config                                          # 不得含个人邮箱
 | # | 交付物（精确路径） | 截止 | 验收标准 | 负责 |
 |---|---|---|---|---|
 | 1 | `cs_pipeline/env/environment.yml` | 9.9 | 新机器 `conda env create -f` 可建；示例序列打出 DeepSpCas9 分 | 计A |
-| 2 | `cs_pipeline/data/hitom_seq30_0909.csv` | 9.9 | 行数=生物系交付数；seq30 长度=30 且通过 seq20/pam 一致性断言 | 计A |
+| 2 | `cs_pipeline/data/hitom/hitom_seq30_0909.csv` | 9.9 | 行数=生物系交付数；seq30 长度=30 且通过 seq20/pam 一致性断言 | 计A |
 | 3 | `cs_pipeline/results/scores_deepspcas9_0910.csv`、`scores_crispron_0911.csv` | 9.11 | 无 NA，行数与主表一致 | 计A |
 | 4 | `cs_pipeline/results/transferability_D2_0912.md` | 9.12 | 含两模型 ρ/p 值、分档结论；结论可一键复现 | 计A+计B |
 | 5 | `cs_pipeline/results/feature_matrix_0914.csv` | 9.14 | 无 NA、无常数列；特征相关性图已出 | 计A |
 | 6 | `cs_pipeline/results/meta_model_ridge_0919.joblib` + `scripts/predict.py` | 9.17 | `predict_efficiency(seq30_list)` 接口可用，计B 试跑通过 | 计A |
 | 7 | `cs_pipeline/results/model_comparison_0919.csv` + 散点图 | 9.19 | **测试集 ρ ≥ 0.5**（不达标则混合预案已执行并有记录）；单模型 vs 集成对比齐全 | 计A |
-| 8 | `cs_pipeline/data/lettuce/lettuce_t2t.fa(.fai)` + GFF | 9.21 | pyfaidx 随机取区间与 samtools 结果一致 | 计B |
+| 8 | `cs_pipeline/data/reference_genomes/3-1_LsT2T.genome.fa(.fai)` + GFF | 9.21 | pyfaidx 随机取区间与 samtools 结果一致 | 计B |
 | 9 | `cs_pipeline/results/grna_candidates_lettuce_0923.csv` | 9.23 | 只覆盖基因区；每基因候选数分布合理；抽检 10 条坐标正确 | 计B |
 | 10 | `cs_pipeline/results/offtarget_counts_0924.csv` + runlog | 9.24 | 目标基因范围全覆盖；错配≤3；命令可复现 | 计B |
 | 11 | `cs_pipeline/app/app.py` + 截图 | 9.26 | 基因名→排序表（效率分+脱靶数+着丝粒标注）；自定义序列页可用 | 计B |

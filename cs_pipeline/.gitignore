@@ -6,7 +6,7 @@ tools/CRISPRon/
 tools/CRISPRoff/
 
 # CRISPRon 打分的中间产物
-data/crispron_io/
+data/hitom/crispron_io/
 
 # 环境缓存（env/environment.yml 本身必须进 git，它是交付物）
 env/.cache/
@@ -24,9 +24,9 @@ tools/cas-offinder_windows.zip
 env/crisproff_dl/
 demo/*.log
 
-# A0 0909：CDS fasta 与 Hi-TOM 原始交付（留痕不入库）
-data/tks_cds.fasta
-data/hitom_raw/
+# A0 0909：CDS fasta 与 Hi-TOM 原始交付（留痕不入库；9.13 重构后统一在 raw/ 下）
+data/raw/
+data/reference_genomes/
 results/_sample.txt
 
 # A0 0909 win-native: ViennaRNA 安装包/下载缓存与 wheel 缓存（不进 git）

@@ -7,7 +7,7 @@
 
 ## 1. 任务背景与目标
 
-按《分工详案_计算机系.md》，计A 的第一步（A0）是：搭建 conda 环境，跑通 DeepSpCas9 和 CRISPRon 两个公开模型对一条示例 30bp 序列（4nt 上游 + 20nt guide + NGG PAM + 3nt 下游）的打分。这是后续所有工作（Hi-TOM 数据打分 → D2 迁移性判断 → Stacking 集成）的地基。
+按《分工详案_计算机系》（docs/plans/division_plan_cs.md），计A 的第一步（A0）是：搭建 conda 环境，跑通 DeepSpCas9 和 CRISPRon 两个公开模型对一条示例 30bp 序列（4nt 上游 + 20nt guide + NGG PAM + 3nt 下游）的打分。这是后续所有工作（Hi-TOM 数据打分 → D2 迁移性判断 → Stacking 集成）的地基。
 
 详案原计划用 R 包 crisprScore 一家包打两个模型。**实测后该前提被证伪，已按详案内置的"降级方案 1"执行**（详案 A0 节半天原则明文允许），最终工具链为：
 
@@ -81,7 +81,7 @@ CRISPRon 官方实现是 bash + ViennaRNA(RNAfold) + TF2 的 Linux 工具链，W
 | 交付物（详案验收表） | 截止 | 状态 |
 |---|---|---|
 | #1 `env/environment.yml` 可建环境 + 示例序列打出 DeepSpCas9 分 | 9.9 | ✅ **提前完成**（9.8） |
-| #2 `data/hitom_seq30_0909.csv` | 9.9 | ⏳ 等生物系数据 |
+| #2 `data/hitom/hitom_seq30_0909.csv` | 9.9 | ⏳ 等生物系数据 |
 | #3 两个模型打分表 | 9.11 | ⏳ 脚本就绪，等数据 |
 
 环境资产清单：

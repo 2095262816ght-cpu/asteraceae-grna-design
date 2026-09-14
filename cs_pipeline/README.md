@@ -12,18 +12,27 @@ cs_pipeline/
 │   ├── environment_export_0909.yml  # crispr 环境完整导出（精确复现备查）
 │   └── *.R / *.sh               # 备用安装与环境组装脚本（见「环境搭建」）
 ├── data/
-│   ├── hitom_clean_v1.csv       # Hi-TOM 实测数据统一表（唯一权威输入）
-│   ├── hitom_seq30_0909.csv     # 补齐 30bp 上下文后的主表
-│   ├── demo_nlr50_candidates.csv# demo 范围候选（49 个 NLR 基因，19,839 条）
-│   ├── casoffinder_input.txt    # Cas-OFFinder 输入（19,839 条 guide，错配≤3）
-│   └── lettuce/                 # 莴苣 T2T 基因组 + GFF3 + 着丝粒 bed（不进 git，见「数据说明」）
+│   ├── hitom/                   # Hi-TOM 处理主线（00–03 脚本引用）
+│   │   ├── hitom_clean_v1.csv   # Hi-TOM 实测数据统一表（唯一权威输入）
+│   │   ├── hitom_seq30_0909.csv # 补齐 30bp 上下文后的主表
+│   │   └── crispron_io/         # CRISPRon 打分 IO（不入 git）
+│   ├── demo/                    # demo 源数据（09 / prepare_demo_data.py 引用）
+│   │   ├── demo_nlr50_candidates.csv  # demo 范围候选（49 个 NLR 基因，19,839 条）
+│   │   └── demo_nlr50_genes.txt
+│   ├── lettuce/                 # Cas-OFFinder 输入（casoffinder_input.txt 等，不入 git）
+│   ├── raw/                     # 团队原始交付：hitom/（R0/R1 测序归档与汇总表）、
+│   │                            #   screening_tools/、consolidation_sources/（不入 git）
+│   └── reference_genomes/       # 三套参考基因组与注释：茎用生菜 v1.1c / 橡胶草 TKS /
+│                                #   莴苣 T2T（不入 git；01/07 脚本从此处读取）
 ├── scripts/                     # 流水线脚本，按编号顺序执行（见「复现流程」）
 ├── results/                     # 产出表、图、冻结文档（CHANGELOG_0927.md 为指标冻结记录）
 ├── app/
 │   ├── app.py                   # Streamlit demo（两个 tab）
 │   └── score_deepspcas9_cli.py  # Tab2 打分子进程入口（stdin 进、CSV 出）
 ├── demo/                        # demo 运行时数据（app_data.csv 等，由 prepare_demo_data.py 生成）
-├── docs/                        # 各阶段工作报告与 demo 使用说明
+├── docs/                        # 项目资料库（索引见 docs/README.md）：plans/ 方案分工、
+│                                #   reports/ 工作报告、knowledge/ 笔记、paper/ 文献、
+│                                #   survey/ 调研、notification/ 赛事通知、_archive/ 存档
 ├── tools/                       # 外部工具（二进制与克隆不入 git，见「外部工具」）
 ├── README.md
 └── requirements.txt
@@ -51,7 +60,7 @@ wsl -d Ubuntu-22.04 -- bash env/setup_crispron_wsl.sh
 
 ```bash
 conda activate crispr
-python scripts/01_build_seq30.py        # 有坐标时：补 30bp 上下文 → data/hitom_seq30_0909.csv
+python scripts/01_build_seq30.py        # 有坐标时：补 30bp 上下文 → data/hitom/hitom_seq30_0909.csv
 # 坐标缺失时的实际执行路径：python scripts/01_build_seq30_cds.py（CDS 映射，内含自校验断言）
 python scripts/02_score_deepspcas9.py   # DeepSpCas9 打分 → results/scores_deepspcas9_0910.csv
 python scripts/03_score_crispron.py     # CRISPRon 打分（经 WSL）→ results/scores_crispron_0911.csv
@@ -65,7 +74,7 @@ python demo/prepare_demo_data.py        # 合并 demo 数据 → demo/app_data.c
 conda run -n grna-demo streamlit run app/app.py   # 启动 demo（浏览器打开终端输出的 Local URL）
 ```
 
-`00_consolidate_hitom.py` 为更上游的原始交付清洗合并脚本（data/hitom_raw/ → hitom_clean_v1.csv），日常使用从 01 开始即可。模型训练完成后由 `scripts/predict.py` 的 `predict_efficiency(seq30_list)` 接口向 demo 供分。
+`00_consolidate_hitom.py` 为更上游的原始交付清洗合并脚本（data/raw/hitom_raw/ → data/hitom/hitom_clean_v1.csv），日常使用从 01 开始即可。模型训练完成后由 `scripts/predict.py` 的 `predict_efficiency(seq30_list)` 接口向 demo 供分。
 
 ## 模型与指标摘要
 
@@ -85,8 +94,9 @@ conda run -n grna-demo streamlit run app/app.py   # 启动 demo（浏览器打�
 
 | 数据 | 原因 | 获取方式 |
 |---|---|---|
-| `data/lettuce/`（莴苣 T2T 基因组 ~2.6 Gb + GFF3 + 着丝粒 bed） | 体积过大 | 莴苣 T2T 论文 Figshare 页面下载 fasta/GFF3；着丝粒坐标出自该论文补充表 |
-| Hi-TOM 原始测序交付（`data/hitom_raw/`） | 团队原始数据 | 团队共享网盘为权威源；`data/hitom_clean_v1.csv` 为清洗后快照，随代码发布 |
+| `data/reference_genomes/`（茎用生菜 v1.1c ~2.5 Gb、橡胶草 TKS ~1.2 Gb、莴苣 T2T ~2.5 Gb 及各自注释） | 体积过大 | 生菜两套由团队网盘提供；莴苣 T2T 在其论文 Figshare 页面下载 fasta/GFF3；`2-1_TKS.genome.fasta`/`3-1_LsT2T.*` 为 01/07 脚本的直接输入 |
+| `data/lettuce/`（Cas-OFFinder 输入 + 着丝粒 bed） | 可再生 | `casoffinder_input.txt` 由 B2 候选生成（随 git 发布于 `data/lettuce/`）；着丝粒坐标出自莴苣 T2T 论文补充表 |
+| `data/raw/`（Hi-TOM 原始测序交付 R0/R1 归档、PCR 检测图、合并源表、筛查序列） | 团队原始数据、体积大 | 团队共享网盘为权威源；`data/hitom/hitom_clean_v1.csv` 为清洗后快照，随代码发布 |
 | `results/offtarget_raw_0924.txt`（399 MB 原始脱靶输出） | 体积过大、可再生 | 由 `scripts/run_mini_batches.ps1` + `scripts/09_aggregate_offtarget.py` 复现；汇总表 `offtarget_counts_0924.csv` 随代码发布 |
 | CRISPRon 模型权重、genet checkpoint | 第三方模型文件 | 由上述安装步骤自动获取 |
 

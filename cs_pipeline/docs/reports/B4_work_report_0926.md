@@ -1,6 +1,6 @@
 # 计B 组 9.26 日工作报告（B4 第二天：端到端演示 + 截图 + 走查）
 
-> 执行时间：2026-09-11 傍晚 · 对应《分工详案_计算机系.md》B4 节 9.26 安排
+> 执行时间：2026-09-11 傍晚 · 对应《分工详案_计算机系》（docs/plans/division_plan_cs.md）B4 节 9.26 安排
 > 项目目录：`D:\lifesciencechallenge\cs_pipeline\` · git commit `b95bc8a`
 
 ---
