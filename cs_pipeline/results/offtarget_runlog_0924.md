@@ -11,7 +11,7 @@
 ## 范围决策（按详案 B3「性能现实检查」执行）
 
 - 全量候选 13,867,270 条 × 2.6 Gb 基因组在常规硬件上不可行；
-- 按详案既定策略收敛到 demo 演示范围：**49 个 NLR 代表基因的全部候选，共 19,839 条 guide**（`data/demo_nlr50_candidates.csv`）；
+- 按详案既定策略收敛到 demo 演示范围：**49 个 NLR 代表基因的全部候选，共 19,839 条 guide**（`data/demo/demo_nlr50_candidates.csv`）；
 - 全量扫描框架保留（`scripts/07_scan_lettuce.py` + `scripts/08_casoffinder_run.sh`），报告「方法与局限」中注明。
 
 ## 输入

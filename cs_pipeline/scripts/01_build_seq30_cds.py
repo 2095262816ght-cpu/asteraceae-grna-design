@@ -21,9 +21,9 @@ import re
 import sys
 import pandas as pd
 
-IN_CSV = os.path.join("data", "hitom_clean_v1.csv")
-FASTA = os.path.join("data", "tks_cds.fasta")
-OUT_CSV = os.path.join("data", "hitom_seq30_0909.csv")
+IN_CSV = os.path.join("data", "hitom", "hitom_clean_v1.csv")
+FASTA = os.path.join("data", "raw", "screening_tools", "TKS_cds.fasta")
+OUT_CSV = os.path.join("data", "hitom", "hitom_seq30_0909.csv")
 UNMATCHED_OUT = os.path.join("results", "seq30_unmatched_0909.csv")
 
 _RC = str.maketrans("ACGTacgt", "TGCAtgca")

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 08: Cas-OFFinder 脱靶预测，见《分工详案_计算机系.md》B3 节
+# 08: Cas-OFFinder 脱靶预测，见《分工详案_计算机系》（docs/plans/division_plan_cs.md）B3 节
 # 输入文件 data/lettuce/casoffinder_input.txt 格式：
 #   第1行 染色体 fasta 目录（多条记录需先拆成每条染色体一个 .fa 放 data/lettuce/chrs/）
 #   第2行 20 个 N + PAM 模式（NNNNNNNNNNNNNNNNNNNNNNGG）

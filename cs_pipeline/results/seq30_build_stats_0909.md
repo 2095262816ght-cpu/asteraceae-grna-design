@@ -18,7 +18,7 @@
 | uid（guide_id__batch）重复 | 0 | 同批同 guide 无重复行 |
 | guide_id 跨批次/多 rep 重复 | 9（去重后 298 个 guide） | 同一 guide 多批次测定，属正常，保留 |
 
-**`data/hitom_clean_v1.csv`：307 行**
+**`data/hitom/hitom_clean_v1.csv`：307 行**
 
 ## CDS 映射构建 seq30
 
@@ -30,7 +30,7 @@
 | 多重命中（multi_hit） | 0 |
 | 侧翼不足（boundary） | 0 |
 
-**`data/hitom_seq30_0909.csv`：260 行**；未匹配清单：`results/seq30_unmatched_0909.csv`（47 行）。
+**`data/hitom/hitom_seq30_0909.csv`：260 行**；未匹配清单：`results/seq30_unmatched_0909.csv`（47 行）。
 
 硬断言全部通过：`len(seq30)==30`、fullmatch `[ACGT]{30}`、`seq30[4:24]==seq20`、`seq30[24:27]==pam`。
 

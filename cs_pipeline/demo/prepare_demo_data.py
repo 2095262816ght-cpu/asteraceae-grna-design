@@ -1,10 +1,10 @@
 """B4: 合并 demo 所需数据 -> demo/app_data.csv
 
 数据源（相对 cs_pipeline 根目录）：
-- data/demo_nlr50_candidates.csv     B2 候选（49 个 NLR 基因，19,839 条）
+- data/demo/demo_nlr50_candidates.csv     B2 候选（49 个 NLR 基因，19,839 条）
 - results/offtarget_counts_0924.csv  B3 脱靶计数（缺失则以 NaN 占位，跑完后重跑本脚本接入）
 - data/lettuce/centromere_regions.bed 着丝粒区间
-- data/demo_nlr50_genes.txt + nlr 注释（d:/生物/LSC_共享/data/lettuce_t2t/nlr_with_coords.csv）
+- data/demo/demo_nlr50_genes.txt + nlr 注释（d:/生物/LSC_共享/data/lettuce_t2t/nlr_with_coords.csv）
 """
 from pathlib import Path
 
@@ -13,7 +13,7 @@ import pandas as pd
 BASE = Path(__file__).resolve().parent.parent          # cs_pipeline/
 SHARED = Path(r"d:\生物\LSC_共享\data\lettuce_t2t")      # 主数据目录（大文件不入库）
 
-cand = pd.read_csv(BASE / "data/demo_nlr50_candidates.csv")
+cand = pd.read_csv(BASE / "data/demo/demo_nlr50_candidates.csv")
 
 # --- 脱靶计数（B3 产出，可能尚未生成） ---
 off_path = BASE / "results/offtarget_counts_0924.csv"
@@ -87,7 +87,7 @@ if nlr_file.exists():
     genes = nlr[nlr_cols].rename(columns={"t2t_gene_id": "gene_id", "chr": "g_chrom",
                                           "start_bp": "g_start", "end_bp": "g_end",
                                           "strand": "g_strand"})
-    demo_genes = pd.read_csv(BASE / "data/demo_nlr50_genes.txt", header=None, names=["gene_id"])
+    demo_genes = pd.read_csv(BASE / "data/demo/demo_nlr50_genes.txt", header=None, names=["gene_id"])
     genes = genes.merge(demo_genes, on="gene_id")
     genes.to_csv(BASE / "demo/app_genes.csv", index=False)
 elif (BASE / "demo/app_genes.csv").exists():

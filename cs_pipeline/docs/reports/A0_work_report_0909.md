@@ -1,6 +1,6 @@
 # 计A 组 9.9 日工作报告（A0：建环境、跑通示例打分、seq30 表）—— 最终版 v3
 
-> 执行时间：2026-09-10 晚 – 2026-09-11 午 · 对应《分工详案_计算机系.md》A0 节
+> 执行时间：2026-09-10 晚 – 2026-09-11 午 · 对应《分工详案_计算机系》（docs/plans/division_plan_cs.md）A0 节
 > 项目目录：`D:\lifesciencechallenge\cs_pipeline\`
 > v3 更新（9.11 14:48 起）：**CRISPRon 已跑通**（Windows 原生路线），9.9 任务全部完成 ✅
 
@@ -15,7 +15,7 @@
 | ③ DeepSpCas9 示例序列打分 | ✅ 完成 | genet（crispr 环境）：示例序列 **71.249** |
 | ④ CRISPRon 示例序列打分 | ✅ **完成（v3）** | crispron-win 环境（Windows 原生）：示例序列 **59.61**，官方测试 341 条逐字节一致 |
 | ⑤ `env/environment.yml` | ✅ 完成 | 权威定义 + 实测导出 `environment_export_0909.yml` |
-| ⑥ `data/hitom_seq30_0909.csv` | ✅ 完成 | 生物系数据已交付，CDS 映射生成 260 行，断言全过 |
+| ⑥ `data/hitom/hitom_seq30_0909.csv` | ✅ 完成 | 生物系数据已交付，CDS 映射生成 260 行，断言全过 |
 
 **A0 验收标准（详案 #1、#2）全部达成**：示例序列能打出**两个模型**的分（DeepSpCas9 71.249 / CRISPRon 59.61）；hitom_seq30_0909.csv 行数=有效交付行数、seq30 全部通过一致性断言。
 
@@ -45,8 +45,8 @@
 - **start/end 坐标全部"暂不填"** → 坐标路线不可走，改 CDS 映射路线（抽样验证后实施）。
 
 ### 3.2 产出
-- `data/hitom_clean_v1.csv`（**307 行**，`scripts/00_consolidate_hitom.py`）：剔除 113 行整行空白；31 行空 guide_id 补全；跨批次重复 guide 用 `uid=guide_id__batch` 保证唯一；**未做生物学判断**（不删批次、不归一化）；
-- `data/hitom_seq30_0909.csv`（**260 行**，`scripts/01_build_seq30_cds.py`）：seq20+PAM 在 CDS 唯一命中后取 4nt+23nt+3nt；**断言全过**（len=30、仅 ACGT、seq30[4:24]=seq20、[24:27]=PAM）；
+- `data/hitom/hitom_clean_v1.csv`（**307 行**，`scripts/00_consolidate_hitom.py`）：剔除 113 行整行空白；31 行空 guide_id 补全；跨批次重复 guide 用 `uid=guide_id__batch` 保证唯一；**未做生物学判断**（不删批次、不归一化）；
+- `data/hitom/hitom_seq30_0909.csv`（**260 行**，`scripts/01_build_seq30_cds.py`）：seq20+PAM 在 CDS 唯一命中后取 4nt+23nt+3nt；**断言全过**（len=30、仅 ACGT、seq30[4:24]=seq20、[24:27]=PAM）；
 - 未命中 **47 行**（`results/seq30_unmatched_0909.csv`，含 TKS_0042–0052 整批靶向 evm.model.LG03.2345）——需生物系核对（内含子/UTR 或 CDS 版本）；
 - 方法局限已写入 `results/seq30_build_stats_0909.md`：CDS 映射下外显子交界处的侧翼碱基为拼接上下文近似。
 

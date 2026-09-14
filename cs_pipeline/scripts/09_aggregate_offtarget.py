@@ -16,7 +16,7 @@ import pandas as pd
 
 BASE = Path(__file__).resolve().parent.parent
 RAW = BASE / "results/offtarget_raw_0924.txt"
-CAND = BASE / "data/demo_nlr50_candidates.csv"
+CAND = BASE / "data/demo/demo_nlr50_candidates.csv"
 OUT = BASE / "results/offtarget_counts_0924.csv"
 
 raw = pd.read_csv(

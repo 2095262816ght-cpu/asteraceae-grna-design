@@ -1,58 +1,12 @@
-# 文件索引
+# 菊科菊苣族 gRNA 设计工具
 
-> 本仓库仅收录代码与 Markdown 文档；PDF / docx / xlsx 等大文件存于团队网盘（`论文/`、`数据/` 及根目录下的对比表、赛事通知）。
+第一届全球大学生生命科学挑战赛（赛道二：AI 基因编辑与核酸工具设计）参赛项目。
 
-本文件夹为"菊科菊苣族 gRNA 设计工具"项目资料库，围绕第一届全球大学生生命科学挑战赛（赛道二：AI 基因编辑与核酸工具设计）整理。
+全部内容集中于 `cs_pipeline/`：
 
-## 现行方案与分工（以这批为准）
-
-| 文件 | 说明 |
+| 位置 | 说明 |
 |---|---|
-| 项目执行方案_v3压缩版_0907.md | **主方案**（最高依据）：公开预训练模型 + 自有橡胶草 Hi-TOM 数据 Stacking 集成，莴苣 T2T 基因组做演示对象；与详案冲突时以本文件为准 |
-| 分工详案_总控.md | 全员甘特总表、接口 F1–F7 规范、风险表、提交前检查清单（生D 维护） |
-| 分工详案_生物系.md | 生A–生D 逐人逐日详案，含 F1 数据表 12 列权威定义 |
-| 分工详案_计算机系.md | 计A/计B 详案：cs_pipeline/ 目录结构、打分→Stacking→扫描→脱靶→demo 全流程脚本骨架与验收标准 |
+| [cs_pipeline/README.md](cs_pipeline/README.md) | 流水线技术说明：目录结构、环境搭建、复现流程、数据与外部工具来源 |
+| [cs_pipeline/docs/README.md](cs_pipeline/docs/README.md) | 项目资料库索引：现行方案与分工、参考笔记、文献、赛事通知、各阶段报告 |
 
-## 参考笔记
-
-| 文件 | 说明 |
-|---|---|
-| 项目技术要点笔记.md | 面向计算机背景读者的技术笔记：生物学概念（CRISPR、PAM、Hi-TOM、批次效应等）+ 数据与迁移学习的工程决策 |
-| 两篇CRISPR文献详细解读.md | Chen2022 与 Kim2019 两篇核心论文的中文详细解读，含算法排名数据、集成模型构建细节 |
-
-## 赛事与调研材料
-
-| 文件 | 说明 |
-|---|---|
-| 第一届全球大学生生命科学挑战赛_第一轮通知.pdf | 赛事官方通知：赛程、赛道、报名与提交要求、匿名化规定（合规核对唯一依据） |
-| 支持植物基因组的通用CRISPR-Cas9靶点预测工具对比表.docx | 前期调研：通用工具对比（报告"工具空白"背景素材） |
-| 植物CRISPR-Cas9靶点预测专用工具对比表.docx | 前期调研：植物专用工具对比（同上） |
-
-## 目录
-
-| 目录 | 说明 |
-|---|---|
-| 论文/ | 核心文献 PDF 原文与中文翻译（Chen2022、Kim2019、莴苣 T2T、LettuceGDB 等） |
-| 数据/ | LettuceGDB ATAC peaks、T2T 补充表 7–9 等原始数据文件 |
-| _archive/ | 已被取代的旧方案存档（迁移学习执行大纲、融合版 v2、多组学方向相关文档），**勿再引用** |
-| cs_pipeline/ | 计算机系流水线：scripts（01–08 脚本）、docs（报告）、results（结果数据）、env（环境） |
-
-## cs_pipeline 最近更新（9.8，计B B2 任务）
-
-| 产物 | 位置 | 说明 |
-|---|---|---|
-| 07_scan_lettuce.py | cs_pipeline/scripts/ | gRNA 扫描完整实现（替换骨架）：启动子 2kb + 外显子，NGG/CCN 双链 |
-| B2_工作报告_0922_0923.md | cs_pipeline/docs/ | B2 任务验收报告：13,867,270 候选、10/10 抽样核对通过 |
-| scan_stats.md | cs_pipeline/results/ | 扫描统计（全量候选 CSV 1.6GB 存网盘） |
-
-## cs_pipeline 最近更新（9.27–10.4，计B：指标冻结 + 源码打包 + 匿名化）
-
-| 产物 | 位置 | 说明 |
-|---|---|---|
-| app/app.py + score_deepspcas9_cli.py | cs_pipeline/app/ | Streamlit demo 两页版（按基因检索 / 自定义序列打分） |
-| offtarget_runlog_0924.md + offtarget_counts_0924.csv | cs_pipeline/results/ | Cas-OFFinder v2.4.1 脱靶：19,839 guide、6,088,827 命中、mis3 中位 16 |
-| scan_stats_0923.md / CHANGELOG_0927.md | cs_pipeline/results/ | 9.27 指标冻结记录（计A 三项待补，详见 CHANGELOG） |
-| 09_aggregate_offtarget.py / run_mini_batches.ps1 | cs_pipeline/scripts/ | 脱靶汇总与 GPU 分批运行脚本 |
-| demo_screenshots_0926/ | cs_pipeline/results/ | demo 三基因端到端演示截图 7 张 |
-| B4_工作报告_0925/0926、匿名化检查清单_1003 | cs_pipeline/docs/ | demo 两日报告与 10.3 匿名化检查（零命中） |
-| README.md / requirements.txt | cs_pipeline/ | 10.2 打包重写（干净环境已验证可装可启动） |
+> git 仅收录代码与 Markdown 文档；PDF / docx / xlsx 等大文件被 .gitignore 忽略，团队网盘为权威源。
