@@ -17,7 +17,7 @@
 
 ## 未冻结项
 
-- `model_card_0919.md`（接口 F5，计A → 生D）：仍缺失，特征顺序、训练集版本、真实 ρ/AUC 与局限性未归档。
+- ~~`model_card_0919.md`（接口 F5，计A → 生D）：仍缺失，特征顺序、训练集版本、真实 ρ/AUC 与局限性未归档。~~ **已补（2026-09-16）**：`results/model_card_full_0916.md`，对应全量重训模型 `meta_model_ridge_full_0916.joblib`（旧 0919 模型弃用）。
 - 公开数据加权混合预案（详案唯一扩充途径）：未启动，`data/deepspcas9_tableS1.xlsx` 不存在。
 - `efficiency_norm` 列口径：与 `indel_pct` 逐行完全相同（实为复制），而 `scripts/04_spearman_D2.py` 注释要求使用生A 交付的批次内百分位、「一律不得用 indel_pct 重算」，需与生A 核对后重算。
 
@@ -34,3 +34,16 @@
   5. Demo Tab 1 接入：`demo/app_data.csv` 19,839 条候选已全部写入 `efficiency_score`，`app/app.py` 展示列改为“效率分（Stacking预测）”并设为推荐排序。⚠️ 该列由上述未达标且含伪造 CRISPRon 特征的元模型产出，**当前不构成可信的效率预测**，对外演示需降级为占位分或加显著免责说明。
   6. Demo Tab 2 接入：`app/score_deepspcas9_cli.py` 与 `app/app.py` 支持自定义 30bp 序列实时输出 DeepSpCas9 与 Stacking 集成效率分。DeepSpCas9 分为真实推理；Stacking 分同上第 5 条限制。
 
+- **2026-09-16 数据更正 + 全量重跑 + demo 重打分（本次）**：
+  1. **数据表更正**（详见 `docs/problem2.md` 二.C/二.D）：LG02.4820 第二位点 4 行 PAM `CCA→ACT`（基因组+原始 reads 双重确认，非 NGG，仍被 00 规则剔除）；USR-5712 批 61 行 indel_pct 由左侧低估口径写回为切割点侧（右列）真实值（中位数 0.0123→1.0）。⚠️ 全表 indel_pct 自此为混合口径（仅这 61 行为右侧口径），每行备注与 problem2.md 已标注。
+  2. **全量重跑**（`scripts/10~13`，产物带 `_full_0916` 后缀，9.x 冻结产物未动）：以改正版 xlsx 为唯一事实源，487 行 / 14 基因 / 13 分组（LG01.6995/6999 同源合并）全部纳入训练；CDS 未命中的 72 行（内含子/基因间区靶点）回退基因组坐标取 seq30。标签按实证约定 `efficiency_norm = indel_pct×100`（旧 scores_merged_0911 中 260/260 行逐值相等，本 CHANGELOG「未冻结项」第 3 条存疑口径就此坐实——该列确为 indel_pct 复制，非批次内百分位）。
+  3. **指标对比**：LOGO-CV 中位 ρ 由 -0.2254 → **+0.4140**（7/13 折可定义，最高 LG07.3296 0.68、LG02.4013 0.65）；外层测试折 ρ 仍负（-0.6761，仅 3 个留出基因、噪声大）。**仍未达 ρ≥0.5 达标线**；且新模型样本内 guide 级（23 条）回判 ρ 仅 0.402，已知病态：deepspcas9 特征系数为负（共线性 artifact）、5712 的 GAAA guide 样本内被误判为 0。结构性瓶颈为 guide 多样性不足（14 基因中 8 个仅 1 条 distinct guide），非行数。
+  4. **demo 重打分**（`demo/rescore_demo_full_0916.py`）：19,839 条候选改用**真实** DeepSpCas9 + **真实** CRISPRon（WSL）+ 全量模型产出新列 `efficiency_score_full_0916`（写回 `demo/app_data.csv`，改前备份 `demo/app_data.backup_20260916_pre_rescore.csv`）；`app/app.py` 优先展示新列，旧 `efficiency_score` 列仅留档。本次修复了旧列「推理期伪造 CRISPRon 特征」的问题（原第 4、5 条 ⚠️ 对新列不适用）。⚠️ 但新列仍出自未达标模型（见第 3 条），对外演示的免责立场维持不变。
+  5. **接口切换**：`scripts/predict.py` 默认模型切到 `meta_model_ridge_full_0916.joblib`（特征接口 9 维一致）；其运行时 crispron_score 仍为近似公式（模块 docstring 已显著标注），精确打分应走第 4 条管线。
+  6. **环境事故与修复**：crispr 环境 scipy 1.15.2 的 cholesky 路径（`scipy.linalg.solve`/dposv）在本机硬崩（exit 127 无 traceback），导致 `Ridge` 默认 solver 及冻结脚本 `06_train_stacking.py` 无法运行；重跑脚本已显式 `solver="svd"`（解数值等价），并将 scipy 降级 1.14.1 修复（结果记于 problem2.md 四）。另修复 `env/run_crispron_wsl.sh` 指向仓库改版前旧路径的问题。
+- **2026-09-17 公开数据加权混合预案：已执行，结论为无效，维持 full_0916 模型（详案"最后建模动作"就此落锤）**：
+  1. **预案执行**：按详案 A5（division_plan_cs.md:404-417）落地 `scripts/14_public_mix_train.py`。数据源 `data/raw/public_datasets/Luo2020_Kim2019.xlsx`（23,902 条 distinct 30mer = DeepSpCas9 训练集 Kim2019 13,310 + CRISPRon 训练集 Luo2020 10,543+，标签 indel%；销掉 9.11 未下载 Table S1 的欠账）。公开数据经同一管线打真实 DeepSpCas9+CRISPRon 分（`results/public_score_*_0917.csv`、`public_features_0917.csv`），标签 rank 百分位折算，自有：公开 = 50:1，alpha 仅在自有训练折内调，**评估只用自有 14 基因**（与 13 同一划分）。
+  2. **结果**：详案标准配方（50:1）LOGO-CV 中位 ρ = **-0.101**（自有-only 为 0.414），LG07.3296 折由 +0.68 翻转至 -0.69——人源数据分布冲掉植物信号。权重/标签敏感性扫描（`results/mixed_weight_sensitivity_0917.csv`）：50~1000:1 全部低于自有-only；2000:1 以上才回到 0.429，与 0.414 的差异在 6 折噪声内——**即公开数据对本体系最优情况是"无害"，无可迁移增量**。
+  3. **副产物（报告可用）**：动物基准对照——同管线在公开集上 DeepSpCas9 ρ=0.774、CRISPRon ρ=0.876（in-sample 上限，文献 oos≈0.5），与植物体系 LOGO-CV 0.414 并排即详案要求的"动物基准 → 植物迁移"对照数据，佐证"跨体系迁移衰减"这一有文献背书的发现。
+  4. **处置**：生产模型维持 `meta_model_ridge_full_0916.joblib`（混合模型 `meta_model_ridge_mixed_0917.joblib` 仅留档，勿用于供分）；按详案纪律"混合后仍 <0.5 → 如实报告，不再追加任何模型或数据"，**建模工作到此为止**，后续重心为报告叙事（迁移衰减发现 + 工具链价值）与交付收尾。
+- **2026-09-17 冻结 tag `v2.0-freeze`（本次）**：封存 9.14–9.17 全部工作为官方最终版。冻结内容：①数据表更正全记录（`docs/problem.md` / `docs/problem2.md`，含 9.15–9.16 四项改正：5712 序列/6995 窗口/strand 221 行/PAM CCA→ACT、5712 indel 写回）；②全量重跑产物链（`scripts/10~13` + `*_full_0916`，487 行 / 14 基因，LOGO-CV 中位 ρ=0.414，未达 ρ≥0.5 达标线——如实冻结）；③demo 19,839 条真实重打分（`efficiency_score_full_0916`）；④接口 F5 模型卡（`model_card_full_0916.md`）；⑤公开数据加权混合预案执行记录（`scripts/14` + `*_0917` 产物：预案无效，维持 full_0916 模型，建模工作按详案纪律终止）；⑥环境修复（scipy 1.14.1、CRISPRon WSL 路径）。数据表 xlsx 及其时间戳备份按仓库惯例不入库（根 .gitignore 排除 *.xlsx），更正前各版本均在 `data/` 本地留存可回滚。此 tag 取代 v1.1-freeze 成为对外交付基准；v1.0-freeze 历史缺漏不再补打。

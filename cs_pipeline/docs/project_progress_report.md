@@ -4,17 +4,20 @@
 > - [`docs/plans/project_plan_v3_condensed_0907.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/plans/project_plan_v3_condensed_0907.md)（主方案）
 > - [`docs/plans/division_plan_master.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/plans/division_plan_master.md)（甘特图与接口规范）
 > - [`docs/plans/division_plan_cs.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/plans/division_plan_cs.md)（技术实施标准）
+> - [`docs/problem.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/problem.md) / [`docs/problem2.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/problem2.md)（9.14–9.16 数据表检查与更正全过程）
+> - [`results/CHANGELOG_0927.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/CHANGELOG_0927.md)（冻结记录，含 9.13 / 9.16 两段更正）
+> - [`results/model_card_full_0916.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/model_card_full_0916.md)（现行模型卡，接口 F5）
 > - 计算机系流水线全量代码与产物目录：[`cs_pipeline/`](file:///d:/lifesciencechallenge/cs_pipeline/)
-> 
-> **审计基准时点**：2026-09-13 复核（最新 commit `914c86f` / tag `v1.1-freeze`，2026-09-12 22:58）
 >
-> **⚠️ 本报告 9-12 22:01 的初版把阶段 1/2 全部判为「未产出」，但当晚 22:11–22:57 计A 已把全链路跑完并落盘。本次复核据实改写状态；同时复核发现模型指标不达标且存在有效样本量问题，详见第一节、第二节阶段 1/2 表格与第五节。**
+> **审计基准时点**：2026-09-17 复核（最新 commit `66b9adf` 仓库目录重构；9.14–9.16 数据更正与全量重跑产物已落盘、部分尚未提交）
+>
+> **📌 9.17 更新要点**：自 9.13 复核以来发生三件大事——①数据表完成系统性检查与更正（`problem.md` / `problem2.md`），487 行 / 14 基因 / 23 条 distinct guide 全部纳入训练（原 260 行 / 7 基因 / 8 条唯一 guide）；②全量重跑后 LOGO-CV 中位 ρ 由 -0.225 升至 **+0.414**，**仍未达 ρ≥0.5 达标线**；③接口 F5 模型卡已补（`model_card_full_0916.md`），demo 19,839 条候选已用**真实**双模型重打分（新列 `efficiency_score_full_0916`）。旧版（0919 冻结）模型与结论全部弃用留档。
 
 ---
 
 ## 一、执行摘要：我们在哪里？
 
-工程链路（计B）与算法链路（计A）均已跑通并落盘，但**算法链路的产出结果不成立**：模型指标未达标，且训练数据的有效样本量被严重高估。
+工程链路（计B）已闭环且指标可信；算法链路（计A）经 9.14–9.16 数据更正与全量重跑后**显著改善但仍未达标**：LOGO-CV 中位 ρ=0.414（达标线 ρ≥0.5），结构性瓶颈是 guide 多样性（23 条 / 14 基因，8 个基因仅 1 条 guide），不是行数或调参。
 
 ```mermaid
 graph TD
@@ -23,8 +26,8 @@ graph TD
     classDef pend fill:#fff3cd,stroke:#ffc107,color:#856404;
 
     A[阶段0: 数据清洗与环境搭建]:::done --> B[阶段1: 预训练模型打分与D2可行性]:::bad
-    B --> C[阶段2: Stacking岭回归训练与评估]:::bad
-    C -->|F4 predict.py 已交付| D[阶段3: 莴苣工具化与Streamlit Demo]:::done
+    B --> C[阶段2: Stacking岭回归训练与评估]:::pend
+    C -->|F4 predict.py 已切换全量模型| D[阶段3: 莴苣工具化与Streamlit Demo]:::done
     D --> E[阶段4: 成果冻结与交付冲刺]:::pend
 
     subgraph 计B负责: 已闭环且指标可信
@@ -35,29 +38,28 @@ graph TD
         I[10.3 匿名化检查与代码打包]:::done
     end
 
-    subgraph 计A负责: 已跑通但结果不成立 🔴
+    subgraph 计A负责: 改善但未达标 🟡
         B
         C
-        J[双模型批量打分: 260行仅8条唯一guide]:::bad
+        J[全量重跑: 487行/23条guide/14基因]:::pend
         K[D2 迁移 ρ: 去重后为负且不显著]:::bad
-        L[Stacking 测试集 ρ=-0.3435 AUC=0.3672]:::bad
+        L[Stacking LOGO-CV 中位 ρ=0.414 未达标]:::pend
     end
 ```
 
 ### 核心结论速览
-1. **计B（工程与工具链）已超前打穿至 10.3 交付状态，指标可信**：
+1. **计B（工程与工具链）维持 10.3 交付状态，指标可信**：
    - 莴苣 T2T 全基因组 45,770 基因扫描完成（13,867,270 条候选）；
    - Cas-OFFinder 本地脱靶预测完成（19,839 条 demo gRNA，608 万脱靶位点）；
    - Streamlit demo 界面、预制数据、7 张演示截图、使用说明全部就绪；
    - 9.27 指标冻结记录、代码打包规范、10.3 匿名化专项检查（零命中）已全部做完。
-2. **计A（算法模型链条）已于 9-12 晚跑通全部 5 步，但结果不可用，构成当前唯一致命卡点**：
-   - 双模型打分表、D2 报告、特征矩阵、`meta_model_ridge_0919.joblib`、对比表、LOGO-CV、`predict.py` 接口均已落盘，`demo/app_data.csv` 19,839 条候选已写入 `efficiency_score`；
-   - **但 `scores_merged_0911.csv` 260 行中唯一 `seq30` 只有 8 条（7 个基因），其余全为重复测定**，上游 `hitom_clean_v1.csv` 307 行也仅 12 个唯一 `seq20`。有效样本量是 8，不是 260；
-   - **D2 迁移性未被证明**：全表 ρ=0.3308/0.3808（p=4.67e-8 / 2.13e-10）可复现，但按唯一 guide 去重后为 ρ=-0.2381 (p=0.57) / -0.0952 (p=0.82)，原「≥0.30 达标」判定已在 D2 报告中撤回；
-   - **Stacking 未达标**：`model_comparison_0919.csv` 实际为测试集 ρ=-0.3435、AUC=0.3672（低于随机），单模型 ρ=-0.3545 / -0.2889，LOGO-CV 中位 -0.2254（7 折中 5 折无法计算），距 ρ≥0.5 达标线很远；
-   - **`predict.py` 的 `crispron_score` 是人工线性式**（`deepspcas9_score*0.95 + (tm-50)*0.25`，第 76 行），并未调用 CRISPRon，与训练表中的真实 CRISPRon 分不同源，属推理期特征伪造；
-   - **`CHANGELOG_0927.md` 曾冻结一组不存在的数字**（ρ=0.3665 / AUC=0.7812 / p=1.10e-9），已于 9.13 按实际产物更正并补记原因；
-   - 因此 demo Tab1 的 `efficiency_score` 列当前不构成可信的效率预测，对外演示需降级为占位分或加显著免责说明。
+2. **计A（算法模型链条）9.14–9.16 完成数据更正 + 全量重跑，改善但未达标**：
+   - **数据更正**（`problem.md` / `problem2.md`）：5712 批 61 行序列更正（真实 guide 为负链 `GAAAATGTCAGGATGCCTGA`+AGG）并将 indel_pct 写回切割点侧口径真实值（中位 0.0123→1.0）；6995/6999 批 32 行窗口移位 5bp 更正；strand 列 221 行 `-`→`+`；LG02.4820 四行 PAM CCA→ACT；CATT guide 坐标 1bp 改正；
+   - **全量重跑**（`scripts/10~13`，产物带 `_full_0916` 后缀，9.x 冻结产物一律未动）：487 行 / 14 基因 / 13 分组（LG01.6995/6999 同源合并防泄漏），72 行内含子/基因间区靶点回退基因组坐标取 seq30；
+   - **指标**：LOGO-CV 中位 ρ 由 -0.2254 → **+0.4140**（7/13 折可定义，最高 LG07.3296 0.68、LG02.4013 0.65）；外层测试折 ρ=-0.676（仅 3 个留出基因、噪声极大，不作结论依据）；样本内 guide 级回判 ρ=0.402；**仍未达 ρ≥0.5 达标线**；
+   - **已知病态（模型卡如实记录）**：deepspcas9 特征系数为负（共线性 artifact）；5712 的 GAAA guide（内含子位点）样本内被误判为 0 分；开关式标签基因排序不可靠；
+   - **瓶颈定性**：14 个基因中 8 个只有 1 条 distinct guide——特征全部由序列派生，单 guide 基因内无排序信号（6 折 LOGO 无法定义 ρ）。要提升必须增加**不同序列的 guide**（详案规定的公开数据加权混合预案），堆重复行无效；
+   - 旧版 0919 模型（测试集 ρ=-0.3435 / AUC=0.3672）已弃用留档，勿再使用。
 
 ---
 
@@ -69,10 +71,11 @@ graph TD
 | 任务项 | 负责角色 | 计划死线 | 当前状态 | 现状与证据 |
 |---|---|:---:|:---:|---|
 | Hi-TOM 原始数据清洗与 12 列规范 | 生A | 9.8 晚 | ✅ 已完成 | 产出 [`cs_pipeline/data/hitom/hitom_clean_v1.csv`](file:///d:/lifesciencechallenge/cs_pipeline/data/hitom/hitom_clean_v1.csv)（307 行有效数据，剔除 113 行空白，空 guide_id 已补全）。 |
-| 补齐 30bp 上下文序列 | 计A | 9.9 晚 | ✅ 已完成 | 坐标路线不通，改走 CDS 映射，产出 [`cs_pipeline/data/hitom/hitom_seq30_0909.csv`](file:///d:/lifesciencechallenge/cs_pipeline/data/hitom/hitom_seq30_0909.csv)（260 行断言全过；47 行未匹配存 [`cs_pipeline/results/seq30_unmatched_0909.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/seq30_unmatched_0909.csv)）。 |
-| conda 主环境与 demo 环境搭建 | 计A / 计B | 9.9 晚 | ✅ 已完成 | `crispr`（py3.10+genet+TF2.9）与 `grna-demo` 环境已分离；CRISPRon Windows 原生路线与 WSL 路线均通（[`cs_pipeline/docs/reports/A0_work_report_0909.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/reports/A0_work_report_0909.md)）。 |
+| **数据表系统性检查与更正（9.14–9.16 新增专项）** | 计A | — | ✅ 已完成 | `data/1_Hi-results-12-20260913.xlsx` 全表核查：23 条 distinct guide 逐条回 TKS 基因组比对，序列/坐标/链向/PAM 全部自洽；完成 strand 列（221 行）、5712 批序列+indel 口径（61 行）、6995/6999 窗口移位（32 行）、PAM CCA→ACT（4 行）、坐标 1bp 等更正，每次更正均有备份与脚本留痕。全过程见 [`docs/problem.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/problem.md)（历史）与 [`docs/problem2.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/problem2.md)（现状）；唯一欠缺的外部证据（oligo 合成记录）9.16 已按现有证据链定稿，不阻塞下游。 |
+| 补齐 30bp 上下文序列 | 计A | 9.9 晚 | ✅ 已完成（9.16 全量重建） | 旧产物 `hitom_seq30_0909.csv`（260 行）；9.16 全量重建产物 `data/hitom/hitom_seq30_full_0916.csv`（487/487 全命中：415 CDS + 72 基因组坐标回退）。 |
+| conda 主环境与 demo 环境搭建 | 计A / 计B | 9.9 晚 | ✅ 已完成 | `crispr`（py3.10+genet+TF2.9）与 `grna-demo` 环境已分离；CRISPRon Windows 原生路线与 WSL 路线均通。9.16 事故修复：crispr 环境 scipy 1.15.2 cholesky 路径本机硬崩，已降级 1.14.1 根治；`env/run_crispron_wsl.sh` 旧路径已修。 |
 | 示例序列打分验证 | 计A | 9.9 晚 | ✅ 已完成 | DeepSpCas9 打出 71.2494（基准 71.25）；CRISPRon 原生打出 59.61（341 条官方测试逐字节一致）。 |
-| **决策点 D1（路线定档）** | 全员 | 9.8 晚 | ✅ 已定案 | 有效数据 307 条（可打分 260 条），卡在 $\ge 300$ 条边缘。团队定案走**纯 Stacking**，不碰复杂的神经网络微调。 |
+| **决策点 D1（路线定档）** | 全员 | 9.8 晚 | ✅ 已定案 | 有效数据 307 条（可打分 260 条），卡在 $\ge 300$ 条边缘。团队定案走**纯 Stacking**，不碰复杂的神经网络微调。9.16 全量重建后升至 487 行 / 14 基因。 |
 
 ---
 
@@ -81,11 +84,11 @@ graph TD
 
 | 任务项 | 负责角色 | 计划死线 | 当前状态 | 现状与证据 |
 |---|---|:---:|:---:|---|
-| DeepSpCas9 批量打分 | 计A | 9.10 | ✅ 已产出 | [`02_score_deepspcas9.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/02_score_deepspcas9.py) 已跑，落盘 `results/scores_deepspcas9_0910.csv`（260 行）。 |
-| CRISPRon 批量打分 | 计A | 9.11 | ✅ 已产出 | [`03_score_crispron.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/03_score_crispron.py) 经 WSL 实跑，落盘 `results/scores_crispron_0911.csv`（260 行），合并表 `scores_merged_0911.csv`。 |
-| 预备公开数据集 Table S1 | 计A | 9.11 | ❌ 未入库 | `cs_pipeline/data/deepspcas9_tableS1.xlsx` 仍不存在；因 D2 判定被撤回，该混合预案现已成为必需项。 |
+| DeepSpCas9 批量打分 | 计A | 9.10 | ✅ 已产出（9.16 重打） | 旧产物 `results/scores_deepspcas9_0910.csv`（260 行）；全量版 `results/scores_deepspcas9_full_0916.csv`（487 行，`scripts/11_score_deepspcas9_full.py`）。 |
+| CRISPRon 批量打分 | 计A | 9.11 | ✅ 已产出（9.16 重打） | 旧产物 `results/scores_crispron_0911.csv`（260 行，WSL 实跑）；全量版 `results/scores_crispron_full_0916.csv`（`scripts/12_score_crispron_full.py`），合并表 `scores_merged_full_0916.csv`。 |
+| 预备公开数据集 Table S1 | 计A | 9.11 | ❌ 未入库 | `cs_pipeline/data/deepspcas9_tableS1.xlsx` 仍不存在；瓶颈定性为 guide 多样性后，该混合预案是**唯一尚未启动的达标途径**（见第五节 P0）。 |
 | **决策点 D2（迁移可行性结论）** | 计A / 生C | 9.12 | 🔴 已出结论但被撤回 | [`transferability_D2_0912.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/transferability_D2_0912.md) + `scatter_D2_0912.png` 已产出。全表 ρ=0.3308/0.3808 可复现，但 260 行仅含 **8 条唯一 seq30**，去重后 ρ=-0.2381 (p=0.57) / -0.0952 (p=0.82)，原「≥0.30 达标、无需混合预案」判定不成立，报告已加「〇、9.13 更正补记」。 |
-| `efficiency_norm` 列口径 | 生A / 计A | 9.11 | ⚠️ 待核对 | 该列与 `indel_pct` 逐行完全相同（实为复制），而 [`04_spearman_D2.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/04_spearman_D2.py) 注释要求用生A 的批次内百分位、「一律不得用 indel_pct 重算」。 |
+| `efficiency_norm` 列口径 | 生A / 计A | 9.11 | ✅ 已坐实（9.16） | 实证确认 `efficiency_norm = indel_pct × 100`（scores_merged_0911 中 260/260 行逐值相等），**并非** `04_spearman_D2.py` 注释要求的批次内百分位；全量重跑即按此实证约定重建标签，CHANGELOG「未冻结项」存疑口径就此坐实。 |
 
 ---
 
@@ -94,12 +97,12 @@ graph TD
 
 | 任务项 | 负责角色 | 计划死线 | 当前状态 | 现状与证据 |
 |---|---|:---:|:---:|---|
-| 特征矩阵组装 | 计A | 9.14 | ✅ 已产出 | [`05_features.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/05_features.py) 已跑，`results/feature_matrix_0913.csv` 与 `feature_matrix_0914.csv` 落盘（260 行 × 27 列，其中入模特征 9 维）。 |
-| 按基因防泄漏分组训练岭回归 | 计A | 9.17 | ✅ 已跑 / ❌ 未达标 | [`06_train_stacking.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/06_train_stacking.py) 已跑，`results/meta_model_ridge_0919.joblib` 已生成；GroupShuffleSplit 按基因分组、无泄漏断言通过。但测试集 ρ=-0.3435，远低于 ρ≥0.5 达标线。 |
-| 模型交接接口 F4（`predict.py`） | 计A $\rightarrow$ 计B | 9.17 晚 | ⚠️ 已交付但有伪造特征 | [`predict.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/predict.py) 已实现 `predict_efficiency` / `predict_details`，计B 已接通。但第 76 行的 `crispron_score` 是 `deepspcas9_score*0.95 + (tm-50)*0.25` 的人工线性式，未调用 CRISPRon，与训练特征不同源。 |
-| 留一基因交叉验证（LOGO-CV） | 计A | 9.16 | ⚠️ 已产出但多数折无效 | `results/logo_cv_0916.csv` + `logo_cv_box_0916.png`。7 折中 5 折因留出基因内突变率恒定而 ρ 为空，仅 2 折可算（-0.3256 / -0.1252），中位 -0.2254。 |
-| 模型对比表（单模型 vs 集成 $\rho$/AUC） | 计A | 9.19 | ❌ 未达标 | `results/model_comparison_0919.csv`：Stacking ρ=-0.3435 / AUC=0.3672；DeepSpCas9 ρ=-0.3545 / AUC=0.3672；CRISPRon ρ=-0.2889 / AUC=0.3828。AUC 低于随机，$\rho \ge 0.5$ 未达，应触发公开数据加权混合预案。 |
-| 模型卡（Model Card）归档 | 计A $\rightarrow$ 生D | 9.19 晚 | 🔴 未产出 | 接口 F5 `model_card_0919.md` 仍缺失；且现有指标不达标，模型卡须如实写明局限性与有效样本量（8 条唯一 guide）。 |
+| 特征矩阵组装 | 计A | 9.14 | ✅ 已产出（9.16 重建） | 旧产物 `feature_matrix_0913.csv` / `feature_matrix_0914.csv`（260 行 × 27 列，入模 9 维）；全量版 `results/feature_matrix_full_0916.csv`（487 × 28，`scripts/13_features_train_full.py`）。 |
+| 按基因防泄漏分组训练岭回归 | 计A | 9.17 | ✅ 已重跑 / ❌ 未达标但显著改善 | 旧 `meta_model_ridge_0919.joblib`（测试集 ρ=-0.3435）已弃用；全量版 [`results/meta_model_ridge_full_0916.joblib`](file:///d:/lifesciencechallenge/cs_pipeline/results/meta_model_ridge_full_0916.joblib)（alpha=316.23，solver=svd）为现行模型。LG01.6995/6999 同源合并分组、无泄漏断言通过；**LOGO-CV 中位 ρ=0.414，仍低于 ρ≥0.5 达标线**。 |
+| 模型交接接口 F4（`predict.py`） | 计A $\rightarrow$ 计B | 9.17 晚 | 🟡 部分修复（9.16） | [`predict.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/predict.py) 默认模型已切到 `meta_model_ridge_full_0916.joblib`（特征接口 9 维一致）。运行时 `crispron_score` 仍为近似公式（`deep×0.95+(tm-50)×0.25`，第 79 行），但模块 docstring 已显著标注；批量精确打分走 `demo/rescore_demo_full_0916.py`（真实 CRISPRon 经 WSL）。彻底修复（运行时真调 WSL 或移除该特征重训）仍挂 P0。 |
+| 留一基因交叉验证（LOGO-CV） | 计A | 9.16 | ✅ 已重建，多数折有效 | 旧 `logo_cv_0916.csv` 7 折仅 2 折可算（中位 -0.2254）；全量版 [`results/logo_cv_full_0916.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/logo_cv_full_0916.csv) + `logo_cv_box_full_0916.png`：13 折中 7 折可定义（LG07.3296 0.68、LG02.4013 0.65、LG07.3933 0.42、LG02.4820 0.41、LG01.8265 0.22、LG01.6995/6999 0.08、LG01.555 -0.32），中位 **0.414**；6 折因留出基因仅 1 条 guide 无法定义。 |
+| 模型对比表（单模型 vs 集成 $\rho$/AUC） | 计A | 9.19 | ❌ 未达标（改善后仍差 0.086） | `results/model_comparison_full_0916.csv`：LOGO-CV 中位 ρ 0.414（旧版 -0.2254）；外层测试折 ρ=-0.676 / AUC=0.074（仅 3 个留出基因且含开关式标签，单折噪声极大，不作结论依据）。$\rho \ge 0.5$ 未达，公开数据加权混合预案仍是必选项。 |
+| 模型卡（Model Card）归档 | 计A $\rightarrow$ 生D | 9.19 晚 | ✅ 已补（9.16） | 接口 F5 [`results/model_card_full_0916.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/model_card_full_0916.md) 已交付：9 维特征顺序、训练集版本（487 行 / 23 条 guide）、真实 ρ/AUC、已知局限（含系数为负、内含子靶点误判、跨物种外推警告）全部如实记录；同时满足赛事附件 5 对 Model Card 的要求（适用范围、输入输出、已知局限）。 |
 
 ---
 
@@ -112,7 +115,7 @@ graph TD
 | 着丝粒坐标 + NLR 基因清单 | 生B $\rightarrow$ 计B | 9.23 晚 | ✅ 已完成 | 回填 661 个 de novo NLR 基因坐标，选定 49 个代表基因（[`cs_pipeline/data/demo/demo_nlr50_genes.txt`](file:///d:/lifesciencechallenge/cs_pipeline/data/demo/demo_nlr50_genes.txt)）。 |
 | 莴苣全基因组 gRNA 扫描（脚本 07） | 计B | 9.23 | ✅ 已完成 | [`cs_pipeline/scripts/07_scan_lettuce.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/07_scan_lettuce.py) 完成，45,770 个基因扫描出 13,867,270 条候选，耗时 320 秒（详见 [`cs_pipeline/results/scan_stats_0923.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/scan_stats_0923.md)）。 |
 | Cas-OFFinder 脱靶位点分析（脚本 08/09） | 计B | 9.24 | ✅ 已完成 | 对 demo 范围 19,839 条 gRNA 运行脱靶（GPU 分批），检出 6,088,827 个位点，汇总生成 [`cs_pipeline/results/offtarget_counts_0924.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/offtarget_counts_0924.csv)。 |
-| Streamlit Demo 界面开发 | 计B | 9.25 | ✅ 已完成 | [`cs_pipeline/app/app.py`](file:///d:/lifesciencechallenge/cs_pipeline/app/app.py) 交付。支持 Tab1 基因检索（耗时仅 4ms）与 Tab2 实时子进程打分（DeepSpCas9 耗时 24.1s）。 |
+| Streamlit Demo 界面开发 | 计B | 9.25 | ✅ 已完成（9.16 换血） | [`cs_pipeline/app/app.py`](file:///d:/lifesciencechallenge/cs_pipeline/app/app.py) 交付。Tab1 基因检索（4ms）与 Tab2 实时子进程打分（DeepSpCas9 24.1s）。9.16：`demo/rescore_demo_full_0916.py` 对 19,839 条候选用**真实** DeepSpCas9 + **真实** CRISPRon（WSL）+ 全量模型重打分，新列 `efficiency_score_full_0916` 写回 `demo/app_data.csv`（改前已备份）；app 优先展示新列并附「模型未达标（LOGO-CV ρ=0.414）」免责说明，旧 `efficiency_score` 列仅留档。 |
 | Demo 走查与截图留痕 | 计B | 9.26 | ✅ 已完成 | 3 个真实基因端到端走查，7 张真实无敏感信息截图已落盘于 [`cs_pipeline/results/demo_screenshots_0926/`](file:///d:/lifesciencechallenge/cs_pipeline/results/demo_screenshots_0926/)。 |
 
 ---
@@ -122,10 +125,10 @@ graph TD
 
 | 任务项 | 负责角色 | 计划死线 | 当前状态 | 现状与证据 |
 |---|---|:---:|:---:|---|
-| **指标冻结与代码打 Tag** | 生D / 计B | 9.27 🔶 | ⚠️ 已冻结但记录曾被更正 | [`CHANGELOG_0927.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/CHANGELOG_0927.md) 冻结了扫描与脱靶数字（可信）；tag `v1.1-freeze` 已打，但 `v1.0-freeze` 本地缺失。模型三项指标原记录（ρ=0.3665 / AUC=0.7812 / p=1.10e-9）与实际产物不符，9.13 已按 `model_comparison_0919.csv` 更正并补记原因。 |
+| **指标冻结与代码打 Tag** | 生D / 计B | 9.27 🔶 | ⚠️ 已冻结并两次更正 | [`CHANGELOG_0927.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/CHANGELOG_0927.md) 冻结了扫描与脱靶数字（可信）；9.13 更正了与磁盘产物不符的模型指标（原 ρ=0.3665 / AUC=0.7812 / p=1.10e-9 系错误记录）；9.16 增补数据更正 + 全量重跑 + demo 重打分记录。tag `v1.1-freeze` 已打；`v1.0-freeze` 本地仍缺失（需补打或删除该条声明）。 |
 | 源码整理与运行说明 | 计B | 10.2 | ✅ 已提前就绪 | [`cs_pipeline/README.md`](file:///d:/lifesciencechallenge/cs_pipeline/README.md)、[`requirements.txt`](file:///d:/lifesciencechallenge/cs_pipeline/requirements.txt) 已重写并通过干净环境验证。 |
 | **匿名化专项检查（红线）** | 全员 / 计B | 10.3 🔶 | ✅ CS侧已提前通关 | 详见 [`cs_pipeline/docs/reports/anonymization_checklist_1003.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/reports/anonymization_checklist_1003.md)，代码、注释、提交者（`team`）、截图路径等全部零命中。 |
-| 评审表/报告书主稿 | 生D 主笔 / 全员 | 9.28–10.1 | ⏸ 待开启/网盘进行 | 代码库中暂无 Word/PDF 主件（按规范存于团队共享网盘 `LSC_共享/deliverables/`）。 |
+| 评审表/报告书主稿 | 生D 主笔 / 全员 | 9.28–10.1 | ⏸ 待开启/网盘进行 | 代码库中暂无 Word/PDF 主件（按规范存于团队共享网盘 `LSC_共享/deliverables/`）。赛事三个附件（附件 2/3/5 定稿）已归档至 `docs/notification/`；附件 5 要求的 Model Card 已由 `results/model_card_full_0916.md` 覆盖（适用范围、输入输出、已知局限三要素齐全）。 |
 | PPT 制作 + 录音台词 | 生D / 全员 | 9.30 | ⏸ 待开启/网盘进行 | 同上。 |
 | 演示视频录制 | 生D / 计B | 10.1 | ⏸ 待录制 | 计B 已提供 7 张截图与走查路线，录屏待生物系/PM 统筹执行。 |
 | **最终材料提交（硬截止）** | 生D | 10.4 | ⏸ 待提交 | 距离截止仍有充足时间。 |
@@ -138,13 +141,13 @@ graph TD
 
 | 接口 | 交付方 $\rightarrow$ 接收方 | 交付内容 | 计划死线 | 当前履约情况 |
 |:---:|:---:|---|:---:|---|
-| **F1** | 生A $\rightarrow$ 计A | Hi-TOM 清洗表（12 列标准） | 9.9 晚 | ✅ **已履约**：`data/hitom/hitom_clean_v1.csv` + `hitom_seq30_0909.csv` 已入库。 |
+| **F1** | 生A $\rightarrow$ 计A | Hi-TOM 清洗表（12 列标准） | 9.9 晚 | ✅ **已履约**：`data/hitom/hitom_clean_v1.csv` + `hitom_seq30_0909.csv` 已入库；9.16 全量重建版 `hitom_clean_full_0916.csv` / `hitom_seq30_full_0916.csv`（487 行）为现行事实源。 |
 | **F2** | 生B $\rightarrow$ 计B | 莴苣 T2T 基因组 + 注释 GFF3 | 9.21 晚 | ✅ **已履约**：基因组已索引，全基因组外显子/启动子扫描已闭环。 |
 | **F3** | 生B $\rightarrow$ 计B | 着丝粒坐标 + NLR 基因清单 | 9.23 晚 | ✅ **已履约**：回填完成，生成 demo 专用的 49 个 NLR 基因表。 |
-| **F4** | 计A $\rightarrow$ 计B | 模型预测接口（`predict.py` + 模型权重） | 9.17 晚 | ⚠️ **形式履约、实质不可用**：`predict.py` 已实现，`meta_model_ridge_0919.joblib` 已交付，demo 已接通；但接口内 `crispron_score` 为人工线性式（非 CRISPRon 真实输出），且模型测试集 ρ=-0.3435 未达标，供分结果不可作为效率预测使用。 |
-| **F5** | 计A $\rightarrow$ 生D | 模型卡（`model_card.md`） | 9.19 晚 | 🔴 **未履约**：`model_card_0919.md` 仍缺失。补写时须如实记录真实 ρ/AUC、9 维入模特征顺序、有效样本量（8 条唯一 guide）与 CRISPRon 特征伪造问题。 |
-| **F6** | 计B $\rightarrow$ 生C | 候选 gRNA 结果表（供生物学核查） | 9.24 晚 | ✅ **已履约**：19,839 条 demo 候选表已合成，脱靶与着丝粒标注齐全。 |
-| **F7** | 全员 $\rightarrow$ 生D | 报告、PPT 与申报素材集中汇总 | 9.28 齐 | 🟡 **部分就绪**：CS 侧工具链素材、扫描脱靶数据、Demo 截图已备齐；模型指标与生物学文案待齐。 |
+| **F4** | 计A $\rightarrow$ 计B | 模型预测接口（`predict.py` + 模型权重） | 9.17 晚 | 🟡 **部分修复（9.16）**：`predict.py` 默认模型已切全量版 `meta_model_ridge_full_0916.joblib`（LOGO-CV ρ=0.414，仍未达标）；demo 批量供分已改走真实双模型管线（`rescore_demo_full_0916.py`），修复了旧接口的 CRISPRon 特征伪造问题。残留：`predict.py` 运行时 `crispron_score` 仍为近似公式（docstring 已显著标注），彻底修复挂 P0。 |
+| **F5** | 计A $\rightarrow$ 生D | 模型卡（`model_card.md`） | 9.19 晚 | ✅ **已履约（9.16）**：`results/model_card_full_0916.md` 已归档，真实 ρ/AUC、9 维特征顺序、有效样本量（23 条 distinct guide）与已知局限全部如实记录；旧 0919 模型的模型卡标注为从未交付且模型弃用。 |
+| **F6** | 计B $\rightarrow$ 生C | 候选 gRNA 结果表（供生物学核查） | 9.24 晚 | ✅ **已履约**：19,839 条 demo 候选表已合成，脱靶与着丝粒标注齐全；9.16 追加 `efficiency_score_full_0916` 真实重打分列。 |
+| **F7** | 全员 $\rightarrow$ 生D | 报告、PPT 与申报素材集中汇总 | 9.28 齐 | 🟡 **部分就绪**：CS 侧工具链素材、扫描脱靶数据、Demo 截图、模型卡已备齐；模型指标（LOGO-CV 0.414，未达标）的答辩口径与生物学文案待齐。 |
 
 ---
 
@@ -160,49 +163,52 @@ graph TD
      ```
    - 可验证内容：
      - 输入 NLR 基因（如 `LsaT2T01G023690`）立即展示 300+ 条候选 gRNA 及其脱靶数、着丝粒过滤状态；
-     - 切换到 Tab2，输入两条 30bp 序列，子进程调用 DeepSpCas9 实测打分（返回 71.25 / 46.28）。
-   - ⚠️ **验收时须注意**：Tab1 的「效率分（Stacking预测）」列（`demo/app_data.csv` 的 `efficiency_score`，19,839 条已全量写入）来自一个测试集 ρ=-0.3435、AUC=0.3672 的未达标模型，且该模型的 `crispron_score` 输入在 `predict.py` 中是人工线性式而非真实 CRISPRon 输出。**此列当前不具备效率预测效力**，对外演示应回退到 `efficiency_placeholder` 或在界面上加显著说明。Tab2 的 DeepSpCas9 分是真实推理，可正常演示。
+     - Tab1 的「效率分」列现为 `efficiency_score_full_0916`（9.16 用**真实** DeepSpCas9 + **真实** CRISPRon + 全量模型重打分），界面附「模型未达标（LOGO-CV ρ=0.414），仅供流程演示」的免责说明；旧 `efficiency_score` 列（旧模型 + 近似 CRISPRon 特征）仅留档不再展示；
+     - 切换到 Tab2，输入两条 30bp 序列，子进程调用 DeepSpCas9 实测打分（返回 71.25 / 46.28），DeepSpCas9 分为真实推理可正常演示。
 2. **基因组与脱靶全流程处理脚本**
    - [`cs_pipeline/scripts/07_scan_lettuce.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/07_scan_lettuce.py)：已验证可 320 秒扫完整基因组；
    - [`cs_pipeline/scripts/09_aggregate_offtarget.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/09_aggregate_offtarget.py)：已验证可聚合 600 万条脱靶原始记录；
    - [`cs_pipeline/demo/prepare_demo_data.py`](file:///d:/lifesciencechallenge/cs_pipeline/demo/prepare_demo_data.py)：已验证可自动装配 demo 所需数据。
-3. **已落盘的冻结成果文件**
+3. **全量训练管线（9.16 重建，scripts/10~13）**
+   - `10_rebuild_full_dataset.py`（xlsx→clean→seq30，487/487 全命中）→ `11_score_deepspcas9_full.py` → `12_score_crispron_full.py`（WSL）→ `13_features_train_full.py`（特征+训练+LOGO-CV）；
+   - 以改正版 `data/1_Hi-results-12-20260913.xlsx` 为唯一事实源，全程防泄漏断言通过。
+4. **已落盘的冻结/现行成果文件**
    - 扫描统计：[`cs_pipeline/results/scan_stats_0923.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/scan_stats_0923.md)
    - 脱靶日志：[`cs_pipeline/results/offtarget_runlog_0924.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/offtarget_runlog_0924.md)
    - 脱靶计数：[`cs_pipeline/results/offtarget_counts_0924.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/offtarget_counts_0924.csv)
    - Demo 运行截图 7 张：[`cs_pipeline/results/demo_screenshots_0926/`](file:///d:/lifesciencechallenge/cs_pipeline/results/demo_screenshots_0926/)
+   - 现行模型与指标：`results/meta_model_ridge_full_0916.joblib`、`model_comparison_full_0916.csv`、`logo_cv_full_0916.csv`、`logo_cv_box_full_0916.png`
+   - 模型卡（F5）：[`results/model_card_full_0916.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/model_card_full_0916.md)
 
 ---
 
-## 五、下一步行动路线图（9.13 复核后重订）
+## 五、下一步行动路线图（9.17 复核后重订）
 
-原路线图的 5 步（打分 → D2 → 特征 → 训练 → 接口）已在 9-12 晚全部执行完毕，**卡点已从「没跑」变成「跑出来的结果不成立」**。根因是数据，不是调参：
+9.13 路线图提出的「有效样本量」卡点已被 9.14–9.16 的数据更正部分消解（8 条唯一 guide → 23 条 distinct guide / 487 行，LOGO-CV -0.225 → +0.414）。**当前卡点已收敛为一个：guide 多样性不足**。
 
 ```
-              【真实卡点：有效样本量】
+              【当前真实卡点：guide 多样性】
 
-hitom_clean_v1.csv 307 行  ──→  仅 13 组唯一 (seq20, pam)
-        │                        其中 1 组占 141 行、2 组占 58/32 行
-        ▼
-CDS 匹配后 260 行        ──→  仅 8 条唯一 seq30（7 个基因）
+487 行 / 14 基因 / 23 条 distinct guide
+        │
+        ├─ 8 个基因只有 1 条 guide ──→ 特征全部由序列派生，
+        │     单 guide 基因内所有行特征向量相同，
+        │     LOGO 6 折无法定义 ρ；ρ≥0.5 结构性不可达
         │
         ▼
-补全 47 条未匹配 guide   ──→  至多再加 4 条唯一 guide，上限 12 条
-        │
-        ▼
-结论：自有数据无论如何补全，都无法支撑 ρ≥0.5 的相关性检验
-      唯一出路 = 详案规定的「公开数据加权混合」预案
+结论：再堆同一 guide 的重复行不会提升
+      唯一出路 = 详案规定的「公开数据加权混合」预案（Table S1）
 ```
 
 ### 1. 计A 必做项（按优先级）
-- **P0 启动公开数据混合预案**：下载 DeepSpCas9 Table S1 入库 `data/deepspcas9_tableS1.xlsx`（详案规定的唯一扩充途径），与自有数据加权混合后重训 `06_train_stacking.py`，重新出具 ρ/AUC。
-- **P0 修 `predict.py` 的 CRISPRon 特征**：第 76 行改为经 WSL 真实调用 CRISPRon（`env/run_crispron_wsl.sh` 已可用），或直接从 9 维特征集中移除 `crispron_score` 后重训；禁止保留人工线性式。
-- **P1 评估口径纠正**：`04_spearman_D2.py` 与 `06_train_stacking.py` 须先按唯一 guide 聚合（同一 guide 的重复取 `indel_pct` 中位数），再计算 ρ；主指标改用 LOGO-CV，并在输出中同时给出 n（唯一 guide 数），避免再次出现 260 行的虚假显著性。
-- **P1 补 F5 模型卡** `results/model_card_0919.md`：如实写明 9 维特征顺序、训练集版本、真实 ρ/AUC、有效样本量与已知局限。
-- **P2 核对 `efficiency_norm`**：与生A 确认该列是否应为批次内百分位（当前与 `indel_pct` 完全相同），确认后重算 D2 与训练。
+- **P0 启动公开数据混合预案**（9.13 起挂账，仍未启动）：下载 DeepSpCas9 Table S1 入库 `data/deepspcas9_tableS1.xlsx`（详案规定的唯一扩充途径），与自有 487 行数据加权混合后重训（在 `scripts/13` 基础上改），重新出具 LOGO-CV ρ；若达标则同步更新模型卡与 demo 供分。
+- **P0（残留）修 `predict.py` 运行时 CRISPRon 特征**：第 79 行近似公式改为经 WSL 真实调用 CRISPRon（`env/run_crispron_wsl.sh` 已可用且路径已修），或从 9 维特征集中移除 `crispron_score` 后重训；当前状态（近似公式 + docstring 显著标注 + 批量走真实管线）只是过渡，正式提交前须闭环。
+- **P1 提交 9.14–9.16 工作成果**：数据更正脚本（仓库根 `_check_*` / `_fix_*`）、更正版 xlsx 备份链、`scripts/10~13` 与 `_full_0916` 产物目前大量处于未提交/未跟踪状态，需整理入库（数据更正的溯源链是答辩材料的一部分）。
+- ~~P1 评估口径纠正~~：**已完成（9.16）**——主指标已改用 LOGO-CV，按基因分组防泄漏（同源拷贝合并分组），输出含可定义折数说明，260 行虚假显著性问题不再存在。
+- ~~P1 补 F5 模型卡~~：**已完成（9.16）**——`results/model_card_full_0916.md`。
+- ~~P2 核对 `efficiency_norm`~~：**已坐实（9.16）**——该列 = `indel_pct × 100`，非批次内百分位，全量重跑按实证约定重建标签。
 
 ### 2. 计B / 生D 协同项
-- **计B**：demo Tab1 的效率分列回退为 `efficiency_placeholder`，或保留 `efficiency_score` 但在界面加显著免责说明（「模型未达标，仅供流程演示」）；`app/app.py` 第 12 行的说明文字同步改口径。
-- **生D（PM）**：`CHANGELOG_0927.md` 的 9.13 更正记录需全队过一遍并会签；补打缺失的 `v1.0-freeze` tag（或删除该条声明）；评审表与 PPT 中**不得引用 ρ=0.3665 / AUC=0.7812 / p=1.10e-9 这组数字**，模型指标以重训后的实际产物为准；若混合预案后仍未达标，答辩口径应转为「工程链路完整 + 数据规模受限的诚实说明」，而非硬报达标。
-- **生A / 生C**：核对 47 条未命中 CDS 的 guide（[`seq30_unmatched_0909.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/seq30_unmatched_0909.csv)）。注意此项**只能把唯一 guide 从 8 条提到至多 12 条**，不解决样本量问题，但可作为数据完整性交代；同时确认 Hi-TOM 原始交付是否还有未纳入本仓库的其他 guide 序列。
-
+- ~~计B：demo 效率分降级/免责~~：**已完成（9.16）**——`app/app.py` 优先展示 `efficiency_score_full_0916` 并附「模型未达标（LOGO-CV ρ=0.414）」说明，旧列仅留档。
+- **生D（PM）**：`CHANGELOG_0927.md` 的 9.13 与 9.16 两段更正记录需全队过一遍并会签；补打缺失的 `v1.0-freeze` tag（或删除该条声明）；评审表与 PPT 中**不得引用 ρ=0.3665 / AUC=0.7812 / p=1.10e-9 这组已被更正的数字**；可引用 LOGO-CV 中位 ρ=0.414，但须同时注明未达 ρ≥0.5 达标线与 guide 多样性瓶颈；若混合预案后仍未达标，答辩口径应转为「工程链路完整 + 数据规模受限的诚实说明」，而非硬报达标。
+- **生A / 生C**：47 条未命中 CDS 的 guide 核对已被全量重跑取代（487/487 全命中，72 行走基因组坐标回退，自校验断言通过），无需再单独核对；可顺手确认 Hi-TOM 原始交付是否还有未纳入本仓库的其他 guide 序列（每多一条不同序列的 guide 都比重复行有价值）；oligo 合成记录若能拿到仍建议留存（9.16 已按现有证据链定稿，不阻塞）。

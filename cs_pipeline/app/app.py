@@ -67,9 +67,17 @@ def load_data():
 with tab1:
     data, genes = load_data()
     has_offtarget = data["offtarget_count_mis3"].notna().any()
-    has_stacking = "efficiency_score" in data.columns and data["efficiency_score"].notna().any()
+    # 优先使用 2026-09-16 全量重打分列（真实 DeepSpCas9+CRISPRon + 全量数据训练的模型，
+    # LOGO-CV ρ=0.414）；旧 efficiency_score 列为旧模型+近似 CRISPRon 特征产出，仅作留档
+    has_full = "efficiency_score_full_0916" in data.columns and data["efficiency_score_full_0916"].notna().any()
+    has_stacking = has_full or ("efficiency_score" in data.columns and data["efficiency_score"].notna().any())
 
-    if has_stacking:
+    if has_full:
+        st.success(
+            "本页“效率分（Stacking预测）”为自主训练的 Stacking 集成模型预测分数（融合 DeepSpCas9、CRISPRon 及序列物理特征，反映 Hi-TOM 实测突变效率；2026-09-16 全量数据重训版）。",
+            icon="✅",
+        )
+    elif has_stacking:
         st.success(
             "本页“效率分（Stacking预测）”为自主训练的 Stacking 集成模型预测分数（融合 DeepSpCas9、CRISPRon 及序列物理特征，反映 Hi-TOM 实测突变效率）。",
             icon="✅",
@@ -91,7 +99,7 @@ with tab1:
     ginfo = genes[genes.gene_id == gene_id].iloc[0]
     cand = data[data.gene_id == gene_id].copy()
 
-    eff_col = "efficiency_score" if has_stacking else "efficiency_placeholder"
+    eff_col = "efficiency_score_full_0916" if has_full else ("efficiency_score" if has_stacking else "efficiency_placeholder")
     eff_label = "效率分（Stacking预测）" if has_stacking else "效率分（占位）"
 
     colf1, colf2, colf3 = st.columns(3)
