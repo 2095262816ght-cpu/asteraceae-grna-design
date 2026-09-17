@@ -1,0 +1,5 @@
+model,rho_test,rho_logo_cv_median
+Stacking 自有-only（13）,-0.6761,0.414
+Stacking 公开混合（详案预案）,-0.6853,-0.1012
+动物基准 DeepSpCas9（公开集 in-sample）,,0.7741
+动物基准 CRISPRon（公开集 in-sample）,,0.8762

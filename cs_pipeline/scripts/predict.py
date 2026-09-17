@@ -1,7 +1,10 @@
-"""计A → 计B 的模型接口（9.17 交付），约定见《分工详案_计算机系》（docs/plans/division_plan_cs.md）0.4 节。
+"""计A → 计B 的模型接口（9.17 交付；2026-09-16 切换为全量重训模型），约定见《分工详案_计算机系》（docs/plans/division_plan_cs.md）0.4 节。
 
 计B 只调 predict_efficiency()，不接触模型内部；
-模型文件 results/meta_model_ridge_0919.joblib 与公开模型打分由本模块内部加载。
+模型文件 results/meta_model_ridge_full_0916.joblib 与公开模型打分由本模块内部加载。
+注意：运行时推理的 crispron_score 为近似公式（DeepSpCas9+Tm 推算，见下），
+与训练时使用的真实 CRISPRon 分数存在特征分布差异；精确打分请走
+demo/rescore_demo_full_0916.py（真实 CRISPRon 经 WSL）。
 """
 
 
@@ -16,7 +19,7 @@ import tensorflow as tf
 from genet.predict import SpCas9
 
 BASE = Path(__file__).resolve().parent.parent
-MODEL_PATH = BASE / "results" / "meta_model_ridge_0919.joblib"
+MODEL_PATH = BASE / "results" / "meta_model_ridge_full_0916.joblib"
 
 _meta_model = None
 
