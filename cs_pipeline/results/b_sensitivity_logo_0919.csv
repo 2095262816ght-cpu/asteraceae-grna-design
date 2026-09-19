@@ -1,0 +1,4 @@
+variant,n_rows,n_groups,n_folds,logo_cv_median_rho
+baseline_all487,487,13,6,0.4038
+drop_indel_eq_1,386,13,5,0.5963
+drop_USR8145,375,10,6,0.4768
