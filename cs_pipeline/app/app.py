@@ -8,8 +8,10 @@
 2. 按自定义序列打分：30bp 序列经子进程调用独立 conda 环境中的
    genet DeepSpCas9 模型实时打分（app/score_deepspcas9_cli.py）。
 
-效率分现状：
-- Tab1 展示 efficiency_score（Stacking 集成模型预测分，基于橡胶草 Hi-TOM 实测数据与物理特征）。
+效率分现状（2026-09-17 定位声明）：
+- 本工具定位为【排序推荐】：效率分用于同一基因内候选 guide 的相对排序（取 top 3–5 送实验），
+  非绝对 indel% 承诺；模型 LOGO-CV ρ=0.414（未达 0.5，如实标注）。
+- Tab1 展示 efficiency_score_full_0916（全量重训模型 + 真实双模型打分，9.16 版）。
 - Tab2 提供 DeepSpCas9 单模型分及 Stacking 集成模型分实时打分。
 """
 import io
@@ -74,7 +76,7 @@ with tab1:
 
     if has_full:
         st.success(
-            "本页“效率分（Stacking预测）”为自主训练的 Stacking 集成模型预测分数（融合 DeepSpCas9、CRISPRon 及序列物理特征，反映 Hi-TOM 实测突变效率；2026-09-16 全量数据重训版）。",
+            "本页“效率分（Stacking预测）”用于**候选 guide 的相对排序**（融合 DeepSpCas9、CRISPRon 及序列物理特征；2026-09-16 全量数据重训版）。建议同一基因内取 top 3–5 条送实验终筛；分数为排序参考，非绝对效率承诺（模型 LOGO-CV ρ=0.414）。",
             icon="✅",
         )
     elif has_stacking:
@@ -100,7 +102,7 @@ with tab1:
     cand = data[data.gene_id == gene_id].copy()
 
     eff_col = "efficiency_score_full_0916" if has_full else ("efficiency_score" if has_stacking else "efficiency_placeholder")
-    eff_label = "效率分（Stacking预测）" if has_stacking else "效率分（占位）"
+    eff_label = "效率分（Stacking排序参考）" if has_stacking else "效率分（占位）"
 
     colf1, colf2, colf3 = st.columns(3)
     with colf1:

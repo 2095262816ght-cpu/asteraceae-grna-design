@@ -2,6 +2,19 @@
 
 一句话简介：以 DeepSpCas9 + CRISPRon 双模型打分经岭回归 Stacking 集成（自有植物 Hi-TOM 数据训练/验证）预测 gRNA 效率，扫描莴苣 T2T 基因组基因区产生候选，Cas-OFFinder 脱靶过滤，最终经 Streamlit demo 交付「按基因检索 / 按序列打分」两种用法。
 
+## 项目概述
+
+**为什么做**：CRISPR 育种的第一步是选高效 gRNA，但现有效率预测工具全部用哺乳动物（人/鼠）数据训练，植物——尤其菊科——没有专用工具，"人源模型迁移到植物可不可靠"此前也没有定量答案。
+
+**做了什么**（对应交付物）：
+
+1. **数据**：系统核查并更正橡胶草（TKS）Hi-TOM 实测数据（491 行 / 23 条 guide / 14 基因），修复 PAM 错记、坐标偏移、链向整列错误、indel 口径低估等 7 类问题，每处更正均有基因组/原始 reads 证据（`docs/problem.md`、`docs/problem2.md`）。经公开渠道穷尽性检索确认：**这是该物种首个成规模的 per-guide 效率数据集**；
+2. **模型**：双模型打分 + 序列特征岭回归 Stacking（`results/model_card_full_0916.md`）。LOGO-CV 中位 Spearman ρ=0.414，**未达 ρ≥0.5 达标线（如实）**，瓶颈为 distinct guide 数量（23 条）而非方法；
+3. **科学结论**：定量回答"人源模型迁移植物是否可行"——三体系对照显示迁移可行性是**数据集特异的**（本氏烟 ρ≈0.85 良好 / 番茄原生质体 ρ≈0.03 失效 / 橡胶草部分有效），且人源/植物公开数据混合训练均不能带来增量（`results/transferability_0917.md`）；
+4. **工具（排序推荐定位）**：莴苣 T2T 基因组基因区扫描（1,387 万候选）→ Cas-OFFinder 脱靶过滤（错配≤3）→ Streamlit demo：按基因输出**排序推荐表**（效率分+脱靶数+着丝粒标注；效率分用于同一基因内取 top 3–5 送实验终筛，非绝对效率承诺），或按 30nt 序列实时打分。分工原则：计算把 1,387 万候选筛到每基因个位数，实验做最后一公里。
+
+**当前版本**：`v2.0-freeze`（2026-09-17）为交付基准；指标与变更的唯一权威记录是 `results/CHANGELOG_0927.md`。
+
 ## 目录结构
 
 ```
@@ -78,7 +91,8 @@ conda run -n grna-demo streamlit run app/app.py   # 启动 demo（浏览器打�
 
 ## 模型与指标摘要
 
-- 集成模型对比表 `results/model_comparison_0919.csv`（DeepSpCas9 单用 / CRISPRon 单用 / Stacking 集成的测试集 Spearman ρ、AUC、LOGO-CV 中位数）为本项目指标的唯一权威来源。**截至 v1.0-freeze（9.27）该表尚未随代码就位**，配套 `results/transferability_D2_0912.md`、`results/logo_cv_0916.csv` 同样待补；到位前本仓库不引用任何模型指标数字，冻结状态见 `results/CHANGELOG_0927.md`。
+- **现行模型为全量重训版（`results/meta_model_ridge_full_0916.joblib`）**：487 行 / 14 基因 / 23 条 distinct guide，LOGO-CV 中位 ρ=0.414（未达 ρ≥0.5，如实）。权威文档：`results/model_card_full_0916.md`（特征顺序/训练数据/指标/局限）、`results/transferability_0917.md`（三体系迁移对照）、`results/model_comparison_full_0916.csv`。旧版 0919 模型及其指标（测试集 ρ=-0.344）已弃用留档。
+- 复现路径：**全量版走 `scripts/10_rebuild_full_dataset.py` → `11` → `12` → `13`**（以改正版 xlsx 为源）；`scripts/01–06` 为 v1.x 冻结路径，仅用于复现历史产物。
 - 当前可复现的实测锚点：
   - DeepSpCas9 链路：示例序列 `ATCGGCTAAGCTAGGCTAGCATCGTGGATC` 打分 71.2494（与基准 71.25 吻合，demo Tab2 可直接复现）；
   - 基因组扫描：45,770 基因、13,867,270 条候选、320 秒（`results/scan_stats_0923.md`）；

@@ -1,5 +1,7 @@
 # D2 决策点：模型跨物种迁移可行性评估报告（0912）
 
+> **⚠️ 本文已被 `results/transferability_0917.md`（2026-09-17 三体系对照）取代**：该文基于全量数据（487 行/14 基因）与两个独立植物公开数据集重新回答了同一问题，结论以彼为准。本文仅作历史留档。
+
 > **依据**：《分工详案_计算机系》（docs/plans/division_plan_cs.md）A2 节与《项目执行方案_v3压缩版_0907》（docs/plans/project_plan_v3_condensed_0907.md）D2 里程碑  
 > **数据来源**：`results/scores_merged_0911.csv`（260 行橡胶草 Hi-TOM 实测突变率与双模型预测打分；**其中唯一 `seq30` 仅 8 条，详见第〇节**）  
 > **复现脚本**：`python scripts/04_spearman_D2.py`

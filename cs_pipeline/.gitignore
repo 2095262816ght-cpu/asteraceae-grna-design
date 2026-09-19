@@ -28,6 +28,8 @@ demo/*.log
 data/raw/
 data/reference_genomes/
 results/_sample.txt
+*.fastq
+*.xls
 
 # A0 0909 win-native: ViennaRNA 安装包/下载缓存与 wheel 缓存（不进 git）
 tools/ViennaRNA/

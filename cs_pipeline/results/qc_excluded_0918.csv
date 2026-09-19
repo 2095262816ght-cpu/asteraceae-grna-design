@@ -1,0 +1,351 @@
+guide-id,batch,备注
+TKS_0492,USR-14333,块001-refsm1; guide确定; QC剔除(无WT行)
+TKS_0496,USR-14333,块005-refsm1; guide确定; QC剔除(无WT行)
+TKS_0497,USR-14333,块006-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_0502,USR-14333,块011-refsm1; guide确定; QC剔除(无WT行)
+TKS_0503,USR-14333,块012-refsm1; guide确定; QC剔除(无WT行)
+TKS_0504,USR-14333,块013-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_0505,USR-14333,块014-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_0506,USR-14333,块015-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_0509,USR-14333,块018-refsm1; guide确定; QC剔除(无WT行)
+TKS_0510,USR-14333,块019-refsm1; guide确定; QC剔除(无WT行)
+TKS_0511,USR-14333,块020-refsm1; guide确定; QC剔除(无WT行)
+TKS_0512,USR-14333,块021-refsm1; guide确定; QC剔除(无WT行)
+TKS_0513,USR-14333,块022-refsm1; guide确定; QC剔除(无WT行)
+TKS_0514,USR-14333,块023-refsm1; guide确定; QC剔除(无WT行)
+TKS_0515,USR-14333,块024-refsm1; guide确定; QC剔除(无WT行)
+TKS_0516,USR-14333,块025-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_0517,USR-14333,"块032-refsm1; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0532,USR-14333,"块041-ref1841; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0536,USR-14333,"块042-ref1841; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0564,USR-14333,"块049-ref1841; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0567,USR-14333,"块050-refQYJ; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0570,USR-14333,"块052-refQYJ; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0578,USR-14333,"块058-refQYJ; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0587,USR-22473,"块001-refCALB1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0588,USR-22473,"块002-refCALB1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0594,USR-22473,"块008-refCALB1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0597,USR-22473,"块011-refCALB1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0605,USR-22473,"块017-refCALB2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0610,USR-22473,"块022-refCALB2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0611,USR-22473,"块023-refCALB2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0617,USR-22473,"块029-ref22B1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0618,USR-22473,"块030-ref22B1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0620,USR-22473,"块032-ref22B1; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0626,USR-22473,"块038-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0627,USR-22473,"块039-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0628,USR-22473,"块040-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0629,USR-22473,"块041-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0630,USR-22473,"块042-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0631,USR-22473,"块043-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0632,USR-22473,"块044-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0633,USR-22473,"块045-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0634,USR-22473,"块046-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0635,USR-22473,"块047-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0636,USR-22473,"块048-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0637,USR-22473,"块049-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0638,USR-22473,"块050-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0645,USR-22473,"块057-ref23B12; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0653,USR-22807,"块004-ref22B20; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); 探针定位(扩增子含固定缺失); QC剔除(无WT行)"
+TKS_0655,USR-22807,"块006-ref22B20; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); 探针定位(扩增子含固定缺失); QC剔除(无WT行)"
+TKS_0656,USR-22807,"块007-ref22B20; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); 探针定位(扩增子含固定缺失); QC剔除(无WT行)"
+TKS_0658,USR-22807,"块008-ref22B20; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); 探针定位(扩增子含固定缺失); QC剔除(无WT行)"
+TKS_0659,USR-22807,"块009-ref22B20; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); 探针定位(扩增子含固定缺失); QC剔除(无WT行)"
+TKS_0660,USR-22807,"块010-ref22B20; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); 探针定位(扩增子含固定缺失); QC剔除(无WT行)"
+TKS_0663,USR-22807,"块013-ref22B1; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0664,USR-22807,"块014-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0665,USR-22807,"块015-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0666,USR-22807,"块016-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0667,USR-22807,"块017-ref23B12; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0671,USR-23077,"块003-ref22B1; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0672,USR-23077,"块004-ref22B1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0673,USR-23077,"块005-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0674,USR-23077,"块006-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0675,USR-23077,"块007-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0676,USR-23077,"块008-ref23B34; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0682,USR-23077,"块014-ref23B12; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0683,USR-23077,"块015-ref23B12; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0684,USR-23077,"块016-ref23B12; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0694,USR-24239,"块006-ref23B34; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0699,USR-24239,"块010-refCALB2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0706,USR-28266,"块003-ref05nB5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0714,USR-28266,"块011-refCALB1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0718,USR-28266,"块015-refCALB2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0753,USR-29107,"块032-ref05nB7nB8; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0754,USR-29107,"块033-ref05nB7nB8; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0769,USR-29540,"块097-ref05nB5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0775,USR-29540,"块103-ref05nB5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0777,USR-29540,"块105-ref05nB5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0778,USR-29540,"块106-ref05nB5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0779,USR-29540,"块107-ref05nB5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0780,USR-4811,块001-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_0800,USR-4811,块021-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_0822,USR-4811,块043-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_0827,USR-4811,块048-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_0834,USR-4811,块055-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_0841,USR-4811,块062-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_0853,USR-4811,块074-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_0869,USR-4811,"块087-refABCM2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0871,USR-4811,"块089-refABCM2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0875,USR-4811,"块092-refABCM2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0876,USR-4811,"块093-refABCM2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0881,USR-4812,"块001-refABCM2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0882,USR-4812,"块002-refABCM2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_0886,USR-4812,块005-refSN2; guide确定; QC剔除(双峰40-60)
+TKS_0889,USR-4812,块008-refSN2; guide确定; QC剔除(无WT行)
+TKS_0892,USR-4812,块010-refSN2; guide确定; QC剔除(无WT行)
+TKS_0894,USR-4812,"块012-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0896,USR-4812,块013-refSN2; guide确定; QC剔除(双峰40-60)
+TKS_0897,USR-4812,块014-refSN2; guide确定; QC剔除(双峰40-60)
+TKS_0898,USR-4812,块015-refSN2; guide确定; QC剔除(双峰40-60)
+TKS_0899,USR-4812,"块016-refSP2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_0905,USR-4812,"块020-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0911,USR-4812,块025-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0912,USR-4812,"块025-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0913,USR-4812,块026-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0914,USR-4812,块027-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0915,USR-4812,"块027-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0916,USR-4812,块028-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0917,USR-4812,块029-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0918,USR-4812,块030-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0919,USR-4812,块031-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0923,USR-4812,"块033-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0926,USR-4812,"块035-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0928,USR-4812,"块036-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0935,USR-4812,块040-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0937,USR-4812,块042-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0940,USR-4812,块044-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0952,USR-4812,"块054-refABC23135; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(非WT主型88%≥80%)"
+TKS_0956,USR-4812,块057-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0957,USR-4812,块058-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0965,USR-4812,块065-refP2; guide确定; QC剔除(无WT行)
+TKS_0969,USR-4812,"块067-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0971,USR-4812,块068-refP2; guide确定; QC剔除(无WT行)
+TKS_0972,USR-4812,块069-refP2; guide确定; QC剔除(无WT行)
+TKS_0973,USR-4812,块070-refP2; guide确定; QC剔除(双峰40-60)
+TKS_0975,USR-4812,块071-refP2; guide确定; QC剔除(无WT行)
+TKS_0977,USR-4812,"块072-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_0979,USR-4812,"块074-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(非WT主型86%≥80%)"
+TKS_0980,USR-4812,块075-refP2; guide确定; QC剔除(无WT行)
+TKS_0982,USR-4812,"块077-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(非WT主型89%≥80%)"
+TKS_0986,USR-4812,块079-refP2; guide确定; QC剔除(双峰40-60)
+TKS_0989,USR-4812,块082-refABC23135; guide确定; QC剔除(双峰40-60)
+TKS_0995,USR-4812,块084-refP2; guide确定; QC剔除(双峰40-60)
+TKS_1004,USR-4812,"块089-refABCM2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1011,USR-4812,块091-refP2; guide确定; QC剔除(双峰40-60)
+TKS_1017,USR-4812,"块094-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(非WT主型87%≥80%)"
+TKS_1021,USR-4812,"块096-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1024,USR-4813,块003-refP2; guide确定; QC剔除(双峰40-60)
+TKS_1026,USR-4813,块005-refP2; guide确定; QC剔除(无WT行)
+TKS_1030,USR-4813,"块009-refP2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1033,USR-4813,块012-refP2; guide确定; QC剔除(无WT行)
+TKS_1035,USR-4813,块013-refP2; guide确定; QC剔除(无WT行)
+TKS_1037,USR-4813,块014-refP2; guide确定; QC剔除(无WT行)
+TKS_1048,USR-4813,块022-refABC49261; guide确定; QC剔除(双峰40-60)
+TKS_1057,USR-4813,"块029-refSP2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1059,USR-4813,"块031-refSP2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1060,USR-4813,"块032-refSP2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1063,USR-4813,"块033-refSP2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1067,USR-4813,"块035-refSP2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1070,USR-4813,"块036-refSP2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1083,USR-5448,块001-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_1084,USR-5448,块002-refABCM1; guide确定; QC剔除(无WT行)
+TKS_1085,USR-5448,块003-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_1090,USR-5448,块008-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_1095,USR-5448,块013-refABCM1; guide确定; QC剔除(双峰40-60)
+TKS_1111,USR-5448,"块028-refSP3; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1113,USR-5448,块030-refABC49261; guide确定; QC剔除(双峰40-60)
+TKS_1114,USR-5448,块031-refABC49261; guide确定; QC剔除(无WT行)
+TKS_1115,USR-5448,块032-refABC49261; guide确定; QC剔除(无WT行)
+TKS_1116,USR-5448,块033-refABC49261; guide确定; QC剔除(无WT行)
+TKS_1117,USR-5448,块034-refABC49261; guide确定; QC剔除(无WT行)
+TKS_1118,USR-5448,块035-refABC49261; guide确定; QC剔除(无WT行)
+TKS_1122,USR-6137,"块087-refSP1; 来源文件:A版_SP1R1复测_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1123,USR-6137,"块089-refSP1; 来源文件:A版_SP1R1复测_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1124,USR-6137,"块090-refSP1; 来源文件:A版_SP1R1复测_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1125,USR-6137,"块091-refSP1; 来源文件:A版_SP1R1复测_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1126,USR-6137,"块092-refSP1; 来源文件:A版_SP1R1复测_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1128,USR-6137,"块094-refSP1; 来源文件:A版_SP1R1复测_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1131,USR-6137,"块013-refL3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide未确定(测序编辑率≈0无突变热点,理论候选见guide候选表); QC剔除(无WT行)"
+TKS_1134,USR-6137,"块023-refL3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide未确定(测序编辑率≈0无突变热点,理论候选见guide候选表); QC剔除(无WT行)"
+TKS_1135,USR-6137,"块024-refL3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide未确定(测序编辑率≈0无突变热点,理论候选见guide候选表); QC剔除(无WT行)"
+TKS_1137,USR-6137,块030-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1138,USR-6137,块031-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1141,USR-6137,"块034-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1142,USR-6137,"块035-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1143,USR-6137,"块036-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1144,USR-6137,"块037-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1146,USR-6137,"块039-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1147,USR-6137,"块040-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1148,USR-6137,"块041-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1149,USR-6137,"块042-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1160,USR-6137,"块053-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1161,USR-6137,"块054-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1162,USR-6137,"块055-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1165,USR-6137,"块058-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1166,USR-6137,"块059-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1167,USR-6137,"块060-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1168,USR-6137,"块061-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1170,USR-6137,"块063-refM; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1172,USR-6137,块065-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1173,USR-6137,块066-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1174,USR-6137,块067-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1175,USR-6137,"块068-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1177,USR-6137,块070-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1178,USR-6137,"块071-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1179,USR-6137,块072-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1180,USR-6137,"块073-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1181,USR-6137,块074-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1182,USR-6137,"块075-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1183,USR-6137,块076-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1184,USR-6137,块077-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1185,USR-6137,块078-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1186,USR-6137,块079-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1187,USR-6137,"块080-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1188,USR-6137,块081-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1189,USR-6137,块082-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1190,USR-6137,块083-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1191,USR-6137,块084-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1192,USR-6137,块085-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1193,USR-6137,块086-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1194,USR-6137,块087-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1195,USR-6137,块088-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1196,USR-6137,块089-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; guide确定; QC剔除(无WT行)
+TKS_1197,USR-6137,"块090-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1198,USR-6137,"块091-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1199,USR-6137,"块092-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1200,USR-6137,"块095-refSP3; 来源文件:B版_主交付_all-SY2989-USR-6137.xls; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1201,USR-6444,块001-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_1202,USR-6444,块002-refsm1; guide确定; QC剔除(无WT行)
+TKS_1203,USR-6444,块003-refsm1; guide确定; QC剔除(无WT行)
+TKS_1204,USR-6444,块004-refsm1; guide确定; QC剔除(无WT行)
+TKS_1205,USR-6444,块005-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_1206,USR-6444,块006-refsm1; guide确定; QC剔除(无WT行)
+TKS_1207,USR-6444,块007-refsm1; guide确定; QC剔除(无WT行)
+TKS_1208,USR-6444,块008-refsm1; guide确定; QC剔除(无WT行)
+TKS_1209,USR-6444,"块009-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1210,USR-6444,"块010-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1211,USR-6444,"块011-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1212,USR-6444,"块012-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1213,USR-6444,"块013-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(非WT主型88%≥80%)"
+TKS_1214,USR-6444,"块014-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(非WT主型92%≥80%)"
+TKS_1215,USR-6444,"块015-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(非WT主型92%≥80%)"
+TKS_1216,USR-6444,"块016-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1217,USR-6444,"块017-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1221,USR-6444,"块021-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1223,USR-6444,"块023-refsp1; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1225,USR-6444,"块025-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1227,USR-6444,块027-refsn2; guide确定; QC剔除(无WT行)
+TKS_1230,USR-6444,块030-refsn2; guide确定; QC剔除(无WT行)
+TKS_1231,USR-6444,"块031-refsn2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1233,USR-6444,块033-refsn2; guide确定; QC剔除(无WT行)
+TKS_1234,USR-6444,块034-refsn2; guide确定; QC剔除(双峰40-60)
+TKS_1235,USR-6444,块035-refsn2; guide确定; QC剔除(无WT行)
+TKS_1241,USR-6444,"块041-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1242,USR-6444,"块042-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1243,USR-6444,"块043-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1244,USR-6444,"块044-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1246,USR-6444,"块046-refsm2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1247,USR-6444,"块047-refsm2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1248,USR-6444,"块048-refsm2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1250,USR-6883,块002-refsn2; guide确定; QC剔除(双峰40-60)
+TKS_1251,USR-6883,块003-refsn2; guide确定; QC剔除(无WT行)
+TKS_1253,USR-6883,块005-refsn2; guide确定; QC剔除(无WT行)
+TKS_1254,USR-6883,块006-refsn2; guide确定; QC剔除(无WT行)
+TKS_1255,USR-6883,块007-refsn2; guide确定; QC剔除(无WT行)
+TKS_1256,USR-6883,块008-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_1257,USR-6883,块009-refsn2; guide确定; QC剔除(无WT行)
+TKS_1258,USR-6883,块010-refsn2; guide确定; QC剔除(无WT行)
+TKS_1260,USR-6883,块012-refsn2; guide确定; QC剔除(无WT行)
+TKS_1261,USR-6883,"块013-refsn2; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1264,USR-6883,"块016-refsm1; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1265,USR-6883,块016-refsn2; guide确定; QC剔除(无WT行)
+TKS_1266,USR-6883,块017-refsm1; guide确定; QC剔除(无WT行)
+TKS_1267,USR-6883,块018-refsm1; guide确定; QC剔除(无WT行)
+TKS_1268,USR-6883,块019-refsm1; guide确定; QC剔除(无WT行)
+TKS_1269,USR-6883,块020-refsm1; guide确定; QC剔除(无WT行)
+TKS_1270,USR-6883,块021-refsm1; guide确定; QC剔除(无WT行)
+TKS_1271,USR-6883,块022-refsm1; guide确定; QC剔除(无WT行)
+TKS_1272,USR-6883,块023-refsm1; guide确定; QC剔除(无WT行)
+TKS_1273,USR-6883,块024-refsm1; guide确定; QC剔除(无WT行)
+TKS_1274,USR-6883,"块025-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1275,USR-6883,"块026-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1276,USR-6883,"块027-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1278,USR-6883,"块029-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(非WT主型83%≥80%)"
+TKS_1279,USR-6883,"块030-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1280,USR-6883,"块031-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1282,USR-6883,"块033-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1283,USR-6883,"块034-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1284,USR-6883,"块035-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1285,USR-6883,"块036-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1286,USR-6883,"块037-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1287,USR-6883,"块038-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1288,USR-6883,"块039-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1289,USR-6883,"块040-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1290,USR-6883,"块041-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1291,USR-6883,"块042-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1292,USR-6883,"块043-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1293,USR-6883,"块044-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1294,USR-6883,"块045-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1295,USR-6883,"块046-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1296,USR-6883,"块047-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1297,USR-6883,"块048-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1298,USR-6883,"块049-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1299,USR-6883,"块050-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1300,USR-6883,"块051-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1301,USR-6883,"块052-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1302,USR-6883,"块053-refsp5; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1303,USR-6883,"块054-refsm1; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1305,USR-6883,"块055-refsp5; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1306,USR-6883,"块056-refsm1; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(非WT主型87%≥80%)"
+TKS_1309,USR-6883,块059-refsm1; guide确定; QC剔除(无WT行)
+TKS_1310,USR-6883,"块060-refsm1; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1311,USR-6883,"块061-refsm1; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1312,USR-6883,块062-refsm1; guide确定; QC剔除(无WT行)
+TKS_1314,USR-6883,块064-refsm1; guide确定; QC剔除(无WT行)
+TKS_1315,USR-6883,块065-refsm1; guide确定; QC剔除(无WT行)
+TKS_1316,USR-6883,块066-refsm1; guide确定; QC剔除(无WT行)
+TKS_1317,USR-6883,块067-refsm1; guide确定; QC剔除(无WT行)
+TKS_1318,USR-6883,块068-refsm1; guide确定; QC剔除(无WT行)
+TKS_1319,USR-6883,块069-refsm1; guide确定; QC剔除(无WT行)
+TKS_1320,USR-6883,块070-refsm1; guide确定; QC剔除(无WT行)
+TKS_1321,USR-6883,块071-refsm1; guide确定; QC剔除(无WT行)
+TKS_1322,USR-6883,块072-refsm1; guide确定; QC剔除(双峰40-60)
+TKS_1323,USR-6883,"块073-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1324,USR-6883,"块074-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1325,USR-6883,"块075-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1326,USR-6883,"块076-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1327,USR-6883,"块077-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1328,USR-6883,"块078-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1329,USR-6883,"块079-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1330,USR-6883,"块080-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1331,USR-6883,"块081-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1333,USR-6883,"块083-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1334,USR-6883,"块084-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1335,USR-6883,"块085-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1336,USR-6883,"块086-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1337,USR-6883,"块087-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1338,USR-6883,"块088-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1339,USR-6883,"块089-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1340,USR-6883,"块090-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1341,USR-6883,"块091-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1342,USR-6883,"块092-refsm2; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1346,USR-7342,"块044-refsp1; guide为候选,待设计表确认(见guide候选表); QC剔除(双峰40-60)"
+TKS_1351,USR-7342,"块049-refsp2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1352,USR-7342,"块050-refsp2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1353,USR-7342,"块051-refsp2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1354,USR-7342,"块052-refsp2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1355,USR-7342,"块053-refsp2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1356,USR-7342,"块054-refsp2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1357,USR-7342,"块055-refsp2; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1358,USR-7342,"块056-refsp2; 主型非WT≥80%,按既有口径视为材料基线; guide为候选,待设计表确认(见guide候选表); QC剔除(无WT行)"
+TKS_1359,USR-7342,"块057-refSP3; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1360,USR-7342,"块058-refSP3; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1361,USR-7342,"块059-refSP3; 主型非WT≥80%,按既有口径视为材料基线; guide确定; QC剔除(无WT行)"
+TKS_1362,USR-7342,块060-refSP3; guide确定; QC剔除(无WT行)
+TKS_1363,USR-7342,块061-refSP3; guide确定; QC剔除(无WT行)
+TKS_1364,USR-7342,块062-refSP3; guide确定; QC剔除(无WT行)
+TKS_1365,USR-7342,块063-refsm1; guide确定; QC剔除(无WT行)
+TKS_1366,USR-7342,块064-refsm1; guide确定; QC剔除(无WT行)
+TKS_1367,USR-7342,块065-refsm1; guide确定; QC剔除(无WT行)
+TKS_1368,USR-7342,块066-refsm1; guide确定; QC剔除(无WT行)
