@@ -10,7 +10,7 @@ df["gc_seed"] = df.seq30.str[18:24].map(gc_fraction)   # seq30 位置19-24 = PAM
 df["tm"] = df.seq20.map(Tm_NN)
 df["poly_t"] = df.seq20.str.contains("TTTT").astype(int)
 df = pd.concat([df, pd.get_dummies(df.pam.str[0], prefix="pam_n")], axis=1)
-assert not df.isna().any().any(), "特征矩阵存在 NA，查明原因后再冻结"
+assert not df.drop(columns=["note"]).isna().any().any(), "特征矩阵存在 NA，查明原因后再冻结"  # note 为自由文本备注列，豁免
 df.to_csv("results/feature_matrix_0913.csv", index=False)
 df.to_csv("results/feature_matrix_0914.csv", index=False)
 print(f"OK: {df.shape[0]} rows x {df.shape[1]} cols")

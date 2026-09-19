@@ -4,6 +4,7 @@
 由 env/setup_crispron_wsl.sh 在 WSL Ubuntu-22.04 中组装）。
 流程：seq30 -> fasta -> WSL 跑 CRISPRon.sh -> 解析 crispron.csv 回并主表。
 """
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -20,10 +21,49 @@ with open(IN_FA, "w") as f:
     for _, r in df.iterrows():
         f.write(f">{r.guide_id}\n{r.seq30}\n")
 
-subprocess.run(
-    ["wsl", "-d", "Ubuntu-22.04", "bash",
-     "/mnt/d/lifesciencechallenge/cs_pipeline/env/run_crispron_wsl.sh"],
-    check=True)
+def wsl_available() -> bool:
+    try:
+        r = subprocess.run(["wsl", "-d", "Ubuntu-22.04", "true"],
+                           capture_output=True, timeout=30)
+        return r.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def git_bash() -> str:
+    """定位可用的 Git Bash（MSYS/MINGW）。
+
+    不能直接用裸 "bash"：Windows CreateProcess 先搜 System32，
+    会命中 WSL 占位的 bash.exe（WSL 缺失时直接 exit 1）。
+    """
+    cands = [shutil.which("bash"),
+             r"C:\Program Files\Git\bin\bash.exe",
+             r"C:\Program Files\Git\usr\bin\bash.exe",
+             r"C:\Program Files (x86)\Git\bin\bash.exe"]
+    for c in cands:
+        if not c or not Path(c).exists() or "system32" in c.lower():
+            continue
+        try:
+            r = subprocess.run([c, "-c", "uname -s"],
+                               capture_output=True, text=True, timeout=15)
+            if r.returncode == 0 and any(k in r.stdout for k in ("MINGW", "MSYS", "CYGWIN")):
+                return c
+        except Exception:
+            continue
+    raise RuntimeError("未找到可用的 Git Bash（System32 下的 bash 是 WSL 占位，不可用）")
+
+
+if wsl_available():
+    subprocess.run(
+        ["wsl", "-d", "Ubuntu-22.04", "bash",
+         "/mnt/d/lifesciencechallenge/cs_pipeline/env/run_crispron_wsl.sh"],
+        check=True)
+else:
+    # WSL 不可用（如发行版被移除）时降级到 Windows 原生路线：
+    # crispron-win 环境 + tools/win-shims，9.9 已验证与官方输出逐字节一致，
+    # 见 env/crispron_win_native_0909.md。
+    print("WSL Ubuntu-22.04 不可用，降级到 Windows 原生 CRISPRon（crispron-win 环境）")
+    subprocess.run([git_bash(), str(ROOT / "env" / "run_crispron_win.sh")], check=True)
 
 res = pd.read_csv(OUT_DIR / "crispron.csv")
 res["guide_id"] = res["ID"].str.replace(r"_[pm]_[0-9]+$", "", regex=True)

@@ -102,7 +102,11 @@ for tr_i, te_i in logo.split(X, y, groups):
                         cv=cv_splits_i, scoring="neg_mean_squared_error")
     gs_i.fit(X[tr_i], y[tr_i])
     pred_i = gs_i.best_estimator_.predict(X[te_i])
-    rho_i, _ = spearmanr(pred_i, y[te_i]) if len(set(y[te_i])) > 1 else (np.nan, None)
+    # 常数折显式判定（round(6)，规避浮点尾差翻转/浮点尘埃伪相关，见 docs/problem3.md 3.4）
+    if len(set(np.round(y[te_i], 6))) > 1 and len(set(np.round(pred_i, 6))) > 1:
+        rho_i, _ = spearmanr(pred_i, y[te_i])
+    else:
+        rho_i = np.nan
     logo_rows.append({"held_out_gene": groups[te_i][0], "n_samples": len(te_i), "rho": rho_i})
 logo_df = pd.DataFrame(logo_rows)
 logo_df.to_csv(f"results/logo_cv_{SUFFIX}.csv", index=False)

@@ -29,7 +29,7 @@ print(f"Train samples: {len(tr)} ({len(set(groups[tr]))} genes), Test samples: {
 
 # 内层：仅训练集内 GroupKFold 调 alpha (转为 list 避免生成器耗尽)
 cv_splits = list(GroupKFold(min(5, len(set(groups[tr])))).split(X[tr], y[tr], groups[tr]))
-gs = GridSearchCV(Ridge(), {"alpha": np.logspace(-3, 3, 13)},
+gs = GridSearchCV(Ridge(solver="svd"),   # cholesky 在本环境硬崩(exit 127)，svd 数值等价 {"alpha": np.logspace(-3, 3, 13)},
                   cv=cv_splits,
                   scoring="neg_mean_squared_error")
 gs.fit(X[tr], y[tr])
@@ -66,10 +66,10 @@ print(f"AUC test: Stacking={auc_ens:.4f}, DeepSpCas9={auc_deep:.4f}, CRISPRon={a
 logo = LeaveOneGroupOut()
 logo_rows = []
 for tr_i, te_i in logo.split(X, y, groups):
-    m = Ridge(alpha=best_alpha).fit(X[tr_i], y[tr_i])
+    m = Ridge(alpha=best_alpha, solver="svd").fit(X[tr_i], y[tr_i])
     p_i = m.predict(X[te_i])
-    # 如果该基因样本突变率有变化则计算 rho
-    if len(np.unique(y[te_i])) > 1:
+    # 常数折显式判定（round(6)，规避浮点尾差/浮点尘埃伪相关，见 docs/problem3.md 3.4）
+    if len(set(np.round(y[te_i], 6))) > 1 and len(set(np.round(p_i, 6))) > 1:
         rho_i, _ = spearmanr(p_i, y[te_i])
     else:
         rho_i = np.nan
