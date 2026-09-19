@@ -1,0 +1,4 @@
+model,spearman_rho_test,auc_test,rho_logo_cv_median
+DeepSpCas9 单用,-0.2328,0.1866,
+CRISPRon 单用,-0.4694,0.1512,
+Stacking 岭回归 (本工作),-0.248,0.3036,0.2204
