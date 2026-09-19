@@ -1,0 +1,74 @@
+EXCL = {'TKS_1286', 'TKS_0506', 'TKS_0539', 'TKS_1208', 'TKS_0665', 'TKS_1284', 'TKS_0630', 'TKS_1060', 'TKS_0528', 'TKS_0637', 'TKS_0500', 'TKS_0620', 'TKS_1337', 'TKS_0957', 'TKS_0699', 'TKS_1279', 'TKS_0982', 'TKS_1325', 'TKS_0577', 'TKS_1274', 'TKS_1351', 'TKS_1234', 'TKS_1243', 'TKS_1275', 'TKS_0564', 'TKS_0869', 'TKS_0965', 'TKS_1359', 'TKS_0650', 'TKS_1276', 'TKS_1363', 'TKS_0923', 'TKS_1334', 'TKS_0534', 'TKS_0706', 'TKS_1335', 'TKS_0567', 'TKS_0916', 'TKS_1213', 'TKS_0498', 'TKS_1255', 'TKS_1021', 'TKS_1244', 'TKS_0654', 'TKS_1242', 'TKS_0918', 'TKS_1310', 'TKS_0554', 'TKS_0694', 'TKS_0566', 'TKS_0261', 'TKS_0882', 'TKS_1322', 'TKS_0956', 'TKS_1204', 'TKS_0972', 'TKS_0672', 'TKS_1356', 'TKS_0594', 'TKS_1364', 'TKS_0540', 'TKS_0549', 'TKS_1329', 'TKS_0632', 'TKS_1291', 'TKS_0633', 'TKS_1287', 'TKS_0676', 'TKS_1282', 'TKS_0652', 'TKS_0520', 'TKS_0262', 'TKS_1202', 'TKS_1257', 'TKS_1289', 'TKS_1030', 'TKS_1235', 'TKS_0667', 'TKS_0656', 'TKS_0513', 'TKS_0628', 'TKS_1317', 'TKS_0682', 'TKS_0631', 'TKS_1353', 'TKS_0605', 'TKS_1057', 'TKS_0662', 'TKS_0666', 'TKS_1340', 'TKS_0560', 'TKS_1309', 'TKS_0550', 'TKS_0635', 'TKS_0547', 'TKS_0597', 'TKS_1070', 'TKS_0522', 'TKS_0505', 'TKS_0587', 'TKS_1253', 'TKS_0827', 'TKS_0871', 'TKS_0898', 'TKS_0562', 'TKS_0775', 'TKS_1328', 'TKS_0523', 'TKS_0629', 'TKS_1207', 'TKS_1318', 'TKS_1209', 'TKS_0892', 'TKS_0653', 'TKS_1264', 'TKS_0780', 'TKS_0515', 'TKS_0611', 'TKS_0969', 'TKS_0529', 'TKS_1341', 'TKS_0684', 'TKS_1063', 'TKS_0557', 'TKS_1333', 'TKS_1368', 'TKS_1059', 'TKS_0572', 'TKS_0989', 'TKS_1288', 'TKS_1267', 'TKS_1297', 'TKS_0536', 'TKS_0935', 'TKS_0574', 'TKS_1271', 'TKS_1017', 'TKS_1290', 'TKS_0979', 'TKS_0548', 'TKS_1260', 'TKS_1268', 'TKS_0659', 'TKS_1311', 'TKS_0769', 'TKS_1342', 'TKS_0886', 'TKS_1358', 'TKS_0497', 'TKS_0926', 'TKS_1210', 'TKS_1216', 'TKS_0571', 'TKS_1338', 'TKS_0940', 'TKS_1270', 'TKS_1026', 'TKS_0544', 'TKS_1324', 'TKS_0494', 'TKS_0542', 'TKS_0576', 'TKS_0573', 'TKS_1221', 'TKS_0565', 'TKS_0899', 'TKS_1295', 'TKS_0533', 'TKS_1303', 'TKS_1354', 'TKS_1327', 'TKS_1215', 'TKS_0511', 'TKS_0535', 'TKS_1037', 'TKS_0507', 'TKS_0897', 'TKS_1004', 'TKS_0538', 'TKS_1230', 'TKS_1320', 'TKS_1248', 'TKS_0501', 'TKS_1365', 'TKS_1300', 'TKS_1323', 'TKS_1346', 'TKS_0558', 'TKS_1205', 'TKS_0905', 'TKS_1035', 'TKS_0973', 'TKS_1285', 'TKS_1292', 'TKS_0658', 'TKS_1048', 'TKS_0651', 'TKS_0980', 'TKS_0919', 'TKS_1011', 'TKS_0575', 'TKS_1214', 'TKS_0822', 'TKS_0634', 'TKS_1316', 'TKS_0519', 'TKS_0509', 'TKS_1246', 'TKS_0778', 'TKS_0674', 'TKS_1217', 'TKS_1258', 'TKS_1233', 'TKS_1314', 'TKS_0502', 'TKS_1227', 'TKS_0664', 'TKS_0524', 'TKS_0610', 'TKS_0617', 'TKS_0657', 'TKS_1339', 'TKS_0517', 'TKS_0553', 'TKS_1302', 'TKS_0917', 'TKS_0660', 'TKS_0578', 'TKS_0555', 'TKS_0559', 'TKS_1278', 'TKS_1321', 'TKS_1223', 'TKS_0649', 'TKS_1254', 'TKS_1331', 'TKS_0875', 'TKS_0546', 'TKS_1330', 'TKS_0853', 'TKS_0545', 'TKS_0645', 'TKS_0568', 'TKS_0551', 'TKS_1247', 'TKS_0569', 'TKS_0499', 'TKS_1265', 'TKS_0881', 'TKS_0683', 'TKS_0913', 'TKS_1367', 'TKS_1361', 'TKS_1357', 'TKS_0800', 'TKS_0495', 'TKS_1360', 'TKS_0915', 'TKS_1315', 'TKS_0531', 'TKS_1319', 'TKS_1306', 'TKS_0493', 'TKS_1272', 'TKS_0841', 'TKS_0627', 'TKS_0914', 'TKS_0975', 'TKS_0718', 'TKS_0260', 'TKS_1211', 'TKS_0521', 'TKS_0525', 'TKS_0661', 'TKS_0971', 'TKS_0663', 'TKS_1280', 'TKS_1261', 'TKS_1273', 'TKS_0636', 'TKS_0937', 'TKS_0510', 'TKS_0570', 'TKS_1298', 'TKS_0754', 'TKS_0618', 'TKS_0995', 'TKS_0512', 'TKS_0541', 'TKS_0753', 'TKS_0552', 'TKS_0526', 'TKS_1241', 'TKS_0668', 'TKS_1336', 'TKS_0889', 'TKS_1212', 'TKS_0655', 'TKS_1301', 'TKS_0518', 'TKS_0530', 'TKS_0673', 'TKS_0503', 'TKS_1355', 'TKS_1362', 'TKS_0532', 'TKS_1206', 'TKS_1203', 'TKS_1305', 'TKS_1033', 'TKS_0779', 'TKS_1366', 'TKS_0626', 'TKS_0563', 'TKS_1296', 'TKS_0912', 'TKS_0911', 'TKS_1024', 'TKS_1326', 'TKS_1250', 'TKS_0928', 'TKS_0496', 'TKS_0527', 'TKS_0986', 'TKS_1201', 'TKS_0492', 'TKS_1294', 'TKS_1283', 'TKS_1251', 'TKS_0264', 'TKS_0714', 'TKS_0537', 'TKS_1312', 'TKS_0952', 'TKS_1299', 'TKS_0638', 'TKS_0675', 'TKS_1293', 'TKS_1067', 'TKS_0543', 'TKS_0671', 'TKS_0561', 'TKS_1225', 'TKS_0516', 'TKS_0588', 'TKS_0834', 'TKS_0777', 'TKS_1269', 'TKS_0876', 'TKS_0977', 'TKS_0896', 'TKS_1256', 'TKS_0504', 'TKS_0894', 'TKS_0514', 'TKS_0556', 'TKS_1266', 'TKS_1352', 'TKS_0508', 'TKS_1231'}
+# -*- coding: utf-8 -*-
+"""b_anchor_postruling_0919.py — 老师 9.19 裁决后的锚定校正重算
+裁决口径: QC剔除(350行) 之上, 整批剔除 USR-14333(疑T2代测序) 与 USR-22807(参照与基因型不配套), 其余保留。
+同时采用计B round(6) 常数折守卫（冻结指标尘埃折整改口径）。
+输出: results/b_anchor_final_0919.csv
+"""
+import numpy as np, pandas as pd, sys
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+from Bio.SeqUtils import gc_fraction
+from Bio.SeqUtils.MeltingTemp import Tm_NN
+from scipy.stats import spearmanr
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import GridSearchCV, GroupKFold, GroupShuffleSplit, LeaveOneGroupOut
+
+df = pd.read_csv("data/hitom/hitom_seq30_merged_0918.csv")
+deep = pd.read_csv("results/scores_deepspcas9_merged_0918.csv")
+crisp = pd.read_csv("results/scores_crispron_merged_0918.csv")
+df = df.merge(deep, on="guide_id", validate="1:1").merge(crisp, on="guide_id", validate="1:1")
+df["note"] = df["note"].fillna("")
+n0 = len(df)
+df = df[~df["guide_id"].astype(str).isin(EXCL)].copy()
+n_qc = -1
+print(f"行数: {n0} -> 按批注版最终裁决剔除后 {len(df)}")
+
+df["gc_total"] = df.seq20.map(gc_fraction)
+df["gc_seed"] = df.seq30.str[18:24].map(gc_fraction)
+df["tm"] = df.seq20.map(Tm_NN)
+df["poly_t"] = df.seq20.str.contains("TTTT").astype(int)
+df = pd.concat([df, pd.get_dummies(df.pam.str[0], prefix="pam_n")], axis=1)
+FEATS = [c for c in df.columns if c.startswith(("deepspcas9", "crispron", "gc_", "pam_n_")) or c in ("tm", "poly_t")]
+HOMOLOG = {"EVM.MODEL.LG01.6995": "EVM.MODEL.LG01.6995/6999", "EVM.MODEL.LG01.6999": "EVM.MODEL.LG01.6995/6999"}
+df["gene_group"] = df["gene_id"].replace(HOMOLOG)
+X = df[FEATS].astype(float).values
+groups = df["gene_group"].values
+indel = df["indel_pct"].astype(float)
+
+shared = df.groupby("seq20")["batch"].nunique()
+shared = set(shared[shared >= 2].index)
+gmed = df[df.seq20.isin(shared)].groupby("seq20")["indel_pct"].median()
+offsets = {}
+for b, sub in df.groupby("batch"):
+    s = sub[sub.seq20.isin(shared)]
+    if len(s):
+        offsets[b] = (s["indel_pct"] - s.seq20.map(gmed)).median()
+uncorr = [b for b in df["batch"].unique() if b not in offsets]
+print(f"锚定 guide 数: {len(shared)}; 可校正批次: {len(offsets)}/{df['batch'].nunique()}; 不可校正: {uncorr}")
+print("各批次偏移量:", {k: round(v, 3) for k, v in offsets.items()})
+y_anchor = (indel - df["batch"].map(offsets).fillna(0.0)).clip(0, 1).values
+
+def eval_label(y, name):
+    gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+    tr, te = next(gss.split(X, y, groups))
+    cv = list(GroupKFold(min(5, len(set(groups[tr])))).split(X[tr], y[tr], groups[tr]))
+    gs = GridSearchCV(Ridge(solver="svd"), {"alpha": np.logspace(-3, 3, 13)}, cv=cv, scoring="neg_mean_squared_error")
+    gs.fit(X[tr], y[tr])
+    rho, _ = spearmanr(gs.best_estimator_.predict(X[te]), y[te])
+    rhos = []
+    for tr_i, te_i in LeaveOneGroupOut().split(X, y, groups):
+        cv_i = list(GroupKFold(min(5, len(set(groups[tr_i])))).split(X[tr_i], y[tr_i], groups[tr_i]))
+        g_i = GridSearchCV(Ridge(solver="svd"), {"alpha": np.logspace(-3, 3, 13)}, cv=cv_i, scoring="neg_mean_squared_error")
+        g_i.fit(X[tr_i], y[tr_i])
+        p_i = g_i.best_estimator_.predict(X[te_i])
+        # round(6) 双侧常数折守卫（计B 9.19 整改口径）
+        if len(set(np.round(y[te_i], 6))) > 1 and len(set(np.round(p_i, 6))) > 1:
+            rhos.append(spearmanr(p_i, y[te_i])[0])
+    med = float(np.nanmedian(rhos))
+    print(f"[{name:7s}] test rho={rho:.4f}  LOGO-CV中位rho={med:.4f}  有效折={len(rhos)}/{len(set(groups))}")
+    return {"label": name, "n_rows": len(df), "test_rho": round(rho, 4),
+            "logo_cv_median_rho": round(med, 4), "n_folds": len(rhos), "n_groups": len(set(groups))}
+
+res = [eval_label((indel * 100).values, "raw"), eval_label(y_anchor * 100, "anchor")]
+pd.DataFrame(res).to_csv("results/b_anchor_final_0919.csv", index=False)
+print("Saved results/b_anchor_final_0919.csv")
