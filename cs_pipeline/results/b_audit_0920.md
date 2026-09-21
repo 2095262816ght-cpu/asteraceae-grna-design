@@ -51,11 +51,11 @@
 
 ## F. 整改落地记录（2026-09-21）
 
-B1/B2 已以 **16 版**落地：`data/1_Hi-results-16-efficiency-20260921.xlsx`，脚本 `scripts/dev/b_fix_16_postruling_0921.py`（可复现），说明 `docs/reports/scoring_rules_16_post_ruling_0921.md`。15 版原件保留未动（md5 f5da6431d364db539fb12bb650f49793）。
+B1/B2 已以 **16 版**落地：`data/1_Hi-results-16-efficiency-20260921.xlsx`，脚本 `scripts/dev/b_fix_16_postruling_0921.py`（可复现），说明 `docs/reports/scoring_rules_16_post_ruling_0921.md`。15 版审计对象为本地工作副本（md5 f5da6431d364db539fb12bb650f49793）；同学随后 push 的 15 版（8f74e9d，md5 0cabef9085dd940cebd2c067bb400680）经逐格比对与审计副本 **0 差异**（大小差仅为 zip 元数据），现 data/ 下以 push 版为 git 跟踪正本。
 
 - 口径：1368 = 保留 975（训练集）+ 保留-不可打分 3 + 剔除(9.19裁决) 360 + 剔除(弱信号,待老师追认) 30；裁决源 = excluded_gids_final_0919.csv，与 b_anchor_final_0919 的 1005 行口径对齐（975 + 弱信号 30 = 1005）
 - B2：28 行误保留改剔除；64 行 QC撤销恢复保留并重定级（guide确定→A/88 ×42，待设计表确认→待定 ×22）；裁决回写备注列 174 行
 - B1：综合分 = 纯百分位均值×100（并列同值），排名 competition ranking 并列同名次；37 个分数对 → 33 个名次档位；最大并列组 239 行同分（45.90）同名次（441）
 - r(综合分, indel_pct) = 0.045 (Pearson) / 0.112 (Spearman)，n=975，低于 15 版 0.126（口径变化 + 去抖动），后续引用以 16 版为准
-- C 项缺失文件（14-scoring / guide候选表 / (4)批注版）待同学回传；回传后补 25 行"待定"分级
+- C 项缺失文件已于 0921 由同学 push 补齐（8f74e9d：14-scoring / 13-merged(4)老师批注版 / 13-merged_计B批注版 / 15-efficiency），归置至 `cs_pipeline/data/`；guide候选表核对与 25 行"待定"分级补齐另见后续记录
 
