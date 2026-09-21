@@ -1,0 +1,7 @@
+population,label,n_rows,test_rho,logo_cv_median_rho,n_folds,n_groups
+ruling1005,raw,1005,0.2203,-0.2204,13,18
+ruling1005,anchor,1005,0.2241,-0.0782,13,18
+train969,raw,969,-0.3589,-0.2477,12,17
+train969,anchor,969,0.0807,0.3099,12,17
+noB879,raw,879,-0.2804,0.3661,9,16
+noB879,anchor,879,-0.5057,0.297,10,16
