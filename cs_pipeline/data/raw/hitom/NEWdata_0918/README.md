@@ -1,5 +1,12 @@
 # NEWdata 数据说明
 
+> **2026-09-21 归并记录**：`cs_pipeline/NEWdata/` 目录已撤销，全部内容并入本目录（`data/raw/hitom/NEWdata_0918/`）。
+> 并入前经 MD5 全量核对：`02_HiTOM结果表格/`（18 个 xls，其中 8 个与 data/raw 既有文件字节级相同，为保批次目录完整一并保留）、
+> `fastq_SY12100-USR-23709(旧批次唯一原始reads)/`（138 个 fastq，data/raw 原无、唯一拷贝）、
+> `_旧数据_唯一版本/`（旧批次中 5 个 data/raw 没有的 report/整理后 xls）。
+> 已删除的纯冗余：`_重复备份_fastq/`（138 个，逐文件 MD5 验证与唯一 reads 拷贝相同）、旧批次 4 个与 data/raw 字节级相同的 xls。
+> 原始表格数据（877 行）此前已整理入 `data/1_Hi-results-13-NEWdata-20260918.xlsx` 并合并进 1368 行主表。
+
 > 2026-09-18 最新进展：`02_HiTOM结果表格` 下的 17 个批次（共 18 个 Hi-TOM 结果文件，877 个样本块）已全量整理成主表格式，输出至
 > `data/1_Hi-results-13-NEWdata-20260918.xlsx`（877 行，guide-id TKS_0492–1368），
 > 生成脚本 `scripts/dev/build_newdata_table.py`，质检脚本 `scripts/dev/validate_newtable.py`（8项质检全部通过）。
