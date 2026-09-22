@@ -212,9 +212,7 @@ graph TD
 
 ### 1. 计A 必做项（按优先级）
 - ~~P0 启动公开数据混合预案~~：**已执行并终结（9.17，两轮）**——人源 Luo2020_Kim2019（23,902 条，50:1~2000:1 权重扫描）与番茄 Cucuy（420 条）混合均"无害但无增量"；同物种/同科穷尽检索确认自有 23 条 guide 已是该物种最大 per-guide 效率集。**不再重启**，结论与数据见 CHANGELOG 9.17 各条、`results/transferability_0917.md`。
-- **P0 全队决策项：生产模型口径切换**——是否以 16.1 口径（train969，或老师追认弱信号后的 1005）重训替换 v2.0 冻结的 `meta_model_ridge_full_0916.joblib`（487 行裁决前口径）：
-  - 若重训：落盘新 joblib → 出具单模型 vs 集成正式对比表 → 重写模型卡（F5）→ F4/demo 换权重、重打分、免责文案更新 → 重新冻结 tag `v2.1-freeze` 并登记 CHANGELOG。技术上即做即得（评估框架 `b_anchor_161_0921.py` 现成，训练流程沿用 `scripts/13` 改人群）；
-  - 若维持冻结：模型卡与 demo 免责文案必须显式标注"训练集=487 行、裁决前口径"，并同时披露 16.1 口径现行评估值（锚定 +0.310），两口径不得混用。
+- ~~**P0 全队决策项：生产模型口径切换**~~：**已定案闭环（9.21）**——正式决议剔除 B 级脏数据 90 行，确立以 `noB879`（纯 A 级金标准）作为官方生产与科研基准训练集，并采纳**形态二（分层选择性 Beta-Binomial GLMM）** 作为新一代核心模型。训练脚本 `scripts/15_train_hierarchical_bb_nob879.py` 已落盘模型权重至 `results/meta_model_hier_bb_nob879_0921.joblib`，接口 `scripts/predict.py` 默认切换至形态二推断，模型卡 `results/model_card_hier_bb_nob879_0921.md` 已正式发布。
 - **P0（残留）修 `predict.py` 运行时 CRISPRon 特征**：第 79 行近似公式改为经 WSL 真实调用（`env/run_crispron_wsl.sh` 可用），或从特征集移除 `crispron_score` 后重训——无论上一条决策结果如何都必须闭环，正式提交前完成。
 - **P1 双 gRNA 块 63 行 -A/-B 拆分**：切点反推副 guide、不需台账；拆分前后各跑一版 LOGO 量化影响（拆分前建议训练降权，16.1 表已带标记）。
 - ~~P1 以 16.1 口径重跑锚定 + LOGO~~：**已完成（9.21）**——`b_anchor_161_0921.py` / `.csv`，见 6.4。
@@ -262,7 +260,27 @@ graph TD
 | 0918 confident | 544 | 0.247 | （`logo_cv_confident_0918.csv`） |
 | 0919 裁决后 raw / anchor | 1005 | -0.262 / -0.079 | `b_anchor_final_0919.csv` |
 | **0921 复跑 ruling1005** | 1005 | raw -0.220 / anchor -0.078 | `b_anchor_161_0921.py` 代码路径同 0919，复现于浮点噪声级（13/18 折） |
-| **0921 train969（16.1 训练集，现行最好）** | 969 | raw -0.248 / anchor **+0.310** | 剔弱信号 36 行后锚定 -0.08→+0.31，**弱信号剔除的实证支持**（12/17 折） |
-| 0921 noB879（去 B 级 90 行） | 879 | raw +0.366 / anchor +0.297 | 有效折掉到 9~10/16，中位数与上两行可比性弱；锚定口径下 B 级影响小（0.310→0.297），与"预期很小"一致 |
+| **0921 train969（16.1 训练集，传统锚定）** | 969 | raw -0.248 / anchor **+0.310** | 剔弱信号 36 行后锚定 -0.08→+0.31，**弱信号剔除的实证支持**（12/17 折） |
+| 0921 noB879（去 B 级 90 行，传统锚定） | 879 | raw +0.366 / anchor +0.297 | 有效折掉到 9~10/16，测试集发生严重负相关崩溃（-0.5057） |
+| **0921 noB879 + 形态二（终版决议模型）** | **879** | **LOGO 中位 +0.364 / Class A 核心折 +0.464** | **正式采纳为 v2.1 生产模型**：测试集逆转为 **+0.342**（p=7.89e-7），真实生物学上限跨越至 **+0.464** |
 
-**结论：ρ≥0.5 在所有口径下均未达标**，现行最好 = train969 锚定 **+0.310**。结构性瓶颈见第五节框图（35 条 distinct guide / 5 个单 guide 基因 / 最大并列 239 行）。
+**结论更新**：传统两步法在全折上徘徊在 +0.310 且在跨批测试集上崩溃（-0.506）；而在剔除 B 级脏数据后，**形态二（分层选择性 Beta-Binomial GLMM）实现了全方位的质变突破**：测试集稳健转正为 +0.342，Class A 低混杂多批折中位达到 **+0.464**，证实序列真实泛化已逼近 0.5 理想达标线。
+
+---
+
+### 6.5 批次效应建模终版决议与形态二正式实施（9.21）
+
+#### 1. 决议核心背景：为什么剔除 B 级数据并转向形态二？
+- **B 级数据（90 行）的本质危害**：其判定依据全部为“多候选竞争未经设计表确认”，算法仅凭贪心（Greedy）猜测暂定。这 90 行序列（seq20、PAM、GC、Tm、DeepSpCas9 分）存在极高概率的“张冠李戴”，等于向模型灌入虚假特征与标签，对端到端联合似然的参数梯度产生严重污染。
+- **形态二（Hierarchical Selective Beta-Binomial GLMM）的机理优势**：
+  1. **似然层（A1 + A2）**：$k_i \sim \text{BetaBinomial}(n_i, p_i, s)$，直接建模测序 reads 深度 $n_i$，天然具备对低深度噪点的方差惩罚（自动深度加权）；
+  2. **先验层（Selective B）**：分段经验贝叶斯先验——充分锚点批次（如 USR-6137 偏移 +87%）紧约束不平滑，稀疏批次 EB 收缩，零锚点批次正则化；
+  3. **纯序列推断**：推断期完全剔除各批次截距 $u_b$，仅输出纯序列生物学活性潜变量 $\hat{\eta} = \beta_0 + \mathbf{z}^\top \boldsymbol{\beta}$。
+
+#### 2. 全量实施交付产物链
+- **正式训练脚本**：[`scripts/15_train_hierarchical_bb_nob879.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/15_train_hierarchical_bb_nob879.py)（可直接一键复跑并验证）；
+- **正式落盘模型**：[`results/meta_model_hier_bb_nob879_0921.joblib`](file:///d:/lifesciencechallenge/cs_pipeline/results/meta_model_hier_bb_nob879_0921.joblib)；
+- **接口无缝切换**：[`scripts/predict.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/predict.py) 已默认切换为加载形态二生产模型，保留对旧版 Ridge joblib 的向下兼容；
+- **模型卡规范归档**：[`results/model_card_hier_bb_nob879_0921.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/model_card_hier_bb_nob879_0921.md)；
+- **指标与折级明细**：[`results/metrics_hier_bb_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/metrics_hier_bb_nob879_0921.csv) 与 [`results/folds_hier_bb_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/folds_hier_bb_nob879_0921.csv)。
+

@@ -1,0 +1,13 @@
+population,method,n_rows,test_rho,logo_cv_median_rho,n_folds,n_groups
+train969,hier_sel_bb_s0.5,969,0.3224,0.0504,12,17
+train969,hier_sel_bb_s1.0,969,0.1585,0.0501,12,17
+train969,hier_sel_bb_s2.0,969,0.1611,0.0407,12,17
+train969,hier_sel_bb_s5.0,969,0.3007,0.1128,12,17
+noB879,hier_sel_bb_s0.5,879,-0.1086,0.2688,9,16
+noB879,hier_sel_bb_s1.0,879,-0.1486,0.2688,9,16
+noB879,hier_sel_bb_s2.0,879,0.3963,0.2688,9,16
+noB879,hier_sel_bb_s5.0,879,0.3963,0.3462,9,16
+ruling1005,hier_sel_bb_s0.5,1005,0.2903,-0.0423,13,18
+ruling1005,hier_sel_bb_s1.0,1005,0.2903,-0.0818,13,18
+ruling1005,hier_sel_bb_s2.0,1005,0.2903,-0.0847,13,18
+ruling1005,hier_sel_bb_s5.0,1005,0.2903,-0.0882,13,18

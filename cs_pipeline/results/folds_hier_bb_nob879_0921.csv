@@ -1,0 +1,10 @@
+gene_group,class,n_samples,rho,p_value
+EVM.MODEL.LG01.555,"Class B (High-Confounding, 1-2 Batches)",20,-0.3219,0.1663
+EVM.MODEL.LG01.6995/6999,"Class B (High-Confounding, 1-2 Batches)",35,-0.3878,0.0213
+EVM.MODEL.LG01.8265,"Class B (High-Confounding, 1-2 Batches)",38,0.2204,0.1835
+EVM.MODEL.LG02.4013,"Class B (High-Confounding, 1-2 Batches)",57,0.6527,0.0
+EVM.MODEL.LG03.451,"Class A (Low-Confounding, Multi-Batch)",35,0.8522,0.0
+EVM.MODEL.LG05.1856,"Class A (Low-Confounding, Multi-Batch)",20,0.4636,0.0395
+EVM.MODEL.LG05.2725,"Class A (Low-Confounding, Multi-Batch)",306,0.3635,0.0
+EVM.MODEL.LG07.3296,"Class A (Low-Confounding, Multi-Batch)",153,0.2071,0.0102
+EVM.MODEL.LG07.3933,"Class A (Low-Confounding, Multi-Batch)",18,0.4837,0.042

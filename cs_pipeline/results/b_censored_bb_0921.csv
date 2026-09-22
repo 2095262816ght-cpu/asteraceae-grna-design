@@ -1,0 +1,5 @@
+population,model,test_rho,logo_med_rho,class_a_med_rho (Low-Confounding),class_b_med_rho (High-Confounding),n_folds
+train969,Standard_BB,0.3007,0.1128,0.1742,-0.124,12
+train969,Censored_BB,-0.2446,-0.0982,-0.0982,-0.0266,12
+noB879,Standard_BB,0.3963,0.3462,0.4195,-0.0266,9
+noB879,Censored_BB,0.0311,0.0987,0.1474,0.0942,10

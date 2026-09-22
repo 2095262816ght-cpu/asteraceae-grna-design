@@ -1,0 +1,2 @@
+model,cohort,n_samples,test_rho,logo_cv_median_rho,class_a_median_rho,class_b_median_rho,valid_folds
+Hierarchical_Selective_BB,noB879,879,0.3424,0.3635,0.4636,-0.0508,9/16

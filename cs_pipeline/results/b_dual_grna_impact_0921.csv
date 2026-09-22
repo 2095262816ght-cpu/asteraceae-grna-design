@@ -1,0 +1,4 @@
+experiment,n_samples,test_rho,logo_cv_median_rho,class_a_median_rho,valid_folds
+1_baseline_noB879,879,0.3424,0.3635,0.4636,9/16
+2_drop_dual_841,841,0.3414,0.241,0.3143,8/16
+3_downweight_dual_0.5,879,0.3414,0.3716,0.4636,9/16
