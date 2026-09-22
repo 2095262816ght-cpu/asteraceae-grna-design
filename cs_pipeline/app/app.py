@@ -46,14 +46,18 @@ if not CRISPR_PYTHON:
 CLI_SCRIPT = Path(__file__).resolve().parent / "score_deepspcas9_cli.py"
 SCORE_TIMEOUT_S = 120
 
-st.set_page_config(page_title="菊科菊苣族 gRNA 设计工具", layout="wide")
-st.title("菊科（菊苣族）CRISPR/Cas9 gRNA 设计工具")
+st.set_page_config(
+    page_title="莴苣基因编辑 gRNA 设计与脱靶评估工具（v2.1）",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+st.title("莴苣基因编辑 gRNA 设计与脱靶评估工具（v2.1）")
 st.caption(
-    "模型路线：DeepSpCas9 + CRISPRon 双模型打分 → Stacking 岭回归集成（已训练接入）"
-    "→ 基因组候选扫描 → 脱靶过滤 · 当前 demo 范围：49 个 NLR 代表基因"
+    "模型路线：DeepSpCas9 + CRISPRon 双模型打分 → 分层选择性 Beta-Binomial GLMM 排序集成（v2.1 / noB879 纯A级金标准训练）"
+    " → 基因组候选扫描 → 脱靶过滤 · 当前 demo 范围：49 个 NLR 代表基因"
 )
 
-tab1, tab2 = st.tabs(["按基因名检索", "按自定义序列打分"])
+tab1, tab2 = st.tabs(["候选 gRNA 检索与推荐", "单序列实时打分"])
 
 
 # =====================================================================
@@ -69,12 +73,18 @@ def load_data():
 with tab1:
     data, genes = load_data()
     has_offtarget = data["offtarget_count_mis3"].notna().any()
-    # 优先使用 2026-09-16 全量重打分列（真实 DeepSpCas9+CRISPRon + 全量数据训练的模型，
-    # LOGO-CV ρ=0.414）；旧 efficiency_score 列为旧模型+近似 CRISPRon 特征产出，仅作留档
+    # 优先使用 2026-09-21 v2.1 终版分层模型重打分列（真实 DeepSpCas9+CRISPRon + noB879 纯A级金标准训练，
+    # 核心靶点泛化上限 ρ=0.464，留出测试集 ρ=0.342）；旧列仅作留档
+    has_v21 = "efficiency_score_v21_nob879" in data.columns and data["efficiency_score_v21_nob879"].notna().any()
     has_full = "efficiency_score_full_0916" in data.columns and data["efficiency_score_full_0916"].notna().any()
-    has_stacking = has_full or ("efficiency_score" in data.columns and data["efficiency_score"].notna().any())
+    has_stacking = has_v21 or has_full or ("efficiency_score" in data.columns and data["efficiency_score"].notna().any())
 
-    if has_full:
+    if has_v21:
+        st.success(
+            "本页“效率分（v2.1排序参考）”用于**候选 guide 的相对排序与择优**（融合真实 DeepSpCas9、CRISPRon 及序列物理特征；2026-09-21 终版形态二分层模型，基于 noB879 纯 A 级金标准训练）。建议同一基因内取 top 3–5 条送实验终筛；分数为排序参考，非绝对突变率承诺（低混杂核心靶点上限 ρ=0.464，留出测试集 ρ=0.342）。",
+            icon="✅",
+        )
+    elif has_full:
         st.success(
             "本页“效率分（Stacking预测）”用于**候选 guide 的相对排序**（融合 DeepSpCas9、CRISPRon 及序列物理特征；2026-09-16 全量数据重训版）。建议同一基因内取 top 3–5 条送实验终筛；分数为排序参考，非绝对效率承诺（模型 LOGO-CV ρ=0.414）。",
             icon="✅",
@@ -101,8 +111,18 @@ with tab1:
     ginfo = genes[genes.gene_id == gene_id].iloc[0]
     cand = data[data.gene_id == gene_id].copy()
 
-    eff_col = "efficiency_score_full_0916" if has_full else ("efficiency_score" if has_stacking else "efficiency_placeholder")
-    eff_label = "效率分（Stacking排序参考）" if has_stacking else "效率分（占位）"
+    if has_v21:
+        eff_col = "efficiency_score_v21_nob879"
+        eff_label = "效率分（v2.1排序参考）"
+    elif has_full:
+        eff_col = "efficiency_score_full_0916"
+        eff_label = "效率分（Stacking排序参考）"
+    elif has_stacking:
+        eff_col = "efficiency_score"
+        eff_label = "效率分（Stacking排序参考）"
+    else:
+        eff_col = "efficiency_placeholder"
+        eff_label = "效率分（占位）"
 
     colf1, colf2, colf3 = st.columns(3)
     with colf1:

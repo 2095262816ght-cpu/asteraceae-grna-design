@@ -1,0 +1,9 @@
+population,method,all_folds,all_med_rho,class_a_folds,class_a_med_rho (Low-Confounding),class_b_folds,class_b_med_rho (High-Confounding)
+train969,raw,12,-0.109,8,-0.1704,4,0.0595
+train969,anchor,12,0.3099,8,0.3099,4,0.3283
+train969,depth_weighted_anchor,12,0.3522,8,0.3522,4,0.3283
+train969,hier_sel_bb_s5.0,12,0.1128,8,0.1742,4,-0.124
+noB879,raw,9,-0.074,5,0.5442,4,-0.0772
+noB879,anchor,10,0.297,6,0.2653,4,0.297
+noB879,depth_weighted_anchor,10,0.2166,6,0.2592,4,-0.0266
+noB879,hier_sel_bb_s5.0,9,0.3462,5,0.4195,4,-0.0266

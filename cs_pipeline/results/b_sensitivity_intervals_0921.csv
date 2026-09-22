@@ -1,0 +1,2 @@
+cohort,method,zero_anchor_batches,n_simulations,mean_rho,median_rho,std_rho,ci_2.5%,ci_97.5%
+train969,Depth_Weighted_Anchor (A2),"USR-5712 (61 rows), USR-17012 (4 rows)",50,0.2712,0.2891,0.0615,0.1095,0.3331

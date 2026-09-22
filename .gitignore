@@ -18,3 +18,7 @@ Thumbs.db
 *.xlsx
 *.xls
 *.fastq
+
+# AI/IDE local environment caches
+.agents/
+.claude/

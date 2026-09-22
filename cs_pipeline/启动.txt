@@ -1,0 +1,2 @@
+cd "d:\lifesciencechallenge\cs_pipeline"
+D:\Miniconda\envs\grna-demo\python.exe -m streamlit run app/app.py
