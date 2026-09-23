@@ -41,3 +41,10 @@ data/mini_*.txt
 results/off_mini_*.txt
 results/offtarget_raw_0924.txt
 demo/*.log
+
+# 0923 多组学：表达矩阵原始数据不入库（README.md / supportingpaper.md 记录来源、口径与 11/11 靶基因命中校验事实）
+# TKS 的 .xlsx 已由根 .gitignore 的 *.xlsx 覆盖
+data/expression/*.csv
+
+# 0923：第三方 DeepSpCas9 预训练权重（由 crispr 环境的 genet 包加载，仓库内无引用）
+models/

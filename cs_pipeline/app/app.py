@@ -30,13 +30,23 @@ BASE = Path(__file__).resolve().parent.parent  # cs_pipeline/
 # 独立打分环境的 python（含 genet + DeepSpCas9 权重）。
 CRISPR_PYTHON = os.environ.get("CRISPR_PYTHON")
 if not CRISPR_PYTHON:
-    for candidate in [
+    # 优先推断：若当前运行在 grna-demo 等 conda 环境中，直接寻找同目录下的 crispr 环境
+    sibling_crispr = Path(sys.executable).parent.parent / "envs" / "crispr" / "python.exe"
+    same_dir_crispr = Path(sys.executable).parent.parent / "crispr" / "python.exe"
+    candidates = [
+        str(sibling_crispr),
+        str(same_dir_crispr),
         r"D:\Miniconda\envs\crispr\python.exe",
         str(Path.home() / "miniconda3" / "envs" / "crispr" / "python.exe"),
         str(Path.home() / "anaconda3" / "envs" / "crispr" / "python.exe"),
+        r"C:\miniconda3\envs\crispr\python.exe",
+        r"C:\anaconda3\envs\crispr\python.exe",
+        r"C:\ProgramData\miniconda3\envs\crispr\python.exe",
+        r"C:\ProgramData\anaconda3\envs\crispr\python.exe",
         str(Path(os.environ.get("CONDA_PREFIX_1", Path.home() / "anaconda3"))
             / "envs" / "crispr" / "python.exe"),
-    ]:
+    ]
+    for candidate in candidates:
         if Path(candidate).exists():
             CRISPR_PYTHON = str(candidate)
             break
