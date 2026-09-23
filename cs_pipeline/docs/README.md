@@ -17,6 +17,7 @@
 | notification/ | 赛事官方通知（不入 git） |
 | _archive/ | 已被取代的旧方案存档，**勿再引用** |
 | project_progress_report.md | 项目进展全景审计报告（本目录根） |
+| multiomics_implementation_plan.md | 多组学转录表达数据六大应用方案实施计划与流水线全景规范（本目录根） |
 | ../ | 上级即 cs_pipeline 流水线：scripts（00–09 脚本）、data（数据）、results（结果产出）、env（环境）、app（demo）、tools（外部工具） |
 
 ## 现行方案与分工（plans/，以这批为准）
