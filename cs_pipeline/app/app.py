@@ -83,8 +83,18 @@ def load_data():
     return data, genes
 
 
+@st.cache_data
+def load_priority():
+    """方案3 组织优先指数表（scripts/21 产出），仅取新增列按 guide_id 合并。"""
+    prio = pd.read_csv(BASE / "demo/app_data_tissue_priority.csv")
+    keep = [c for c in prio.columns if c.startswith(
+        ("priority_", "expr_sigmoid_", "expression_status", "lsa_id"))]
+    return prio[["guide_id"] + keep]
+
+
 with tab1:
     data, genes = load_data()
+    data = data.merge(load_priority(), on="guide_id", how="left", validate="1:1")
     has_offtarget = data["offtarget_count_mis3"].notna().any()
     # 优先使用 2026-09-21 v2.1 终版分层模型重打分列（真实 DeepSpCas9+CRISPRon + noB879 纯A级金标准训练，
     # 核心靶点泛化上限 ρ=0.464，留出测试集 ρ=0.342）；旧列仅作留档
@@ -119,6 +129,12 @@ with tab1:
     gene_id = st.selectbox(
         "选择基因（可输入关键字过滤）", sorted(genes.gene_id.unique())
     )
+    target_tissue = st.segmented_control(
+        "目标组织（方案3 重排与表达诊断跟随此选择）",
+        options=expression_visualizer.TISSUE_ORDER,
+        format_func=lambda k: expression_visualizer.TISSUES[k],
+        default="Leaf",
+    )
 
     t0 = time.perf_counter()
     ginfo = genes[genes.gene_id == gene_id].iloc[0]
@@ -148,7 +164,8 @@ with tab1:
         sort_key = st.selectbox(
             "排序依据",
             [
-                f"{eff_label} 降序（推荐）",
+                f"组织优先指数（{expression_visualizer.TISSUES[target_tissue]}）降序（方案3推荐）",
+                f"{eff_label} 降序",
                 "脱靶计数 mis3 升序" if has_offtarget else "脱靶计数 mis3 升序（待数据）",
                 "GC% 接近 50%",
             ],
@@ -158,7 +175,11 @@ with tab1:
         cand = cand[~cand.in_centromere]
     cand = cand[cand.region_type.isin(region)]
 
-    if sort_key.startswith(eff_label):
+    if sort_key.startswith("组织优先指数"):
+        cand = cand.sort_values(
+            f"priority_score_{target_tissue.lower()}", ascending=False
+        )
+    elif sort_key.startswith(eff_label):
         cand = cand.sort_values(eff_col, ascending=False)
     elif sort_key.startswith("脱靶"):
         cand = cand.sort_values(
@@ -176,11 +197,22 @@ with tab1:
     c4.metric("NLR 类型", str(ginfo.get("nlr_type", "—")))
     c5.metric("候选数（过滤后）", len(cand))
 
-    expression_visualizer.render_gene_expression(gene_id)
+    expression_visualizer.render_gene_expression(gene_id, target_tissue)
 
+    prio_col = f"priority_score_{target_tissue.lower()}"
+    prio_label = f"组织优先指数（{expression_visualizer.TISSUES[target_tissue]}）"
+    cand = cand.assign(**{
+        "表达证据": cand["expression_status"].map({
+            "mapped": "已映射",
+            "mapped_cluster": "已映射（串联簇）",
+            "mapped_scaffold": "已映射（未挂载 scaffold）",
+            "unmappable": "表达证据缺失",
+        }),
+    })
     cand = cand.rename(
         columns={
             eff_col: eff_label,
+            prio_col: prio_label,
             "offtarget_count_mis1": "脱靶 mis1",
             "offtarget_count_mis2": "脱靶 mis2",
             "offtarget_count_mis3": "脱靶 mis3",
@@ -190,7 +222,7 @@ with tab1:
     )
     show_cols = [
         "guide_id", "seq20", "pam", "chrom", "start", "end", "strand",
-        "region_type", "gc_pct", "tm_c", eff_label,
+        "region_type", "gc_pct", "tm_c", eff_label, prio_label, "表达证据",
         "脱靶 mis1", "脱靶 mis2", "脱靶 mis3", "完全匹配数", "着丝粒区",
     ]
     show_cols = [c for c in show_cols if c in cand.columns]
