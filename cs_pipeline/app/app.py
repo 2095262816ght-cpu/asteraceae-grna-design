@@ -93,9 +93,25 @@ def load_priority():
     return prio[["guide_id"] + keep]
 
 
+@st.cache_data
+def load_hazard():
+    """方案5（轻量版）面板内组织功能性脱靶危害分（scripts/22 产出）。"""
+    path = BASE / "results" / "offtarget_functional_hazard_0923.csv"
+    if not path.exists():
+        empty = {"guide_id": []}
+        empty.update({f"hazard_{t}": [] for t in
+                      ("root", "stem", "leaf", "flower", "seed")})
+        empty["n_intra_panel_sites"] = []
+        return pd.DataFrame(empty)
+    h = pd.read_csv(path)
+    keep = [c for c in h.columns if c.startswith("hazard_")] + ["n_intra_panel_sites"]
+    return h[["guide_id"] + keep]
+
+
 with tab1:
     data, genes = load_data()
     data = data.merge(load_priority(), on="guide_id", how="left", validate="1:1")
+    data = data.merge(load_hazard(), on="guide_id", how="left", validate="1:1")
     has_offtarget = data["offtarget_count_mis3"].notna().any()
     # 优先使用 2026-09-21 v2.1 终版分层模型重打分列（真实 DeepSpCas9+CRISPRon + noB879 纯A级金标准训练，
     # 核心靶点泛化上限 ρ=0.464，留出测试集 ρ=0.342）；旧列仅作留档
@@ -202,6 +218,8 @@ with tab1:
 
     prio_col = f"priority_score_{target_tissue.lower()}"
     prio_label = f"组织优先指数（{expression_visualizer.TISSUES[target_tissue]}）"
+    haz_col = f"hazard_{target_tissue.lower()}"
+    haz_label = f"功能性脱靶危害（{expression_visualizer.TISSUES[target_tissue]}）"
     cand = cand.assign(**{
         "表达证据": cand["expression_status"].map({
             "mapped": "已映射",
@@ -214,6 +232,8 @@ with tab1:
         columns={
             eff_col: eff_label,
             prio_col: prio_label,
+            haz_col: haz_label,
+            "n_intra_panel_sites": "面板内位点数",
             "offtarget_count_mis1": "脱靶 mis1",
             "offtarget_count_mis2": "脱靶 mis2",
             "offtarget_count_mis3": "脱靶 mis3",
@@ -223,7 +243,8 @@ with tab1:
     )
     show_cols = [
         "guide_id", "seq20", "pam", "chrom", "start", "end", "strand",
-        "region_type", "gc_pct", "tm_c", eff_label, prio_label, "表达证据",
+        "region_type", "gc_pct", "tm_c", eff_label, prio_label, haz_label,
+        "面板内位点数", "表达证据",
         "脱靶 mis1", "脱靶 mis2", "脱靶 mis3", "完全匹配数", "着丝粒区",
     ]
     show_cols = [c for c in show_cols if c in cand.columns]
