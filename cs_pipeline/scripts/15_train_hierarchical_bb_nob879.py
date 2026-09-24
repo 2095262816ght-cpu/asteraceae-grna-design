@@ -8,69 +8,43 @@
    - 先验层：Selective EB Prior，充分锚点批次（>=10）紧约束，稀疏批次 EB 收缩，零批次先验归零；
    - 序列推断：剔除批次随机截距 u_b，仅输出纯序列生物学活性 eta = beta_0 + Z^T beta；
 3. 输出模型产物：results/meta_model_hier_bb_nob879_0921.joblib
-4. 运行：python scripts/15_train_hierarchical_bb_nob879.py
+   及与之同源的标准特征矩阵 results/feature_matrix_nob879_0921.csv（879 行，行内自带
+   seq20/seq30/pam，可脱离 guide_id 独立核验）；
+4. 队列装载与 10 维特征构建统一来自 scripts/features_common.py，与 scripts/17（方案2 消融）
+   同源同构——此前两脚本各存一份逐行相同的内联副本，消融结论依赖二者不漂移却无机制保证；
+5. 运行：python scripts/15_train_hierarchical_bb_nob879.py
 """
 
-import os
 import sys
 from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from Bio.SeqUtils import gc_fraction
-from Bio.SeqUtils.MeltingTemp import Tm_NN
 from scipy.stats import spearmanr
 from sklearn.model_selection import GroupShuffleSplit, LeaveOneGroupOut
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from features_common import (
+    FEATURE_COLS,
+    FEATURE_MATRIX_CSV,
+    dump_feature_matrix,
+    load_cohort,
+)
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-XLSX_PATH = BASE_DIR / "data" / "1_Hi-results-16.1-efficiency-20260921.xlsx"
-READS_CSV = BASE_DIR / "data" / "hitom" / "hitom_reads_depth_0921.csv"
 MODEL_OUT = BASE_DIR / "results" / "meta_model_hier_bb_nob879_0921.joblib"
 METRICS_CSV = BASE_DIR / "results" / "metrics_hier_bb_nob879_0921.csv"
 FOLDS_CSV = BASE_DIR / "results" / "folds_hier_bb_nob879_0921.csv"
 
-# 1. 载入并筛选人群
-a = pd.read_excel(XLSX_PATH, sheet_name="全部打分")
-gid_all = a["guide-id"].astype(str)
-pop_noB = set(gid_all[(a["处理状态"] == "保留") & (a["等级"] != "B")])
-print(f"载入 noB879 纯A级金标准人群: n={len(pop_noB)} (已剔除 90 行未经设计表确认的 B 级数据)")
-assert len(pop_noB) == 879, f"期望 879 行，实际 {len(pop_noB)} 行"
-
-# 2. 基础特征与深度匹配
-base = pd.read_csv(BASE_DIR / "data" / "hitom" / "hitom_seq30_merged_0918.csv")
-base = base.merge(pd.read_csv(BASE_DIR / "results" / "scores_deepspcas9_merged_0918.csv"), on="guide_id", validate="1:1")
-base = base.merge(pd.read_csv(BASE_DIR / "results" / "scores_crispron_merged_0918.csv"), on="guide_id", validate="1:1")
-reads_df = pd.read_csv(READS_CSV)
-base = base.merge(reads_df[["guide_id", "total_reads", "non_wt_reads"]], on="guide_id", validate="1:1")
-base["guide_id"] = base["guide_id"].astype(str)
-
-df = base[base.guide_id.isin(pop_noB)].copy().reset_index(drop=True)
-assert len(df) == 879
-
-# 3. 特征工程
-HOMOLOG = {
-    "EVM.MODEL.LG01.6995": "EVM.MODEL.LG01.6995/6999",
-    "EVM.MODEL.LG01.6999": "EVM.MODEL.LG01.6995/6999"
-}
-df["gene_group"] = df["gene_id"].replace(HOMOLOG)
-df["gc_total"] = df.seq20.map(gc_fraction)
-df["gc_seed"] = df.seq30.str[18:24].map(gc_fraction)
-df["tm"] = df.seq20.map(Tm_NN)
-df["poly_t"] = df.seq20.str.contains("TTTT").astype(int)
-df = pd.concat([df, pd.get_dummies(df.pam.str[0], prefix="pam_n")], axis=1)
-
-FEATURE_COLS = [
-    "deepspcas9_score", "crispron_score", "gc_total", "gc_seed",
-    "tm", "poly_t", "pam_n_A", "pam_n_C", "pam_n_G", "pam_n_T"
-]
-for col in FEATURE_COLS:
-    if col not in df.columns:
-        df[col] = 0.0
+# 1–3. 载入 noB879 纯 A 级金标准队列 + 构建 10 维标准特征
+#    口径筛选、同源对合并、行数/唯一性/十维同序断言均在 features_common 单点维护
+df = load_cohort("noB879")
+print(f"载入 noB879 纯A级金标准人群: n={len(df)} (已剔除 90 行未经设计表确认的 B 级数据)")
+print(f"基因组数 {df['gene_group'].nunique()} (= LOGO 折数) | 标准特征 {len(FEATURE_COLS)} 维")
 
 X_raw = df[FEATURE_COLS].astype(float).values
 groups = df["gene_group"].values
@@ -256,6 +230,11 @@ model_payload = {
 
 joblib.dump(model_payload, MODEL_OUT)
 print(f"生产模型已成功落盘至: {MODEL_OUT}")
+
+# 落盘与本次训练同源的标准特征矩阵（行内自带 seq20/seq30/pam，可脱离 guide_id 独立核验）
+saved_fm = dump_feature_matrix(df)
+print(f"标准特征矩阵已落盘: {FEATURE_MATRIX_CSV.relative_to(BASE_DIR)} "
+      f"({saved_fm.shape[0]} 行 × {saved_fm.shape[1]} 列)")
 
 # 8. 保存指标摘要
 metrics_summary = pd.DataFrame([{

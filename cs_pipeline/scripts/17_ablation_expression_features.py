@@ -7,7 +7,7 @@
 来回答“表达水平在多大程度上影响剪切效率”。该设计存在结构性缺陷：
 
   TKS 表达特征是**基因级常量**；LOGO 的一个 test fold 恰好就是**一个基因**；
-  而 scripts/15 的推断路径（15:204-205）明确剔除批次随机截距 u_b，
+  而 scripts/15 的折内推断路径（`pred_i = beta0 + Z_te·beta`，明确不含批次随机截距 u_b），
   故 fold 内预测 = beta0 + z·beta。基因级常量项对该 fold 所有样本施加**同一个常数偏移**，
   Spearman 秩相关对常数偏移不变 => beta_expr 对 fold 内 ρ 的直接贡献恒等于 0。
   Δρ 只能经“序列系数被重新估计”这条二阶路径产生，Wilcoxon 检验的是噪声。
@@ -41,14 +41,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from features_common import FEATURE_COLS, load_cohort
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-XLSX_161 = BASE_DIR / "data" / "1_Hi-results-16.1-efficiency-20260921.xlsx"
-SEQ30_CSV = BASE_DIR / "data" / "hitom" / "hitom_seq30_merged_0918.csv"
-DSS_CSV = BASE_DIR / "results" / "scores_deepspcas9_merged_0918.csv"
-CRISPON_CSV = BASE_DIR / "results" / "scores_crispron_merged_0918.csv"
-READS_CSV = BASE_DIR / "data" / "hitom" / "hitom_reads_depth_0921.csv"
 TKS_XLSX = BASE_DIR / "data" / "expression" / "2-3_TKS_Tiss-Dev-Expression(1).xlsx"
 
 OUT_GENELEVEL = BASE_DIR / "results" / "ablation_expression_genelevel_0923.csv"
@@ -56,17 +53,14 @@ OUT_STUDY = BASE_DIR / "results" / "ablation_expression_study_0923.csv"
 OUT_SHAP = BASE_DIR / "results" / "ablation_expression_shap.png"
 OUT_REPORT = BASE_DIR / "results" / "ablation_expression_report_0923.md"
 
-# 与 scripts/15 保持一致：LG01.6995 / 6999 为同源对，合并为一个 LOGO 组
-HOMOLOG = {
-    "EVM.MODEL.LG01.6995": "EVM.MODEL.LG01.6995/6999",
-    "EVM.MODEL.LG01.6999": "EVM.MODEL.LG01.6995/6999",
-}
+# LG01.6995 / 6999 同源对的成员名（小写口径，用于在 TKS 表达特征表中定位）。
+# 合并规则本身、队列装载与 10 维特征构建均由 features_common 单点定义，与 scripts/15
+# 生产模型同源——此前本脚本 :183-192 存有一份逐行相同的副本，消融结论依赖二者不漂移
+# 却无任何机制保证，现已消除。
 HOMOLOG_MEMBERS = ["evm.model.lg01.6995", "evm.model.lg01.6999"]
 
-SEQ_FEATURES = [
-    "deepspcas9_score", "crispron_score", "gc_total", "gc_seed",
-    "tm", "poly_t", "pam_n_A", "pam_n_C", "pam_n_G", "pam_n_T",
-]
+# 保留 SEQ_ 前缀以与本脚本的 EXPR_FEATURES 形成对照
+SEQ_FEATURES = FEATURE_COLS
 
 # TKS 表列名异常的人工裁定（文件实测 79 个样本列，非方案文档所称 80）：
 #   S9-2jiaoru        -> 视作 S9 胶乳 rep2（该表缺 S9-jiaoru-2，命名倒置）
@@ -150,47 +144,6 @@ def load_tks_expression():
         "n_nan_coerced_to_0": n_nan,
     }
     return feat, audit
-
-
-# --------------------------------------------------------------------------
-# 队列装载（复刻 scripts/15 口径）
-# --------------------------------------------------------------------------
-def load_cohort(kind):
-    """kind in {'noB879', 'train969'}；返回带基因组与表达特征的 DataFrame。"""
-    if kind == "noB879":
-        a = pd.read_excel(XLSX_161, sheet_name="全部打分")
-        gid = a["guide-id"].astype(str)
-        pop = set(gid[(a["处理状态"] == "保留") & (a["等级"] != "B")])
-        expect = 879
-    elif kind == "train969":
-        t = pd.read_excel(XLSX_161, sheet_name="训练集")
-        pop = set(t["guide-id"].astype(str))
-        expect = 969
-    else:
-        raise ValueError(kind)
-
-    base = pd.read_csv(SEQ30_CSV)
-    base = base.merge(pd.read_csv(DSS_CSV), on="guide_id", validate="1:1")
-    base = base.merge(pd.read_csv(CRISPON_CSV), on="guide_id", validate="1:1")
-    reads = pd.read_csv(READS_CSV)
-    base = base.merge(reads[["guide_id", "total_reads", "non_wt_reads"]], on="guide_id", validate="1:1")
-    base["guide_id"] = base["guide_id"].astype(str)
-
-    df = base[base.guide_id.isin(pop)].copy().reset_index(drop=True)
-    assert len(df) == expect, f"{kind} 期望 {expect} 行，实际 {len(df)} 行"
-
-    df["gene_group"] = df["gene_id"].replace(HOMOLOG)
-    from Bio.SeqUtils import gc_fraction
-    from Bio.SeqUtils.MeltingTemp import Tm_NN
-    df["gc_total"] = df.seq20.map(gc_fraction)
-    df["gc_seed"] = df.seq30.str[18:24].map(gc_fraction)
-    df["tm"] = df.seq20.map(Tm_NN)
-    df["poly_t"] = df.seq20.str.contains("TTTT").astype(int)
-    df = pd.concat([df, pd.get_dummies(df.pam.str[0], prefix="pam_n")], axis=1)
-    for col in SEQ_FEATURES:
-        if col not in df.columns:
-            df[col] = 0.0
-    return df
 
 
 EXPR_FEATURES = ["log2_gen", "log2_ye", "log2_jiaoru", "dev_mean_log2", "tau"]

@@ -21,7 +21,7 @@
 >   - **【P0 残留阻断】`predict.py` 运行时特征近似**：单序列推断接口第 83 行 `crispron_score` 仍为人工经验近似式，与训练时真实 WSL CRISPRon 输出不同源，正式提交前必须通过 WSL 接入真实调用或规范化重构（P0）；
 >   - **【P1 遗留】官方单模型 vs 集成对比表未正式固化**：现存对比表仍为 0916 旧口径，`noB879` 口径下涵盖单模型与形态二横向指标对比的正式交付表尚未单独落盘；
 >   - **【P1 遗留】双 gRNA 块 63 行 -A/-B 拆分**：尚未按切割点坐标反推副 guide 完成物理拆分并量化影响；
->   - **【P2 遗留】规范化静态特征矩阵未独立落盘**：现行训练直接内联提取，未产出对应 `noB879` 的标准特征矩阵 CSV；
+>   - ~~**【P2 遗留】规范化静态特征矩阵未独立落盘**~~：**已闭环（9.24）**——`results/feature_matrix_nob879_0921.csv`（879 行 × 20 列，行内自带序列故不依赖跨表 join）已落盘；特征构建逻辑抽为单一来源模块 `scripts/features_common.py`，消除 `scripts/15`/`scripts/17` 的两份内联副本，重构后生产模型逐值未变（详见阶段 2 表「特征矩阵组装」行）；
 >   - **【客观局限】全折中位指标未达 0.5 达标线**：受限于 879 行仅 35 条 distinct guide 的极端样本匮乏，全折中位 $\rho=+0.364$（有效折 9/16），公开数据混合已两轮穷尽证实无增量，确立为诚实科研答辩叙事。
 
 
@@ -76,7 +76,7 @@ graph TD
    - **【未解决问题 1 · P0 阻断】`predict.py` 运行时特征近似**：单序列推断接口第 83 行 `crispron_score` 仍为人工经验近似式，未真正调用 WSL 原生模型，属于推理期特征伪造，正式提交前必须通过 WSL 接入真实调用或重构特征集；
    - **【未解决问题 2 · P1 遗留】单模型 vs 集成官方对比表未固化**：现存对比表仍为 0916 旧口径，`noB879` 口径下涵盖单模型与形态二横向指标对比的正式交付表尚未单独落盘；
    - **【未解决问题 3 · P1 遗留】双 gRNA 块 63 行 -A/-B 拆分**：尚未按切割点反推副 guide 完成物理拆分并量化影响；
-   - **【未解决问题 4 · P2 遗留】独立静态特征矩阵未落盘**：现行训练直接内联提取，未产出对应 `noB879` 的标准特征矩阵 CSV；
+   - ~~**【未解决问题 4 · P2 遗留】独立静态特征矩阵未落盘**~~：**已闭环（9.24）**——标准特征矩阵 `results/feature_matrix_nob879_0921.csv`（879 行 × 20 列）已落盘，每行自带 `seq20`/`seq30`/`pam`，10 维特征可由行内数据独立重算核验，不需要按 guide-id 跨表拼接（即 0918 编号地雷的防呆）；特征构建逻辑抽为单一来源 `scripts/features_common.py`，`scripts/15`（生产训练）与 `scripts/17`（方案2 消融）统一 import，消除了两份**逐行相同**的内联副本——此前方案2 的阴性结论依赖二者不分家却无任何机制保证；重构后生产模型 $\beta_0$/$\beta$/μ/σ/s 与四个 $\rho$ 逐值未变；
    - **【客观局限定调】全折中位指标与 guide 多样性瓶颈**：879 行/16 基因组仅 35 条 distinct guide，5 折无法定义 $\rho$，全折中位 $\rho=+0.364$。**公开数据混合预案已两轮执行终结（人源 + 番茄，均"无害但无增量"），同物种/同科检索穷尽——不存在机械刷分达标出路**，答辩叙事定调为：迁移衰减三段对照 + 分层机理突破 + 数据规模受限的诚实说明。
 3. **计B（工程与工具链）维持 10.3 交付状态，指标可信**：
    - 莴苣 T2T 全基因组 45,770 基因扫描（13,867,270 条候选）、Cas-OFFinder 脱靶（19,839 条 demo gRNA / 608 万位点）、Streamlit demo、7 张截图、匿名化零命中，全部就绪且已冻结；
@@ -118,7 +118,7 @@ graph TD
 
 | 任务项 | 负责角色 | 计划死线 | 当前状态 | 现状与证据 |
 |---|---|:---:|:---:|---|
-| 特征矩阵组装 | 计A | 9.14 | 🟡 仍为脚本内联提取（标准特征表未落盘） | 0916 产物 `feature_matrix_full_0916.csv` 与 0918 编号地雷表（`feature_matrix_merged_0918_DEPRECATED.csv`）已废弃留档；现行形态二训练脚本 `15_train_hierarchical_bb_nob879.py` 直接内联构建 10 维特征（gc/tm/poly_t/pam_n + 双模型分），规避了跨表编号地雷。⚠️ **未解决待办（P2）**：尚未独立生成并落盘一份与 `noB879` 严格对齐的标准特征矩阵 CSV（`feature_matrix_nob879_0921.csv`）。 |
+| 特征矩阵组装 | 计A | 9.14 | ✅ 已落盘闭环（9.24） | 标准特征矩阵 `results/feature_matrix_nob879_0921.csv` 已独立生成落盘：**879 行 × 20 列**，与生产口径 `noB879` 严格对齐（行数、`guide_id` 唯一性、16 基因组三道硬断言）。**每行自带 `seq20`/`seq30`/`pam` 序列**，因此 10 维特征（双模型分 + gc_total/gc_seed/tm/poly_t + 4 列 PAM one-hot）可由行内数据独立重算核验（实测 4 个序列特征逐行一致），不需要按 guide-id 跨表拼接——这正是 0918「编号地雷」事故的防呆设计（同一个 `TKS_0795` 在两个文件里对应两条不同序列，按 id join 会静默拼错数据）。同时抽出**单一来源模块** `scripts/features_common.py`：此前 `scripts/15`（生产训练）与 `scripts/17`（方案2 消融）各存一份**逐行相同**的内联特征构建副本，而方案2 的阴性结论依赖二者不分家却无任何机制保证；现两个脚本统一 import 同一份 `FEATURE_COLS` 与 `load_cohort`，结构上无从漂移，入口 `assert_feature_schema` 守卫列齐全 / 形状 / 无 NaN / PAM one-hot 划分 / 取值区间（7 类反向用例实测全部拦截）。**重构后生产模型逐值未变**：`meta_model_hier_bb_nob879_0921.joblib` 的 $\beta_0$、10 维 $\beta$、μ、σ、过离散度 s 与 `metrics`/`folds` 两个 CSV 全部字节级或逐值相同（$\rho$ 测试集 +0.3424 / LOGO 全折 +0.3635 / Class A +0.4636 / Class B −0.0508 / 9 折有效共 16）。旧产物 `feature_matrix_full_0916.csv`（487 行旧口径，且因该子集无 G 起始 PAM 而只有 3 列 pam_n）与 `feature_matrix_merged_0918_DEPRECATED.csv`（813 行编号地雷表）维持废弃留档。⚠️ **本次统一的是训练与消融两条路径**；推理期 `scripts/predict.py`（第 53–73 行标量版，另含硬编码回退列名与旧版 Ridge 9 维分支）与 `demo/rescore_demo_v21_nob879.py`（第 30–45 行向量化版）仍各存一份特征构建副本，因其输入是裸 seq30 而非队列、无法复用 `load_cohort`；实测三处当前 gc_seed 切片同为 `seq30[18:24]`、10 维同构未漂移，已在 `features_common.py` docstring 标注为待统一项，建议随 P0（`predict.py` 的 `crispron_score` 处置）一并处理。 |
 | 按基因防泄漏分组训练元模型（岭回归 $\rightarrow$ 形态二 GLMM） | 计A | 9.17 | ✅ 已升级闭环（9.21 会签定案） | 9.21 全队会签决议放弃传统岭回归，正式剔除 90 行 B 级脏数据，确定 `noB879`（纯 A 级金标准）基准；采纳**形态二（分层选择性 Beta-Binomial GLMM）**，脚本 `scripts/15_train_hierarchical_bb_nob879.py` 正式落盘权重至 `results/meta_model_hier_bb_nob879_0921.joblib`；旧版 `meta_model_ridge_full_0916.joblib` 降级留档。测试集逆转为稳健正相关 $\rho=\mathbf{+0.3424}$（$p=7.89\times 10^{-7}$），低混杂核心折达 $\mathbf{+0.4636}$。 |
 | 模型交接接口 F4（`predict.py`） | 计A $\rightarrow$ 计B | 9.17 晚 | ⚠️ 权重已升级，但运行时特征近似未闭环（P0 未解决） | 已默认挂载形态二模型权重 `meta_model_hier_bb_nob879_0921.joblib`，实现分层 GLMM 纯序列潜变量推断，保留向下兼容。⚠️ **未解决阻断（P0 残留）**：第 83 行单序列运行时 `crispron_score` 仍为人工经验近似式（`deepspcas9*0.95 + (tm-50)*0.25`），未接入真正模型推理；批量数据虽走真实 WSL 原生工具，但交接接口代码尚未闭环，正式提交前必须通过 WSL 接入真实调用或从特征集中规范剔除。 |
 | 留一基因交叉验证（LOGO-CV） | 计A | 9.16 | ✅ 现行（9.21 重跑突破，但受序列多样性瓶颈制约） | 形态二重跑产出 `results/metrics_hier_bb_nob879_0921.csv` 与 `folds_hier_bb_nob879_0921.csv`；全折中位 $\rho=\mathbf{+0.3635}$（9/16 折有效，5 折因单 guide 无方差），Class A 核心折突破至 $\mathbf{+0.4636}$；治愈了传统方法在测试集上的崩溃（$-0.5057 \rightarrow \mathbf{+0.3424}$）。⚠️ **未解决客观约束**：879 行仅 35 条 distinct guide，全折中位未达 0.5 理想线，外部增量已穷尽，定调为诚实科研答辩叙事。 |
@@ -191,7 +191,7 @@ graph TD
    - 历史链：`scripts/10~13`（0916 全量重跑管线）与 `b_anchor_final_0919.py`（0919 裁决锚定）留档可复跑。
 4. **已落盘的现行成果文件**
    - 数据交付版：`data/1_Hi-results-16.1-efficiency-20260921.xlsx`（版本链 12→13-merged→14→15→16→16.1，各版原件均保留）；
-   - 现行生产模型与模型卡：`results/meta_model_hier_bb_nob879_0921.joblib`、`results/model_card_hier_bb_nob879_0921.md`、`results/metrics_hier_bb_nob879_0921.csv`、`results/folds_hier_bb_nob879_0921.csv`；
+   - 现行生产模型与模型卡：`results/meta_model_hier_bb_nob879_0921.joblib`、`results/model_card_hier_bb_nob879_0921.md`、`results/metrics_hier_bb_nob879_0921.csv`、`results/folds_hier_bb_nob879_0921.csv`、`results/feature_matrix_nob879_0921.csv`（879 行 × 20 列标准特征矩阵，9.24 补落盘，行内自带序列可独立核验）；
    - 审计与规则：`results/b_audit_0919.md`、`results/b_audit_0920.md`、`docs/reports/scoring_rules_14-15_0920.md`、`docs/reports/scoring_rules_16_post_ruling_0921.md`、`docs/reports/bio_lead_checklist_0920.md`（检查清单，guide候选表已就位、可发出执行）；
    - 指标：`results/metrics_hier_bb_nob879_0921.csv`（现行形态二）、`results/b_anchor_161_0921.csv`、`b_anchor_final_0919.csv`、`b_sensitivity_logo_0919.csv`；
    - 工程冻结：`results/scan_stats_0923.md`、`offtarget_runlog_0924.md`、`offtarget_counts_0924.csv`、`demo_screenshots_0926/`；
@@ -226,7 +226,7 @@ graph TD
 - **P0（核心未解决）修 `predict.py` 运行时 CRISPRon 特征**：第 83 行近似公式改为经 WSL 真实调用（`env/run_crispron_wsl.sh` 可用），或从特征集规范移除 `crispron_score` 后重训——属于推理期特征伪造，必须在最终代码封包提交前彻底闭环。
 - **P1（未解决待办）出具并落盘 noB879 官方单模型 vs 集成对比表**：当前 `model_comparison_full_0916.csv` 仍为 487 行旧口径，需基于 `noB879` 产出包含 DeepSpCas9、CRISPRon 与形态二 GLMM 在测试集与 LOGO-CV（含 Spearman $\rho$、AUC、p 值）的官方横向对比总表（`model_comparison_nob879_0921.csv`）。
 - **P1（未解决待办）双 gRNA 块 63 行 -A/-B 拆分**：切点反推副 guide、不需台账；拆分前后各跑一版 LOGO 量化影响（拆分前建议训练降权，16.1 表已带标记）。
-- **P2（未解决待办）独立规范化特征矩阵落盘**：将现行内联特征构建逻辑独立固化为 `results/feature_matrix_nob879_0921.csv`，消除工程隐患并满足复现留档规范。
+- ~~**P2 独立规范化特征矩阵落盘**~~：**已完成（9.24）**——标准特征矩阵 `results/feature_matrix_nob879_0921.csv`（879 行 × 20 列）已落盘，与生产口径 `noB879` 严格对齐，每行自带序列因而不依赖跨表 join（编号地雷防呆）。同时抽出单一来源模块 `scripts/features_common.py`，`scripts/15` 与 `scripts/17` 改为一同 import，消除了**训练与消融两条路径**上两份逐行相同的内联副本；重构后生产模型逐值未变。⚠️ 推理期 `scripts/predict.py` 与 `demo/rescore_demo_v21_nob879.py` 仍各存一份特征构建副本（输入是裸 seq30 而非队列，无法复用 `load_cohort`），实测当前同构未漂移，已在模块 docstring 标注为待统一项，建议随 P0 一并处理。详见阶段 2 表「特征矩阵组装」行。
 - ~~P1 以 16.1 口径重跑锚定 + LOGO~~：**已完成（9.21）**——`b_anchor_161_0921.py` / `.csv` 与形态二 `metrics_hier_bb_nob879_0921.csv`，见 6.4/6.5。
 - ~~P1 评估口径纠正 / 补 F5 模型卡 / P2 核对 efficiency_norm~~：**已完成（9.21）**；模型卡 `model_card_hier_bb_nob879_0921.md` 已按形态二新口径归档。
 
@@ -294,7 +294,9 @@ graph TD
 - **正式落盘模型**：[`results/meta_model_hier_bb_nob879_0921.joblib`](file:///d:/lifesciencechallenge/cs_pipeline/results/meta_model_hier_bb_nob879_0921.joblib)；
 - **接口无缝切换**：[`scripts/predict.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/predict.py) 已默认切换为加载形态二生产模型，保留对旧版 Ridge joblib 的向下兼容；
 - **模型卡规范归档**：[`results/model_card_hier_bb_nob879_0921.md`](file:///d:/lifesciencechallenge/cs_pipeline/results/model_card_hier_bb_nob879_0921.md)；
-- **指标与折级明细**：[`results/metrics_hier_bb_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/metrics_hier_bb_nob879_0921.csv) 与 [`results/folds_hier_bb_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/folds_hier_bb_nob879_0921.csv)。
+- **指标与折级明细**：[`results/metrics_hier_bb_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/metrics_hier_bb_nob879_0921.csv) 与 [`results/folds_hier_bb_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/folds_hier_bb_nob879_0921.csv)；
+- **标准特征矩阵（9.24 补落盘）**：[`results/feature_matrix_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/feature_matrix_nob879_0921.csv)——879 行 × 20 列，10 维标准特征 + 行内自带 `seq20`/`seq30`/`pam`/`indel_pct`/`total_reads`；其中 4 个序列特征可由行内数据逐行重算核验（实测一致），不依赖按 guide-id 跨表拼接。由 `scripts/15` 每次训练后同源落盘，保证留档与生产模型不可能不同步；
+- **特征构建单一来源模块**：[`scripts/features_common.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/features_common.py)——`noB879`（879 行 / 16 基因组）与 `train969`（969 行 / 17 基因组）两个口径的队列装载、10 维特征构建，以及 `assert_feature_schema` 守卫（列齐全 / 形状 / 无 NaN / PAM one-hot 划分 / 取值区间；7 类反向用例实测全部拦截）。`scripts/15`（生产训练）与 `scripts/17`（方案2 消融）统一 import 本模块，亦可独立运行落盘（`python scripts/features_common.py`，不需 torch，约 20 秒）。
 
 ---
 
