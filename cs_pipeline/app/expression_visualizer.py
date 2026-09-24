@@ -60,8 +60,11 @@ def _tau(tpm: pd.Series) -> float:
     return float((1.0 - tpm / mx).sum() / (len(tpm) - 1))
 
 
-def render_gene_expression(gene_id: str) -> None:
-    """在 Tab 1 中渲染指定 demo 基因的多组织表达看板与表型诊断。"""
+def render_gene_expression(gene_id: str, target: str = "Leaf") -> None:
+    """在 Tab 1 中渲染指定 demo 基因的多组织表达看板与表型诊断。
+
+    target 由 app.py 的目标组织控件传入（方案3 重排与诊断共用同一选择）。
+    """
     with st.container(border=True):
         st.markdown(":material/biotech: **多组织表达看板**（莴苣 v1.1c · 根/茎/叶/花/种子）")
         row, lsa, err = _lookup(gene_id)
@@ -96,10 +99,6 @@ def render_gene_expression(gene_id: str) -> None:
         )
         st.altair_chart(chart, width="stretch")
 
-        target = st.segmented_control(
-            "目标组织", options=TISSUE_ORDER, format_func=lambda k: TISSUES[k],
-            default="Leaf",
-        )
         val = float(tpm[target])
         if val < LOW_TPM:
             st.warning(
