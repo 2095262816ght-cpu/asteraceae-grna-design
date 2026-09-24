@@ -289,6 +289,17 @@ graph TD
 > （鸽笼 5-mer 种子筛 + NGG PAM + ≤3 错配验证；错配阶 × 目标组织表达加权，ω/λ 同原式；
 > 不可映射基因座按背景基线 0.1），并已接入 demo Tab 1 候选表与目标组织联动。
 > **面板外位点（含管家/光合基因）的危害本版不评估**——原文档的该卖点须待 liftover 立项后交付。
+>
+> **0924 spike 结论：FAIL，完整版搁置（预注册判据 4 过 1）。** minimap2 v2.31 asm5（linux 二进制 + WSL；
+> query 须切 5Mb 片段，单条 258Mb 记录会 OOM，exit 137）比对 T2T Chr1 vs v1.1c Chr01：
+> 覆盖率 99.9%（PASS）、一致性 58.2%（FAIL，判据 ≥95）、共线性 41.9%（FAIL，≥90）、
+> guide 级地面真值 0/20（FAIL，≥80）。单 guide 诊断：含该 guide 的 5Mb 比对块块级一致性仅 80%，
+> 块内线性插值 lift 误差约 **65kb**，落入邻 gene `LSA25663`（真值在 LSA25641/25643 区）——
+> 两组装间分歧与块间重排使 block 级 liftover 原理上无碱基级精度。
+> 这也反向解释了 crosswalk 为何采用「逐基因座精确锚点 + 投票」：基因尺度上它比全局 liftover 稳健。
+> 复现：`scripts/spike_liftover_feasibility_0924.py`（extract / frag / parse 三阶段；
+> minimap2 在 WSL 内运行，PAF 回传解析）。完整版方案5 若未来重启，须先解决碱基级 lift 精度
+> （CIGAR 级投影 + 重排断点处理），而非直接复用 block 级插值。
 
 #### 1. 目标与定位
 颠覆当前 Cas-OFFinder 仅按序列错配几何计数的低阶模式，提出**“组织功能性脱靶危害指数（Hazard Score）”**。若脱靶点落在目标组织中转录静默的异染色质死区，其剪切毒性极小；若落在高表达管家/光合基因，则给予极大惩罚。
