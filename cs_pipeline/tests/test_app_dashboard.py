@@ -1,0 +1,112 @@
+"""Tab 1 前端接线无头验证（方案 1 / 3 / 5 / 6）。
+
+在 cs_pipeline/ 下运行（grna-demo 环境，约 5 秒）：
+    python tests/test_app_dashboard.py
+
+覆盖九条路径：默认基因与默认排序、方案3 优先指数列、方案5 危害列与面板内位点数、
+排序切换真实改变推荐、组织切换驱动诊断与列名、高表达→适宜靶向、低表达→弱表型警示、
+unmappable→表达证据缺失、串联簇脚注、方案6 时相组件与 S4 推荐窗口。
+
+地面真值取自 results/crosswalk_lsa_t2t_0923.csv × data/expression/1-3_lettuce_5tissue_expression_matrix.csv。
+"""
+import sys
+from pathlib import Path
+
+from streamlit.testing.v1 import AppTest
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
+APP = Path(__file__).resolve().parents[1] / "app" / "app.py"
+
+GENE_CLUSTER = "LsaT2T01G023690"      # → LSA25643，n_cluster=2，Leaf 中等表达
+GENE_HIGH = "LsaT2T06G019420"         # → LSA15294，Leaf 98.2 TPM ⇒ 适宜靶向
+GENE_LOW = "LsaT2T02G000110"          # → LSA31836，Leaf 0.0 TPM ⇒ 弱表型警示
+GENE_UNMAPPABLE = "LsaT2T01G030600"   # tier4 弱票作废，无 LSA 主映射
+TKS_FAMILIES = {"REF（TKS 成员 2 个）", "SRPP（TKS 成员 8 个）", "CPT（TKS 成员 4 个）"}
+
+
+def test_app_dashboard():
+    at = AppTest.from_file(str(APP), default_timeout=180)
+    at.run()
+    assert not at.exception, at.exception
+
+    # 1. 默认态：首个基因 / Leaf / 方案3 优先指数为默认排序
+    assert at.selectbox[0].value == GENE_CLUSTER, at.selectbox[0].value
+    assert at.segmented_control[0].value == "Leaf"
+    assert at.selectbox[1].value.startswith("组织优先指数"), at.selectbox[1].value
+    print("[1] 默认基因 %s | 默认组织 Leaf | 默认排序 %s"
+          % (at.selectbox[0].value, at.selectbox[1].value))
+
+    # 2. 方案3 优先指数列 + 表达证据列；方案5 危害列 + 面板内位点数
+    top = at.dataframe[0].value
+    assert len(top) > 0, "默认基因的 Top10 表为空，后续断言会空洞通过"
+    for frag in ("组织优先指数", "表达证据", "功能性脱靶危害", "面板内位点数"):
+        assert any(frag in c for c in top.columns), f"缺少 {frag} 列；现有 {list(top.columns)}"
+    print("[2] 四列齐备 | top3 %s | 表达证据 %s"
+          % (top["guide_id"].head(3).tolist(), top["表达证据"].head(3).tolist()))
+
+    # 3. 排序切换到纯效率分：推荐集合必须真的变
+    eff_opt = next(o for o in at.selectbox[1].options if o.startswith("效率分"))
+    at.selectbox[1].set_value(eff_opt).run()
+    assert not at.exception, at.exception
+    top_eff = at.dataframe[0].value["guide_id"].head(3).tolist()
+    assert top_eff != top["guide_id"].head(3).tolist(), "重排未改变 top3，方案3 接线失效"
+    print("[3] 排序切换 %s → top3 %s（顺序已变）" % (eff_opt, top_eff))
+
+    # 4. 组织切换 Leaf→Root：诊断文案与危害列名跟随
+    at.segmented_control[0].set_value("Root").run()
+    assert not at.exception, at.exception
+    assert any("功能性脱靶危害（根）" in c for c in at.dataframe[0].value.columns)
+    root_diag = [x.value for x in list(at.success) + list(at.info) + list(at.warning)
+                 if "所选组织（根）" in x.value]
+    assert root_diag, "组织切换后诊断未跟随"
+    print("[4] 根诊断：%s" % root_diag[0][:52])
+    print("    注：切换组织后排序控件回到默认项 = %s（选项标签变化导致控件状态重置）"
+          % at.selectbox[1].value)
+
+    # 5. 高表达 → 适宜靶向（success 分支）
+    at.segmented_control[0].set_value("Leaf").run()
+    at.selectbox[0].set_value(GENE_HIGH).run()
+    assert not at.exception, at.exception
+    assert any("适宜靶向" in x.value for x in at.success), \
+        [x.value[:40] for x in at.success]
+    print("[5] %s → 适宜靶向分支命中" % GENE_HIGH)
+
+    # 6. 低表达 → 弱表型警示（warning 分支）
+    at.selectbox[0].set_value(GENE_LOW).run()
+    assert not at.exception, at.exception
+    assert any("弱表型警示" in x.value for x in at.warning), \
+        [x.value[:40] for x in at.warning]
+    print("[6] %s → 弱表型警示分支命中" % GENE_LOW)
+
+    # 7. unmappable → 无对应注释 warning + 全表“表达证据缺失”，不编造表达值
+    at.selectbox[0].set_value(GENE_UNMAPPABLE).run()
+    assert not at.exception, at.exception
+    assert any("无对应注释" in x.value for x in at.warning), "缺少不可映射 warning"
+    evidence = at.dataframe[0].value["表达证据"]
+    assert len(evidence) > 0, "不可映射基因的 Top10 表为空，断言会空洞通过"
+    assert (evidence == "表达证据缺失").all(), evidence.unique()
+    print("[7] %s → warning + 表达证据缺失（%d 行）" % (GENE_UNMAPPABLE, len(evidence)))
+
+    # 8. 串联簇脚注
+    at.selectbox[0].set_value(GENE_CLUSTER).run()
+    assert not at.exception, at.exception
+    assert any("串联重复簇" in x.value for x in at.caption), "缺少簇 caption"
+    print("[8] %s → 串联簇脚注命中" % GENE_CLUSTER)
+
+    # 9. 方案6 时相组件：三家族成员数 + 统一推荐 S4
+    assert set(at.selectbox[2].options) == TKS_FAMILIES, at.selectbox[2].options
+    for fam in ("CPT", "REF", "SRPP"):
+        at.selectbox[2].set_value(fam).run()
+        assert not at.exception, at.exception
+        rec = [m.value for m in at.metric if m.label == "推荐转化窗口"]
+        assert rec == ["S4"], f"{fam} 推荐窗口 {rec}，与报告 §5.3 的 S4 结论不符"
+        print("[9] %s → 推荐窗口 %s" % (fam, rec[0]))
+    assert any("胶乳" in x.value for x in at.caption), "缺少窗口卡 caption"
+
+    print("\nALL CHECKS PASSED")
+
+
+if __name__ == "__main__":
+    test_app_dashboard()

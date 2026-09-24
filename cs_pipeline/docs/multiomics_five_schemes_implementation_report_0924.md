@@ -255,7 +255,11 @@ train969 +0.1985 → +0.0716（p=0.86）。下降并非表达"有害"，而是�
 - 串联簇与 scaffold 映射以脚注说明；**14 个 unmappable 基因显示"v1.1c 无对应注释 +
   解析占比 + 审计报告指引"，绝不编造表达值**。
 - 目标组织控件提升为 Tab 1 级，与方案3 排序、方案5 危害列共用同一选择。
-- 验证：Streamlit AppTest 无头跑通四条路径（默认基因 / 高表达基因 / unmappable / 串联簇）。
+- 验证：`tests/test_app_dashboard.py`（Streamlit AppTest 无头，约 5 秒）跑通九条路径：默认基因
+  与默认排序、四列齐备（优先指数 / 危害 / 面板内位点数 / 表达证据）、排序切换真实改变 top3、
+  组织切换驱动诊断与列名、高表达→适宜靶向、低表达→弱表型警示、unmappable→表达证据缺失、
+  串联簇脚注、方案6 三家族推荐窗口。表型诊断三档均有地面真值基因背书（`LsaT2T06G019420`→
+  LSA15294 叶 98.2 TPM 触发“适宜靶向”；`LsaT2T02G000110`→LSA31836 叶 0.0 TPM 触发“弱表型警示”）。
 
 ### 5.2 方案 3：组织特异优先指数重排（`scripts/21`）
 
@@ -371,9 +375,15 @@ bioconda 与 conda-forge 的 win-64 均**没有** minimap2/mappy 包；pip 编�
 
 ## 8. 质量与验证体系
 
-- **每个交付物都有自动化验证**：方案1/3/5/6 的 demo 接线用 Streamlit AppTest 无头跑通
-  （默认 / 高表达 / unmappable / 串联簇 / 排序切换 / 组织切换 / 危害列 / 时相组件）；
-  脚本级产物用断言守卫（行数、命名空间命中、区间合法性）。
+- **每个交付物都有自动化验证**：方案1/3/5/6 的 demo 接线由 `tests/test_app_dashboard.py`
+  （Streamlit AppTest 无头）覆盖九条路径，其中表型诊断的“适宜靶向”与“弱表型警示”两个分支
+  此前从未被执行，现各由一个地面真值基因触发；脚本级产物用断言守卫（行数、命名空间命中、
+  区间合法性）。
+  > **订正（0924 复核）**：本节原表述为“无头跑通（默认 / 高表达 / unmappable / 串联簇 / …）”，
+  > 但当时验证脚本留在被 `.gitignore` 排除的 `_scratch/` 中，仓库内既无测试文件、§8.3 也未列出
+  > 该命令——即“自动化验证”这一条**不可从仓库复现**。现已入库为 `tests/test_app_dashboard.py`
+  > 并补齐复现命令；实测发现原脚本并未覆盖“高表达”路径（默认基因落在“中等表达”档），
+  > 故本次一并补上该分支与低表达分支。
 - **所有"看起来对"的数字都做过对抗性复查**：方案2 的 LRT vs 聚类自助 CI、
   方案6 的爆发期端点失真与次回升误判、crosswalk 的弱票与双峰基因座、spike 的单 guide 诊断。
 - **负结果与正结果同等入库**：方案2 阴性报告、spike 否证、14 个 unmappable 基因清单、
@@ -408,6 +418,7 @@ bioconda 与 conda-forge 的 win-64 均**没有** minimap2/mappy 包；pip 编�
 | `results/tks_rubber_{family_members,pathway_dynamics.png,stage_curves,developmental_window}_0923.*` | 方案6 全套 |
 | `scripts/spike_liftover_feasibility_0924.py` | spike 三阶段复现脚本 |
 | `app/expression_visualizer.py`、`app/tks_window_visualizer.py` | demo 组件 |
+| `tests/test_app_dashboard.py` | 前端接线无头验证（方案1/3/5/6 九条路径，约 5 秒） |
 
 ### 8.3 复现指南（crispr 环境，cs_pipeline/ 下）
 
@@ -417,6 +428,7 @@ python scripts/17_ablation_expression_features.py --boot 100   # 方案2（约 1
 python scripts/21_build_tissue_priority_recommendations.py     # 方案3（秒级）
 python scripts/22_calc_tissue_offtarget_hazard.py    # 方案5 轻量版（约 15 分钟）
 python scripts/23_tks_developmental_window.py        # 方案6（约 5 分钟）
+conda run -n grna-demo python tests/test_app_dashboard.py   # 前端接线无头验证（约 5 秒）
 conda run -n grna-demo streamlit run app/app.py      # demo
 ```
 
