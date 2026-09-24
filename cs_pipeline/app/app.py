@@ -27,6 +27,7 @@ import pandas as pd
 import streamlit as st
 
 import expression_visualizer
+import tks_window_visualizer
 
 BASE = Path(__file__).resolve().parent.parent  # cs_pipeline/
 
@@ -241,6 +242,9 @@ with tab1:
         mime="text/csv",
     )
     st.caption(f"查询耗时 {elapsed * 1000:.0f} ms（要求 <5 s）")
+
+    with st.expander("橡胶草（TKS）产胶时相决策（方案6）"):
+        tks_window_visualizer.render_tks_window()
 
 
 # =====================================================================
