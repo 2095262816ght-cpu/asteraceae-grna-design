@@ -4,7 +4,8 @@
     streamlit run app/app.py
 
 两个 tab：
-1. 按基因名检索：49 个 NLR 代表基因的候选 gRNA 浏览/过滤/下载。
+1. 按基因名检索：49 个 NLR 代表基因的候选 gRNA 浏览/过滤/下载，
+   并展示多组织表达看板与靶向适宜性诊断（方案1，经 LSA↔T2T crosswalk 映射）。
 2. 按自定义序列打分：30bp 序列经子进程调用独立 conda 环境中的
    genet DeepSpCas9 模型实时打分（app/score_deepspcas9_cli.py）。
 
@@ -24,6 +25,8 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+
+import expression_visualizer
 
 BASE = Path(__file__).resolve().parent.parent  # cs_pipeline/
 
@@ -172,6 +175,8 @@ with tab1:
     c3.metric("链", str(ginfo.g_strand))
     c4.metric("NLR 类型", str(ginfo.get("nlr_type", "—")))
     c5.metric("候选数（过滤后）", len(cand))
+
+    expression_visualizer.render_gene_expression(gene_id)
 
     cand = cand.rename(
         columns={
