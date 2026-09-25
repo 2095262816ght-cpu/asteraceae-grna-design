@@ -1,0 +1,3 @@
+cohort,n_rows,n_gene_groups,n_distinct_seq30,test_rho,logo_median_rho,class_a_median_rho,class_a_valid_folds,valid_folds
+full_879,879,16,29,0.3424,0.3635,0.4636,5,9/16
+reduced_841,841,16,28,0.3414,0.2409,0.3143,4,8/16
