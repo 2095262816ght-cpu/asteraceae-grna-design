@@ -1,4 +1,9 @@
-#!/bin/bash
-# Make `python3` (and `#!/usr/bin/env python3`) resolve to the crispron-win
-# conda env python when this directory is first on PATH.
-exec "/c/Users/Lenovo/anaconda3/envs/crispron-win/python.exe" "$@"
+#!/usr/bin/env bash
+# Make `python3` resolve cleanly without hardcoded user paths.
+if [ -n "$PYTHON_EXE" ]; then
+    exec "$PYTHON_EXE" "$@"
+elif command -v python3 >/dev/null 2>&1; then
+    exec python3 "$@"
+else
+    exec python "$@"
+fi

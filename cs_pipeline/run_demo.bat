@@ -7,25 +7,20 @@ echo  正在启动 莴苣基因编辑 gRNA 设计与脱靶评估工具 (Streamli
 echo ======================================================================
 echo 正在自动检测 Python 与 Conda 环境...
 
-set "CRISPR_PY="
-for %%P in (
-    "%~dp0..\..\envs\crispr\python.exe"
-    "%USERPROFILE%\miniconda3\envs\crispr\python.exe"
-    "%USERPROFILE%\anaconda3\envs\crispr\python.exe"
-    "C:\miniconda3\envs\crispr\python.exe"
-    "C:\anaconda3\envs\crispr\python.exe"
-    "C:\ProgramData\miniconda3\envs\crispr\python.exe"
-    "C:\ProgramData\anaconda3\envs\crispr\python.exe"
-    "D:\Miniconda\envs\crispr\python.exe"
-    "D:\miniconda3\envs\crispr\python.exe"
-    "D:\anaconda3\envs\crispr\python.exe"
-) do (
-    if exist "%%~fP" if not defined CRISPR_PY set "CRISPR_PY=%%~fP"
-)
+set "CRISPR_PYTHON="
+if exist "%~dp0..\..\envs\crispr\python.exe" set "CRISPR_PYTHON=%~dp0..\..\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "%USERPROFILE%\miniconda3\envs\crispr\python.exe" set "CRISPR_PYTHON=%USERPROFILE%\miniconda3\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "%USERPROFILE%\anaconda3\envs\crispr\python.exe" set "CRISPR_PYTHON=%USERPROFILE%\anaconda3\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "C:\miniconda3\envs\crispr\python.exe" set "CRISPR_PYTHON=C:\miniconda3\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "C:\anaconda3\envs\crispr\python.exe" set "CRISPR_PYTHON=C:\anaconda3\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "C:\ProgramData\miniconda3\envs\crispr\python.exe" set "CRISPR_PYTHON=C:\ProgramData\miniconda3\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "C:\ProgramData\anaconda3\envs\crispr\python.exe" set "CRISPR_PYTHON=C:\ProgramData\anaconda3\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "D:\Miniconda\envs\crispr\python.exe" set "CRISPR_PYTHON=D:\Miniconda\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "D:\miniconda3\envs\crispr\python.exe" set "CRISPR_PYTHON=D:\miniconda3\envs\crispr\python.exe"
+if not defined CRISPR_PYTHON if exist "D:\anaconda3\envs\crispr\python.exe" set "CRISPR_PYTHON=D:\anaconda3\envs\crispr\python.exe"
 
-if defined CRISPR_PY (
-    echo [OK] 找到实时打分引擎: %CRISPR_PY%
-    set "CRISPR_PYTHON=%CRISPR_PY%"
+if defined CRISPR_PYTHON (
+    echo [OK] 找到实时打分引擎: %CRISPR_PYTHON%
 ) else (
     echo [提示] 未找到独立 crispr 环境，Tab2 实时打分将使用默认 python
 )
