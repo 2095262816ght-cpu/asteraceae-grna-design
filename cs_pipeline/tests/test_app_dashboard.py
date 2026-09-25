@@ -1,11 +1,15 @@
-"""Tab 1 前端接线无头验证（方案 1 / 3 / 5 / 6）。
+"""Demo 前端接线无头验证（Tab1 方案 1/3/5/6 + Tab2 CRISPRon 来源标注）。
 
-在 cs_pipeline/ 下运行（grna-demo 环境，约 5 秒）：
+在 cs_pipeline/ 下运行（grna-demo 环境）：
     python tests/test_app_dashboard.py
 
-覆盖九条路径：默认基因与默认排序、方案3 优先指数列、方案5 危害列与面板内位点数、
-排序切换真实改变推荐、组织切换驱动诊断与列名、高表达→适宜靶向、低表达→弱表型警示、
-unmappable→表达证据缺失、串联簇脚注、方案6 时相组件与 S4 推荐窗口。
+`test_app_dashboard`（约 5 秒，无外部依赖）覆盖 Tab1 九条路径：默认基因与默认排序、
+方案3 优先指数列、方案5 危害列与面板内位点数、排序切换真实改变推荐、组织切换驱动诊断
+与列名、高表达→适宜靶向、低表达→弱表型警示、unmappable→表达证据缺失、串联簇脚注、
+方案6 时相组件与 S4 推荐窗口。
+
+`test_tab2_crispron_source`（约 30 秒，需 crispr 环境；WSL 可选）验证 P0 修复：Tab2 必须
+把 CRISPRon 特征的来源（WSL 实跑 / 近似式降级）如实透出，降级时须告警。
 
 地面真值取自 results/crosswalk_lsa_t2t_0923.csv × data/expression/1-3_lettuce_5tissue_expression_matrix.csv。
 """
@@ -24,6 +28,12 @@ GENE_HIGH = "LsaT2T06G019420"         # → LSA15294，Leaf 98.2 TPM ⇒ 适宜�
 GENE_LOW = "LsaT2T02G000110"          # → LSA31836，Leaf 0.0 TPM ⇒ 弱表型警示
 GENE_UNMAPPABLE = "LsaT2T01G030600"   # tier4 弱票作废，无 LSA 主映射
 TKS_FAMILIES = {"REF（TKS 成员 2 个）", "SRPP（TKS 成员 8 个）", "CPT（TKS 成员 4 个）"}
+
+# demo Tab2 输入框预填的 placeholder 序列；其 CRISPRon 真实值 59.61、近似式 68.27（偏 14.5%），
+# 是 P0「推理期特征伪造」的原始证据序列。
+PROBE_SEQ30 = "ATCGGCTAAGCTAGGCTAGCATCGTGGATC"
+# 须与 app/app.py Tab2 的 src_labels 一致
+SRC_LABELS = {"wsl_real": "WSL 实跑真实模型", "approximated": "⚠️ 近似式降级"}
 
 
 def test_app_dashboard():
@@ -108,5 +118,39 @@ def test_app_dashboard():
     print("\nALL CHECKS PASSED")
 
 
+def test_tab2_crispron_source():
+    """Tab2 单序列打分必须透出 CRISPRon 特征来源（P0：推理期特征伪造的防回归）。
+
+    较慢（约 30 秒：DeepSpCas9 子进程 + WSL 内 CRISPRon 实跑），且需要 crispr conda 环境；
+    WSL 不可用时走近似式降级路径，本用例同样应当通过——它断言的是"来源被如实标注"，
+    而不是"必须拿到真实值"。
+    """
+    at = AppTest.from_file(str(APP), default_timeout=300)
+    at.run()
+    assert not at.exception, at.exception
+
+    at.text_area[0].set_value(PROBE_SEQ30).run()
+    assert not at.exception, at.exception
+    next(b for b in at.button if b.label == "打分").set_value(True).run()
+    assert not at.exception, at.exception
+
+    # Tab1 也渲染 dataframe，故按列名定位 Tab2 的结果表而不是按下标
+    res = next((d.value for d in at.dataframe if "CRISPRon 来源" in list(d.value.columns)), None)
+    assert res is not None, "Tab2 未渲染含「CRISPRon 来源」列的结果表"
+    src = res["CRISPRon 来源"].tolist()
+    assert src and all(s in SRC_LABELS.values() for s in src), src
+
+    degraded = any(s == SRC_LABELS["approximated"] for s in src)
+    if degraded:
+        assert any("近似式降级值" in w.value for w in at.warning), "降级却未向用户告警"
+        print("[T2] 降级路径：CRISPRon 来源 = 近似式降级，且已如实告警")
+    else:
+        assert any("WSL 实跑真实模型" in c.value for c in at.caption), "真实路径缺少来源说明"
+        print("[T2] 真实路径：CRISPRon 经 WSL 实跑，来源已标注")
+    print("[T2] 打分结果：%s" % res.to_dict("records"))
+
+
 if __name__ == "__main__":
     test_app_dashboard()
+    print()
+    test_tab2_crispron_source()
