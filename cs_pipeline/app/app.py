@@ -331,10 +331,21 @@ with tab2:
                         st.code(proc.stderr[-2000:] or "（无输出）")
                     else:
                         scores = pd.read_csv(io.StringIO(proc.stdout))
+                        src_labels = {
+                            "wsl_real": "WSL 实跑真实模型",
+                            "approximated": "⚠️ 近似式降级",
+                        }
+                        n_approx = 0
+                        if "crispron_source" in scores.columns:
+                            n_approx = int((scores["crispron_source"] == "approximated").sum())
+                            scores["crispron_source"] = [
+                                src_labels.get(v, str(v)) for v in scores["crispron_source"]
+                            ]
                         display_df = scores.rename(
                             columns={
                                 "seq30": "30bp 序列",
                                 "deepspcas9_score": "DeepSpCas9 分数",
+                                "crispron_source": "CRISPRon 来源",
                                 "stacking_score": "Stacking 集成效率分",
                             }
                         )
@@ -342,6 +353,18 @@ with tab2:
                             f"完成 {len(scores)} 条序列打分，"
                             f"耗时 {time.perf_counter() - t1:.1f} s"
                         )
+                        if n_approx:
+                            st.warning(
+                                f"其中 **{n_approx}/{len(scores)} 条**的 CRISPRon 特征是**经验近似式降级值**，"
+                                f"非真实模型输出（原因：WSL 内 CRISPRon 管线不可用，或该序列的正反链窗口"
+                                f"与输入不完全匹配）。近似式与真实值实测可偏约 15%，这些行的集成效率分"
+                                f"仅供粗略参考。",
+                                icon="⚠️",
+                            )
+                        else:
+                            st.caption(
+                                "CRISPRon 特征全部经 WSL 实跑真实模型产出，与训练集同一管线、同一取值约定。"
+                            )
                         st.dataframe(display_df, width="stretch")
                         st.download_button(
                             "下载打分结果（CSV）",

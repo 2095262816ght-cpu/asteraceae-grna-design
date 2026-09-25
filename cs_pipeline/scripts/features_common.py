@@ -10,14 +10,12 @@
 
     results/feature_matrix_nob879_0921.csv    879 行 × 20 列
 
-⚠️ 尚未统一的两处推理期副本（**改这 10 维特征时必须同步，否则训练与推理会分家**）：
-    scripts/predict.py:53-73              单序列推理的标量版构建；另含 :88-91 硬编码回退
-                                          列名与 :102-105 旧版 Ridge 的 9 维分支（缺 pam_n_G）
-    demo/rescore_demo_v21_nob879.py:30-45 demo 重打分的向量化版；列序取自 joblib 的
-                                          feature_cols（顺序已单一来源），构建逻辑仍是副本
-两者输入是裸 seq30 而非队列，无法复用本模块的 `load_cohort`。实测三处当前 gc_seed 切片
-同为 seq30[18:24]、10 维同构，尚未漂移。建议与 predict.py 的 P0 待办（crispron_score 究竟
-走 WSL 真实调用还是从特征集剔除）一并处理——若该列被剔除，特征清单本身就要改，届时统一更省事。
+**四条路径共用 `seq_features()`**（训练与推理不再各存副本）：
+    load_cohort()                          scripts/15 生产训练 + scripts/17 方案2 消融
+    scripts/predict.py                     单序列交互推理（demo Tab2）
+    demo/rescore_demo_v21_nob879.py        demo 候选库 19,839 条批量重打分
+此前这四处各存一份特征构建副本（其中训练与消融两份逐行相同），`gc_seed` 的种子区切片这类
+细节一旦改动就会让训练与推理静默分家，且无任何机制报警；现已全部收敛到单点定义。
 
 运行（在 cs_pipeline/ 下，crispr 环境；不需 torch，约 20 秒）：
     python scripts/features_common.py
@@ -71,6 +69,14 @@ FEATURE_COLS = [
 ]
 PAM_ONEHOT = ["pam_n_A", "pam_n_C", "pam_n_G", "pam_n_T"]
 
+# 9 个序列派生特征（10 维中除去 deepspcas9_score / crispron_score 两个模型分）
+SEQ_FEATURE_COLS = ["gc_total", "gc_seed", "tm", "poly_t"] + PAM_ONEHOT
+
+# seq30 布局：4nt 上游 + 20nt guide + NGG PAM + 3nt 下游（与 app/app.py 的 validate_seq30 一致）
+GUIDE_SLICE = slice(4, 24)
+SEED_SLICE = slice(18, 24)   # guide 第 15–20 位，紧邻 PAM 的种子区，Cas9 最敏感
+PAM_N_SLICE = slice(24, 25)  # PAM 首碱基（NGG 的 N）
+
 EXPECTED_ROWS = {"noB879": 879, "train969": 969}
 EXPECTED_GROUPS = {"noB879": 16, "train969": 17}
 
@@ -84,6 +90,36 @@ META_COLS = [
     "guide_id", "gene_id", "gene_group", "batch", "rep",
     "seq20", "seq30", "pam", "indel_pct", "total_reads",
 ]
+
+
+def seq_features(seq30):
+    """从 30bp 序列构建 9 个序列派生特征，返回与 seq30 同索引的 DataFrame。
+
+    **训练与推理四条路径的唯一特征定义处**：load_cohort（scripts/15 训练、scripts/17 消融）、
+    scripts/predict.py（单序列推理）、demo/rescore_demo_v21_nob879.py（demo 批量重打分）
+    全部调用本函数。此前四处各存一份副本，gc_seed 的种子区切片这类细节一旦改动就会
+    让训练与推理静默分家。
+
+    一律以 seq30 为唯一原语（不用源表存储的 seq20/pam 列）：实测在 noB879（879 行）、
+    train969（969 行）与 demo app_data（19,839 行）上，存储列 seq20 == seq30[4:24]、
+    pam == seq30[24:27] 全部逐行成立。
+
+    PAM one-hot 显式产出 4 列 float（不用 pd.get_dummies）：get_dummies 只产出数据中
+    出现过的碱基列，会让特征矩阵的列数随子集变化——旧表 feature_matrix_full_0916.csv
+    就因该子集无 G 起始 PAM 而只有 3 列（28 列 vs 0918 表的 29 列），且写出的是
+    True/False 而非数值。
+    """
+    seq30 = seq30.astype(str)
+    seq20 = seq30.str[GUIDE_SLICE]
+    pam_n = seq30.str[PAM_N_SLICE]
+    out = pd.DataFrame(index=seq30.index)
+    out["gc_total"] = seq20.map(gc_fraction)
+    out["gc_seed"] = seq30.str[SEED_SLICE].map(gc_fraction)
+    out["tm"] = seq20.map(Tm_NN)
+    out["poly_t"] = seq20.str.contains("TTTT").astype(int)
+    for b in "ACGT":
+        out[f"pam_n_{b}"] = (pam_n == b).astype(float)
+    return out[SEQ_FEATURE_COLS]
 
 
 def cohort_ids(kind):
@@ -157,16 +193,7 @@ def load_cohort(kind):
     assert df["guide_id"].nunique() == len(df), f"{kind} guide_id 有重复"
 
     df["gene_group"] = df["gene_id"].replace(HOMOLOG)
-    df["gc_total"] = df.seq20.map(gc_fraction)
-    df["gc_seed"] = df.seq30.str[18:24].map(gc_fraction)
-    df["tm"] = df.seq20.map(Tm_NN)
-    df["poly_t"] = df.seq20.str.contains("TTTT").astype(int)
-    df = pd.concat([df, pd.get_dummies(df.pam.str[0], prefix="pam_n")], axis=1)
-    # 只补 PAM one-hot：某个碱基在该子集中一次都没出现，是真实的 0 而非缺数据。
-    # 其余 6 列若缺失属真错误，必须让它抛 KeyError 而不是被静默补 0。
-    for col in PAM_ONEHOT:
-        if col not in df.columns:
-            df[col] = 0.0
+    df = pd.concat([df, seq_features(df["seq30"])], axis=1)
 
     assert_feature_schema(df, kind)
     return df

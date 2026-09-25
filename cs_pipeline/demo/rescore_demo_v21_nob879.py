@@ -6,14 +6,16 @@
 输出：写回 demo/app_data.csv，新增列 efficiency_score_v21_nob879
 """
 
+import sys
 from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from Bio.SeqUtils import gc_fraction
-from Bio.SeqUtils.MeltingTemp import Tm_NN
 
 BASE = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE / "scripts"))
+from features_common import FEATURE_COLS, seq_features
+
 APP_DATA = BASE / "demo" / "app_data.csv"
 MODEL_PATH = BASE / "results" / "meta_model_hier_bb_nob879_0921.joblib"
 
@@ -26,25 +28,13 @@ df = pd.read_csv(APP_DATA, dtype={"seq20": "string", "seq30": "string", "pam": "
 print(f"候选总数: {len(df)}")
 assert len(df) == 19839
 
-# 特征计算
-seq20 = df["seq30"].str[4:24]
-seq_seed = df["seq30"].str[18:24]
-pam_first = df["pam"].str[0]
+# 特征计算：9 个序列派生特征由 features_common.seq_features 单点定义（与生产训练同源）
+feat_df = seq_features(df["seq30"])
+feat_df["deepspcas9_score"] = df["deepspcas9_score"].astype(float)
+feat_df["crispron_score"] = df["crispron_score"].astype(float)
 
-feat_df = pd.DataFrame({
-    "deepspcas9_score": df["deepspcas9_score"].astype(float),
-    "crispron_score": df["crispron_score"].astype(float),
-    "gc_total": seq20.map(gc_fraction),
-    "gc_seed": seq_seed.map(gc_fraction),
-    "tm": seq20.map(Tm_NN),
-    "poly_t": seq20.str.contains("TTTT").astype(int),
-    "pam_n_A": (pam_first == "A").astype(float),
-    "pam_n_C": (pam_first == "C").astype(float),
-    "pam_n_G": (pam_first == "G").astype(float),
-    "pam_n_T": (pam_first == "T").astype(float),
-})
-
-FEATURE_COLS = meta["feature_cols"]
+assert list(meta["feature_cols"]) == FEATURE_COLS, \
+    f"模型 feature_cols 与 features_common.FEATURE_COLS 不一致：{list(meta['feature_cols'])}"
 X = feat_df[FEATURE_COLS].astype(float).values
 Z = (X - meta["mu"]) / meta["std"]
 logits = meta["beta0"] + np.dot(Z, meta["beta"])
