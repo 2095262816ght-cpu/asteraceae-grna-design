@@ -22,9 +22,6 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 from sklearn.model_selection import GroupShuffleSplit, LeaveOneGroupOut
-import torch
-import torch.nn as nn
-import torch.optim as optim
 
 from features_common import (
     FEATURE_COLS,
@@ -32,6 +29,7 @@ from features_common import (
     dump_feature_matrix,
     load_cohort,
 )
+from hier_bb_model import compute_batch_prior, fit_hierarchical_selective_bb
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -52,104 +50,15 @@ indel = df["indel_pct"].astype(float)
 n_reads = np.maximum(df["total_reads"].values.astype(float), 10.0)
 k_reads = np.round(n_reads * indel.values).clip(0, n_reads)
 
-# 4. 批次先验与经验贝叶斯估计
-p0 = np.clip(indel.median(), 0.05, 0.95)
-logit_p0 = float(np.log(p0 / (1.0 - p0)))
-
-shared = df.groupby("seq20")["batch"].nunique()
-shared = set(shared[shared >= 2].index)
-gmed = df[df.seq20.isin(shared)].groupby("seq20")["indel_pct"].median()
-
-offsets = {}
-anchor_counts = {}
-diff_residuals = []
-for b, sub in df.groupby("batch"):
-    s = sub[sub.seq20.isin(shared)]
-    anchor_counts[b] = len(s)
-    if len(s):
-        diff = s["indel_pct"] - s.seq20.map(gmed)
-        offsets[b] = float(diff.median())
-        if len(s) > 1:
-            diff_residuals.extend(diff - diff.mean())
-    else:
-        offsets[b] = 0.0
-
-s2 = float(np.var(diff_residuals)) if diff_residuals else 0.04
-offs_valid = [offsets[b] for b in offsets if anchor_counts.get(b, 0) > 0]
-tau2 = float(max(1e-4, np.var(offs_valid) - s2 / np.mean([anchor_counts[b] for b in offsets if anchor_counts.get(b, 0) > 0])))
-lambda_eb = float(s2 / tau2)
-
-selective_offsets = {}
-for b in offsets:
-    m = anchor_counts.get(b, 0)
-    if m >= 10:
-        selective_offsets[b] = offsets[b]
-    elif m > 0:
-        selective_offsets[b] = (m / (m + lambda_eb)) * offsets[b]
-    else:
-        selective_offsets[b] = 0.0
-
-batch_cats = pd.Categorical(df["batch"])
-batch_idx = batch_cats.codes
-n_batches = len(batch_cats.categories)
-
-u_prior = np.zeros(n_batches)
-u_prec = np.zeros(n_batches)
-for i, b_name in enumerate(batch_cats.categories):
-    delta = selective_offsets.get(b_name, 0.0)
-    p_b = np.clip(p0 + delta, 0.005, 0.995)
-    u_prior[i] = np.log(p_b / (1.0 - p_b)) - logit_p0
-    m = anchor_counts.get(b_name, 0)
-    if m >= 10:
-        u_prec[i] = 10.0
-    elif m > 0:
-        u_prec[i] = 1.0 + float(m)
-    else:
-        u_prec[i] = 1.0
-
-# 5. 模型优化器定义
-def lbeta_torch(a, b):
-    return torch.lgamma(a) + torch.lgamma(b) - torch.lgamma(a + b)
-
-def fit_hierarchical_selective_bb(X_tr, n_tr, k_tr, b_tr, n_b, u_p, u_prc, lp0,
-                                 l2_beta=0.01, prior_scale=5.0, max_iter=200):
-    mu = X_tr.mean(axis=0)
-    std = X_tr.std(axis=0) + 1e-6
-    Z_tr = (X_tr - mu) / std
-    D = Z_tr.shape[1]
-
-    X_t = torch.tensor(Z_tr, dtype=torch.float32)
-    n_t = torch.tensor(n_tr, dtype=torch.float32)
-    k_t = torch.tensor(k_tr, dtype=torch.float32)
-    b_t = torch.tensor(b_tr, dtype=torch.long)
-    u_prior_t = torch.tensor(u_p, dtype=torch.float32)
-    u_prec_t = torch.tensor(u_prc * prior_scale, dtype=torch.float32)
-
-    beta0 = nn.Parameter(torch.tensor([lp0], dtype=torch.float32))
-    beta = nn.Parameter(torch.zeros(D))
-    u = nn.Parameter(u_prior_t.clone())
-    log_s = nn.Parameter(torch.tensor([3.0]))
-
-    optimizer = optim.LBFGS([beta0, beta, u, log_s], lr=0.5, max_iter=max_iter, line_search_fn="strong_wolfe")
-
-    def closure():
-        optimizer.zero_grad()
-        s = torch.exp(log_s).clamp(1.0, 500.0)
-        eta = beta0 + torch.matmul(X_t, beta) + u[b_t]
-        p = torch.sigmoid(eta).clamp(1e-5, 1.0 - 1e-5)
-        alpha = p * s
-        beta_p = (1.0 - p) * s
-
-        log_comb = torch.lgamma(n_t + 1) - torch.lgamma(k_t + 1) - torch.lgamma(n_t - k_t + 1)
-        ll = log_comb + lbeta_torch(k_t + alpha, n_t - k_t + beta_p) - lbeta_torch(alpha, beta_p)
-
-        prior_penalty = 0.5 * torch.sum(u_prec_t * (u - u_prior_t)**2)
-        loss = -torch.mean(ll) + 0.5 * l2_beta * torch.sum(beta**2) + (prior_penalty / len(n_t))
-        loss.backward()
-        return loss
-
-    optimizer.step(closure)
-    return float(beta0.detach().numpy()[0]), beta.detach().numpy(), mu, std, float(torch.exp(log_s).detach().numpy()[0])
+# 4–5. 选择性 EB 批次先验 + 形态二 GLMM 拟合
+#      实现见 scripts/hier_bb_model.py，与 scripts/24（noB879 同口径模型对比表）共用，
+#      以保证对比表里的"形态二"与本生产模型出自同一段代码、同一套超参与同一先验。
+prior = compute_batch_prior(df)
+logit_p0 = prior["logit_p0"]
+u_prior = prior["u_prior"]
+u_prec = prior["u_prec"]
+batch_idx = prior["batch_idx"]
+n_batches = prior["n_batches"]
 
 # 6. 严密交叉验证与独立测试集评估
 print("\n--- 正在执行独立测试集与 LOGO-CV 验证 ---")
