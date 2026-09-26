@@ -5,10 +5,10 @@
 
 **Blocked by:** 03: 基因组靶点物理分布与 ECharts 交互图谱切片, 06: 实验设计导出批次与历史任务抽屉切片
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] 编写根目录 `docker-compose.yml` 与对应的 `backend/Dockerfile`、`frontend/Dockerfile`、`frontend/nginx.conf`
-- [ ] 编写一键本地运行脚本 `run_fullstack.ps1`，支持无 Docker 环境下的本地热重载调试
-- [ ] 编写容器健康检查与自动启动迁移脚本
-- [ ] 编写双轨数值比对验收测试脚本，自动化抽样比对 React API 输出与 Streamlit 原型基准输出（效率分、推荐排序、PAM 解构与降级标签），确认 100% 吻合
-- [ ] 产出交付验收文档与用户运行指南
+- [x] 编写根目录 `docker-compose.yml` 与对应的 `backend/Dockerfile`、`frontend/Dockerfile`、`frontend/nginx.conf`
+- [x] 编写一键本地运行脚本 `run_fullstack.ps1`，支持无 Docker 环境下的本地热重载调试
+- [x] 编写容器健康检查与自动启动迁移脚本
+- [x] 编写双轨数值比对验收测试脚本，自动化抽样比对 React API 输出与 Streamlit 原型基准输出（效率分、推荐排序、PAM 解构与降级标签），确认 100% 吻合
+- [x] 产出交付验收文档与用户运行指南
