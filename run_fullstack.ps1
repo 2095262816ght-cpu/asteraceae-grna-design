@@ -21,6 +21,11 @@ Write-Host "  FastAPI + SQLAlchemy 2.0 + React 19 + TanStack Query" -ForegroundC
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 $ProjectRoot = $PSScriptRoot
+if (-not $ProjectRoot) {
+    $ProjectRoot = "d:\lifesciencechallenge"
+}
+Push-Location $ProjectRoot
+
 $env:PYTHONPATH = $ProjectRoot
 
 # 1. 探测 Python 解释器
@@ -39,6 +44,7 @@ foreach ($cand in $PythonCandidates) {
 }
 
 if (-not $PythonExe) {
+    Pop-Location
     Write-Error "未找到可用的 Python 解释器，请先激活 grna-demo Conda 环境。"
 }
 Write-Host "[1/4] 使用 Python 解释器: $PythonExe" -ForegroundColor Gray
@@ -47,11 +53,13 @@ Write-Host "[1/4] 使用 Python 解释器: $PythonExe" -ForegroundColor Gray
 Write-Host "[2/4] 检查数据表结构与初始数据灌库..." -ForegroundColor Yellow
 & $PythonExe -m backend.app.db.seed
 if ($LASTEXITCODE -ne 0) {
+    Pop-Location
     Write-Error "数据库初始化或数据灌库失败，请检查报错日志。"
 }
 Write-Host "      数据库准备就绪 (49 个基因, 19,839 条 gRNA 候选靶点)." -ForegroundColor Green
 
 if ($SeedOnly) {
+    Pop-Location
     Write-Host "数据灌库已完成 (--SeedOnly 模式退出)." -ForegroundColor Green
     exit 0
 }
@@ -85,5 +93,6 @@ finally {
     if ($BackendProcess -and -not $BackendProcess.HasExited) {
         Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue
     }
+    Pop-Location
     Write-Host "服务已全部优雅停止。" -ForegroundColor Green
 }
