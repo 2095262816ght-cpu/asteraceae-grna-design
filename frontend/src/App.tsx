@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SystemHealthCard } from './components/SystemHealthCard'
 import { CandidateSearchPanel } from './components/CandidateSearchPanel'
 import { SingleScoringCard } from './components/SingleScoringCard'
-import { Dna, Search, Calculator, History } from 'lucide-react'
+import { BatchUploadCard } from './components/BatchUploadCard'
+import { Dna, Search, Calculator, History, Sparkles, FileSpreadsheet } from 'lucide-react'
 
 
 
@@ -19,6 +20,7 @@ const queryClient = new QueryClient({
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'candidates' | 'scoring' | 'history'>('candidates')
+  const [scoringSubTab, setScoringSubTab] = useState<'single' | 'batch'>('single')
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -92,7 +94,38 @@ export const App: React.FC = () => {
           {activeTab === 'candidates' && <CandidateSearchPanel />}
 
 
-          {activeTab === 'scoring' && <SingleScoringCard />}
+          {activeTab === 'scoring' && (
+            <div className="space-y-6">
+              {/* 打分模式二级切换器 */}
+              <div className="flex border-b border-slate-200">
+                <button
+                  onClick={() => setScoringSubTab('single')}
+                  className={`inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition-all ${
+                    scoringSubTab === 'single'
+                      ? 'border-emerald-600 text-emerald-700'
+                      : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>单序列实时打分与结构解构</span>
+                </button>
+
+                <button
+                  onClick={() => setScoringSubTab('batch')}
+                  className={`inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition-all ${
+                    scoringSubTab === 'batch'
+                      ? 'border-emerald-600 text-emerald-700'
+                      : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800'
+                  }`}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span>批量文件上传分析 (CSV / Excel)</span>
+                </button>
+              </div>
+
+              {scoringSubTab === 'single' ? <SingleScoringCard /> : <BatchUploadCard />}
+            </div>
+          )}
 
 
           {activeTab === 'history' && (
