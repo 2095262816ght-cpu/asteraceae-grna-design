@@ -109,9 +109,10 @@ export const CandidateSearchPanel: React.FC = () => {
   const pageSize = 20
 
   // 计算当前区域类型过滤参数
-  const currentRegionType = useMemo<'all' | 'exon' | 'promoter'>(() => {
+  const currentRegionType = useMemo<'all' | 'exon' | 'promoter' | 'none'>(() => {
     if (includeExon && !includePromoter) return 'exon'
     if (!includeExon && includePromoter) return 'promoter'
+    if (!includeExon && !includePromoter) return 'none'
     return 'all'
   }, [includeExon, includePromoter])
 
@@ -419,7 +420,7 @@ export const CandidateSearchPanel: React.FC = () => {
                 功能元件过滤 (Functional Region)
               </span>
               <span className="text-[11px] text-slate-500">
-                按植物基因组功能区段筛选 gRNA 候选位点（支持多选联动）
+                按植物基因组功能区段筛选 gRNA 候选位点（支持多选、单选或全不选）
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -429,9 +430,7 @@ export const CandidateSearchPanel: React.FC = () => {
                   id="include-exon"
                   checked={includeExon}
                   onChange={(e) => {
-                    const next = e.target.checked
-                    if (!next && !includePromoter) return
-                    setIncludeExon(next)
+                    setIncludeExon(e.target.checked)
                     setPage(1)
                   }}
                   className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
@@ -448,9 +447,7 @@ export const CandidateSearchPanel: React.FC = () => {
                   id="include-promoter"
                   checked={includePromoter}
                   onChange={(e) => {
-                    const next = e.target.checked
-                    if (!next && !includeExon) return
-                    setIncludePromoter(next)
+                    setIncludePromoter(e.target.checked)
                     setPage(1)
                   }}
                   className="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
@@ -460,6 +457,34 @@ export const CandidateSearchPanel: React.FC = () => {
                 </span>
                 <span className="text-slate-500 text-[11px]">调控干涉 (CRISPRi/a)</span>
               </label>
+
+              <div className="flex items-center space-x-1.5 border-l border-slate-200 pl-3 ml-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIncludeExon(true)
+                    setIncludePromoter(true)
+                    setPage(1)
+                  }}
+                  className="text-[11px] font-medium text-slate-500 hover:text-emerald-600 px-1.5 py-0.5 rounded hover:bg-slate-100 transition-colors"
+                  title="同时勾选外显子与启动子"
+                >
+                  全选
+                </button>
+                <span className="text-slate-300">/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIncludeExon(false)
+                    setIncludePromoter(false)
+                    setPage(1)
+                  }}
+                  className="text-[11px] font-medium text-slate-500 hover:text-rose-600 px-1.5 py-0.5 rounded hover:bg-slate-100 transition-colors"
+                  title="取消勾选全部功能元件"
+                >
+                  清空
+                </button>
+              </div>
             </div>
           </div>
 
@@ -580,8 +605,28 @@ export const CandidateSearchPanel: React.FC = () => {
                 </tr>
               ) : !candidatesData?.items || candidatesData.items.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center text-slate-400">
-                    未找到符合当前过滤条件的候选 gRNA 靶点，请尝试降低最低效率分限制或关闭过滤项。
+                  <td colSpan={12} className="py-12 text-center text-slate-500">
+                    {currentRegionType === 'none' ? (
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <span className="text-sm font-semibold text-slate-700">当前未勾选任何功能元件</span>
+                        <span className="text-xs text-slate-400">
+                          外显子与启动子均处于未勾选状态。请在上方的【功能元件过滤】中勾选对应区段以查看候选位点。
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIncludeExon(true)
+                            setIncludePromoter(true)
+                            setPage(1)
+                          }}
+                          className="mt-1 inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                        >
+                          一键恢复全选 (外显子 + 启动子)
+                        </button>
+                      </div>
+                    ) : (
+                      '未找到符合当前过滤条件的候选 gRNA 靶点，请尝试降低最低效率分限制或关闭着丝粒过滤项。'
+                    )}
                   </td>
                 </tr>
               ) : (
