@@ -162,6 +162,61 @@ async def upload_batch_scoring(
     return BatchUploadResponse(**job_info)
 
 
+class ScoringJobSummary(BaseModel):
+    job_id: str
+    title: str
+    job_type: str
+    status: str
+    total_sequences: int
+    processed_sequences: int
+    progress_pct: float
+    duration_seconds: float
+    warning_message: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: str
+    completed_at: Optional[str] = None
+
+
+@router.get(
+    "/scoring/jobs",
+    response_model=List[ScoringJobSummary],
+    summary="获取历史打分任务列表 (时间倒序)",
+)
+async def list_scoring_jobs(
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+) -> List[ScoringJobSummary]:
+    stmt = (
+        select(ScoringJob)
+        .order_by(ScoringJob.created_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    jobs = result.scalars().all()
+    out = []
+    for job in jobs:
+        total = job.total_sequences or 0
+        processed = job.processed_sequences or 0
+        progress_pct = round((processed / total * 100.0), 1) if total > 0 else 0.0
+        out.append(
+            ScoringJobSummary(
+                job_id=job.id,
+                title=job.title,
+                job_type=job.job_type,
+                status=job.status,
+                total_sequences=total,
+                processed_sequences=processed,
+                progress_pct=progress_pct,
+                duration_seconds=job.duration_seconds or 0.0,
+                warning_message=job.warning_message,
+                error_message=job.error_message,
+                created_at=job.created_at.isoformat(),
+                completed_at=job.completed_at.isoformat() if job.completed_at else None,
+            )
+        )
+    return out
+
+
 @router.get(
     "/scoring/jobs/{job_id}",
     response_model=ScoringJobDetailResponse,

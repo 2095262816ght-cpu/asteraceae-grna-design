@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpDown, ChevronLeft, ChevronRight, Dna } from 'lucide-react'
+import { ArrowUpDown, ChevronLeft, ChevronRight, Dna, Download, FileSpreadsheet, X } from 'lucide-react'
 import { GenomicTargetMap } from './GenomicTargetMap'
 
 
@@ -104,6 +104,10 @@ export const CandidateSearchPanel: React.FC = () => {
   const [page, setPage] = useState<number>(1)
   const pageSize = 20
 
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set())
+  const [batchName, setBatchName] = useState<string>('')
+  const [isExporting, setIsExporting] = useState<boolean>(false)
+
   // 1. 获取基因列表
   const { data: genes, isLoading: genesLoading } = useQuery<GeneInfo[]>({
     queryKey: ['genes'],
@@ -112,6 +116,31 @@ export const CandidateSearchPanel: React.FC = () => {
 
   // 如果没有选定基因，默认选择第一个
   const activeGeneId = selectedGeneId || (genes && genes.length > 0 ? genes[0].gene_id : '')
+
+  const handleExport = async (format: 'csv' | 'xlsx') => {
+    if (selectedCandidateIds.size === 0) return
+    setIsExporting(true)
+    try {
+      const finalName = batchName.trim() || `${activeGeneId || 'gRNA'}_优选方案`
+      const res = await fetch('/api/v1/exports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: finalName,
+          format,
+          candidate_ids: Array.from(selectedCandidateIds),
+          gene_id: activeGeneId || undefined,
+        }),
+      })
+      if (!res.ok) throw new Error('创建导出批次失败')
+      const data = await res.json()
+      window.location.href = `/api/v1/exports/${data.id}/download`
+    } catch (err: any) {
+      alert(err.message || '导出错误')
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   // 2. 获取候选靶点
   const {
@@ -145,6 +174,30 @@ export const CandidateSearchPanel: React.FC = () => {
 
   const currentGene = genes?.find((g) => g.gene_id === activeGeneId)
   const summary = candidatesData?.gene_summary
+
+  const currentItems = candidatesData?.items || []
+  const isAllCurrentSelected =
+    currentItems.length > 0 && currentItems.every((c) => selectedCandidateIds.has(c.id))
+
+  const toggleSelectAllCurrent = () => {
+    const next = new Set(selectedCandidateIds)
+    if (isAllCurrentSelected) {
+      currentItems.forEach((c) => next.delete(c.id))
+    } else {
+      currentItems.forEach((c) => next.add(c.id))
+    }
+    setSelectedCandidateIds(next)
+  }
+
+  const toggleSelectOne = (id: number) => {
+    const next = new Set(selectedCandidateIds)
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
+    setSelectedCandidateIds(next)
+  }
 
   return (
     <div className="space-y-6">
@@ -312,6 +365,15 @@ export const CandidateSearchPanel: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/75 text-slate-500 font-semibold uppercase tracking-wider">
+                <th className="py-3 px-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="全选当前页"
+                    checked={isAllCurrentSelected}
+                    onChange={toggleSelectAllCurrent}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                  />
+                </th>
                 <th className="py-3 px-4">#</th>
                 <th className="py-3 px-4">靶点 ID</th>
                 <th className="py-3 px-4">方向</th>
@@ -328,7 +390,7 @@ export const CandidateSearchPanel: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {candidatesLoading ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                  <td colSpan={12} className="py-12 text-center text-slate-400">
                     <div className="flex items-center justify-center space-x-2">
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent"></div>
                       <span>正在检索候选 gRNA 靶位点...</span>
@@ -337,7 +399,7 @@ export const CandidateSearchPanel: React.FC = () => {
                 </tr>
               ) : !candidatesData?.items || candidatesData.items.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                  <td colSpan={12} className="py-12 text-center text-slate-400">
                     未找到符合当前过滤条件的候选 gRNA 靶点，请尝试降低最低效率分限制或关闭过滤项。
                   </td>
                 </tr>
@@ -370,6 +432,15 @@ export const CandidateSearchPanel: React.FC = () => {
                           : 'hover:bg-slate-50/70'
                       }`}
                     >
+                      <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`选择靶点 ${cand.guide_id}`}
+                          checked={selectedCandidateIds.has(cand.id)}
+                          onChange={() => toggleSelectOne(cand.id)}
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-mono text-slate-400">{globalIdx}</td>
                       <td className="py-3 px-4 font-semibold text-slate-900">{cand.guide_id}</td>
 
@@ -460,6 +531,58 @@ export const CandidateSearchPanel: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* 悬浮多选导出操作栏 */}
+      {selectedCandidateIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-white/95 px-5 py-3 shadow-xl backdrop-blur-md">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-[11px] font-bold">
+              {selectedCandidateIds.size}
+            </span>
+            <span>个靶点已勾选</span>
+          </div>
+
+          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="自定义方案名称..."
+              value={batchName}
+              onChange={(e) => setBatchName(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none w-48"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleExport('csv')}
+              disabled={isExporting}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>{isExporting ? '生成中...' : '导出 CSV'}</span>
+            </button>
+
+            <button
+              onClick={() => handleExport('xlsx')}
+              disabled={isExporting}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+              <span>{isExporting ? '生成中...' : '导出 Excel'}</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedCandidateIds(new Set())}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors ml-1"
+              title="清空已选"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

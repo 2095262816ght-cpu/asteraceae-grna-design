@@ -4,6 +4,8 @@ import { SystemHealthCard } from './components/SystemHealthCard'
 import { CandidateSearchPanel } from './components/CandidateSearchPanel'
 import { SingleScoringCard } from './components/SingleScoringCard'
 import { BatchUploadCard } from './components/BatchUploadCard'
+import { ExportHistoryPanel } from './components/ExportHistoryPanel'
+import { HistoryDrawer } from './components/HistoryDrawer'
 import { Dna, Search, Calculator, History, Sparkles, FileSpreadsheet } from 'lucide-react'
 
 
@@ -21,6 +23,7 @@ const queryClient = new QueryClient({
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'candidates' | 'scoring' | 'history'>('candidates')
   const [scoringSubTab, setScoringSubTab] = useState<'single' | 'batch'>('single')
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false)
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -121,6 +124,14 @@ export const App: React.FC = () => {
                   <FileSpreadsheet className="h-4 w-4" />
                   <span>批量文件上传分析 (CSV / Excel)</span>
                 </button>
+
+                <button
+                  onClick={() => setIsDrawerOpen(true)}
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
+                >
+                  <History className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>历史打分抽屉</span>
+                </button>
               </div>
 
               {scoringSubTab === 'single' ? <SingleScoringCard /> : <BatchUploadCard />}
@@ -128,18 +139,11 @@ export const App: React.FC = () => {
           )}
 
 
-          {activeTab === 'history' && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4">
-                <History className="h-7 w-7" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">实验设计导出批次与历史任务追踪</h2>
-              <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
-                将在 Ticket 06 交付：持久化存储每次筛选出的靶位点组合，支持符合实验下单标准的 CSV/Excel 一键导出与历史任务回放。
-              </p>
-            </div>
-          )}
+          {activeTab === 'history' && <ExportHistoryPanel />}
         </main>
+
+        {/* 历史任务滑出式抽屉 */}
+        <HistoryDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
       </div>
     </QueryClientProvider>
   )
