@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpDown, ChevronLeft, ChevronRight, Dna, Download, FileSpreadsheet, X } from 'lucide-react'
+import { ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, Dna, Download, FileSpreadsheet, Search, X } from 'lucide-react'
 import { GenomicTargetMap } from './GenomicTargetMap'
 
 
@@ -108,6 +108,11 @@ export const CandidateSearchPanel: React.FC = () => {
   const [batchName, setBatchName] = useState<string>('')
   const [isExporting, setIsExporting] = useState<boolean>(false)
 
+  // 基因即输即搜 Combobox 状态
+  const [isGeneDropdownOpen, setIsGeneDropdownOpen] = useState<boolean>(false)
+  const [geneSearchInput, setGeneSearchInput] = useState<string>('')
+  const geneComboboxRef = useRef<HTMLDivElement>(null)
+
   // 1. 获取基因列表
   const { data: genes, isLoading: genesLoading } = useQuery<GeneInfo[]>({
     queryKey: ['genes'],
@@ -116,6 +121,38 @@ export const CandidateSearchPanel: React.FC = () => {
 
   // 如果没有选定基因，默认选择第一个
   const activeGeneId = selectedGeneId || (genes && genes.length > 0 ? genes[0].gene_id : '')
+
+  // 点击外部区域自动收起浮层
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (geneComboboxRef.current && !geneComboboxRef.current.contains(event.target as Node)) {
+        setIsGeneDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // 模糊匹配过滤
+  const filteredGenes = useMemo(() => {
+    if (!genes) return []
+    if (!geneSearchInput.trim()) return genes
+    const q = geneSearchInput.toLowerCase().trim()
+    return genes.filter(
+      (g) =>
+        g.gene_id.toLowerCase().includes(q) ||
+        g.chrom.toLowerCase().includes(q) ||
+        (g.nlr_type && g.nlr_type.toLowerCase().includes(q))
+    )
+  }, [genes, geneSearchInput])
+
+  const handleSelectGene = (geneId: string) => {
+    setSelectedGeneId(geneId)
+    setGeneSearchInput('')
+    setIsGeneDropdownOpen(false)
+    setPage(1)
+    setSelectedGuideId(null)
+  }
 
   const handleExport = async (format: 'csv' | 'xlsx') => {
     if (selectedCandidateIds.size === 0) return
@@ -204,33 +241,129 @@ export const CandidateSearchPanel: React.FC = () => {
       {/* 顶部控制栏：基因选择与多维过滤面板 */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-5">
-          {/* 基因选择器 */}
-          <div className="flex flex-1 items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+          {/* 基因选择器 (即输即搜 Combobox) */}
+          <div className="flex flex-1 items-start sm:items-center space-x-3.5 relative" ref={geneComboboxRef}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 shadow-sm border border-emerald-100/60 mt-0.5 sm:mt-0">
               <Dna className="h-5 w-5" />
             </div>
-            <div>
-              <label htmlFor="gene-select" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                选择靶基因 (49 个 NLR 代表基因)
-              </label>
+            <div className="relative flex-1 max-w-md">
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  选择靶基因 (即输即搜 · 49 个 NLR 代表基因)
+                </label>
+                {activeGeneId && (
+                  <span className="text-[11px] font-mono text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded">
+                    当前: {activeGeneId}
+                  </span>
+                )}
+              </div>
+
               {genesLoading ? (
-                <div className="mt-1 h-9 w-64 animate-pulse rounded-lg bg-slate-100"></div>
+                <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100"></div>
               ) : (
-                <select
-                  id="gene-select"
-                  value={activeGeneId}
-                  onChange={(e) => {
-                    setSelectedGeneId(e.target.value)
-                    setPage(1)
-                  }}
-                  className="mt-1 block w-72 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                >
-                  {genes?.map((g) => (
-                    <option key={g.gene_id} value={g.gene_id}>
-                      {g.gene_id} ({g.chrom}, {g.nlr_type || 'NLR'}, {g.candidate_count} 靶点)
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  {/* 输入搜索框 */}
+                  <div className="relative flex items-center">
+                    <Search className="absolute left-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      role="combobox"
+                      aria-expanded={isGeneDropdownOpen}
+                      aria-controls="gene-options-list"
+                      aria-label="选择靶基因"
+                      value={isGeneDropdownOpen ? geneSearchInput : (geneSearchInput || activeGeneId)}
+                      placeholder="输入基因号或关键字 (如 019420, Chr06, CC)..."
+                      onFocus={() => {
+                        setIsGeneDropdownOpen(true)
+                      }}
+                      onChange={(e) => {
+                        setGeneSearchInput(e.target.value)
+                        setIsGeneDropdownOpen(true)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          if (filteredGenes.length > 0) {
+                            handleSelectGene(filteredGenes[0].gene_id)
+                          }
+                        } else if (e.key === 'Escape') {
+                          setIsGeneDropdownOpen(false)
+                        }
+                      }}
+                      className="block w-full rounded-xl border border-slate-200 bg-white pl-9 pr-16 py-2 text-sm font-medium text-slate-800 shadow-sm transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+                    <div className="absolute right-2 flex items-center space-x-1">
+                      {geneSearchInput && (
+                        <button
+                          type="button"
+                          onClick={() => setGeneSearchInput('')}
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          title="清空输入"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsGeneDropdownOpen((prev) => !prev)}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        title={isGeneDropdownOpen ? "收起下拉" : "展开下拉"}
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isGeneDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 悬浮下拉选项列表 */}
+                  {isGeneDropdownOpen && (
+                    <div
+                      id="gene-options-list"
+                      className="absolute left-0 right-0 top-full z-40 mt-1.5 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl transition-all"
+                    >
+                      <div className="px-2.5 py-1.5 text-[11px] font-medium text-slate-400 border-b border-slate-100 flex justify-between items-center">
+                        <span>{geneSearchInput ? `匹配结果 (${filteredGenes.length})` : `全部 49 个 NLR 基因`}</span>
+                        <span className="text-[10px] text-slate-400">按回车快速选中首项</span>
+                      </div>
+
+                      {filteredGenes.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-slate-400">
+                          未找到匹配的基因 (关键字: "{geneSearchInput}")
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-50">
+                          {filteredGenes.map((g) => {
+                            const isSelected = g.gene_id === activeGeneId
+                            return (
+                              <button
+                                key={g.gene_id}
+                                type="button"
+                                onClick={() => handleSelectGene(g.gene_id)}
+                                className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors ${
+                                  isSelected
+                                    ? 'bg-emerald-50 text-emerald-900 font-semibold'
+                                    : 'text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-mono text-sm tracking-tight flex items-center gap-1.5">
+                                    {g.gene_id}
+                                    {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400 font-normal">
+                                    {g.chrom} · {g.nlr_type || 'NLR'} · {g.candidate_count} 候选位点
+                                  </span>
+                                </div>
+                                {isSelected && (
+                                  <Check className="h-4 w-4 text-emerald-600 shrink-0 ml-2" />
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
