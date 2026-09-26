@@ -30,6 +30,7 @@ _scratch/
 # Database & Frontend builds
 *.db
 *.sqlite
+node_modules/
 frontend/node_modules/
 frontend/dist/
 

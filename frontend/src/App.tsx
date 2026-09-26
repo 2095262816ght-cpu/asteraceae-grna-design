@@ -2,7 +2,9 @@ import React, { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SystemHealthCard } from './components/SystemHealthCard'
 import { CandidateSearchPanel } from './components/CandidateSearchPanel'
+import { SingleScoringCard } from './components/SingleScoringCard'
 import { Dna, Search, Calculator, History } from 'lucide-react'
+
 
 
 
@@ -90,17 +92,8 @@ export const App: React.FC = () => {
           {activeTab === 'candidates' && <CandidateSearchPanel />}
 
 
-          {activeTab === 'scoring' && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4">
-                <Calculator className="h-7 w-7" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">单序列实时打分与高通量批量作业流水线</h2>
-              <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
-                即将于 Ticket 04 & 05 交付：集成 DeepSpCas9 + CRISPRon 双模型推理桥接、异步非阻塞任务状态机与平滑进度条轮询。
-              </p>
-            </div>
-          )}
+          {activeTab === 'scoring' && <SingleScoringCard />}
+
 
           {activeTab === 'history' && (
             <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">

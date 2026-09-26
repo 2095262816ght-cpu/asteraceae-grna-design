@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
     Boolean,
@@ -61,3 +62,43 @@ class TargetCandidate(Base):
     __table_args__ = (
         Index("ix_target_candidates_gene_eff", "gene_id", "efficiency_score"),
     )
+
+
+class ScoringJob(Base):
+    """打分任务实体。"""
+    __tablename__ = "scoring_jobs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String(128), nullable=False, default="单序列打分任务")
+    job_type = Column(String(32), default="single")  # "single" | "batch"
+    status = Column(String(32), default="completed", index=True)  # "pending", "running", "completed", "failed"
+    total_sequences = Column(Integer, default=1)
+    processed_sequences = Column(Integer, default=1)
+    duration_seconds = Column(Float, default=0.0)
+    crispron_source = Column(String(32), nullable=True)  # "wsl_real" | "approximated"
+    warning_message = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    items = relationship("ScoringJobItem", back_populates="job", cascade="all, delete-orphan")
+
+
+class ScoringJobItem(Base):
+    """打分作业单条序列明细实体。"""
+    __tablename__ = "scoring_job_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(String(36), ForeignKey("scoring_jobs.id"), nullable=False, index=True)
+    seq30 = Column(String(32), nullable=False)
+    flank_5p = Column(String(8), nullable=False)
+    guide_seq = Column(String(24), nullable=False)
+    pam = Column(String(8), nullable=False)
+    flank_3p = Column(String(8), nullable=False)
+    gc_pct = Column(Float, nullable=False)
+    tm_c = Column(Float, nullable=False)
+    deepspcas9_score = Column(Float, nullable=True)
+    crispron_source = Column(String(32), nullable=True)
+    efficiency_score = Column(Float, nullable=True)
+
+    job = relationship("ScoringJob", back_populates="items")
