@@ -85,6 +85,10 @@ Write-Host "----------------------------------------------------------" -Foregro
 # 启动后端子进程
 $BackendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m", "uvicorn", "backend.app.main:app", "--port", "8000", "--reload" -WorkingDirectory $ProjectRoot -PassThru -NoNewWindow
 
+if (-not $NoBrowser) {
+    Start-Process "http://localhost:5173"
+}
+
 # 启动前端子进程 (Vite)
 try {
     npm --prefix $FrontendDir run dev
@@ -95,4 +99,5 @@ finally {
         Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue
     }
     Write-Host "服务已全部优雅停止。" -ForegroundColor Green
-}
+}
+
