@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowUpDown, ChevronLeft, ChevronRight, Dna } from 'lucide-react'
+import { GenomicTargetMap } from './GenomicTargetMap'
+
 
 
 export interface GeneInfo {
@@ -92,7 +94,9 @@ async function fetchCandidates(params: {
 
 export const CandidateSearchPanel: React.FC = () => {
   const [selectedGeneId, setSelectedGeneId] = useState<string>('')
+  const [selectedGuideId, setSelectedGuideId] = useState<string | null>(null)
   const [minScore, setMinScore] = useState<number>(0)
+
   const [excludeCentromere, setExcludeCentromere] = useState<boolean>(false)
   const [exonOnly, setExonOnly] = useState<boolean>(false)
   const [sortBy, setSortBy] = useState<string>('efficiency_score')
@@ -283,7 +287,16 @@ export const CandidateSearchPanel: React.FC = () => {
         )}
       </div>
 
+      {/* 基因组物理坐标 ECharts 交互分布图谱 (Ticket 03) */}
+      <GenomicTargetMap
+        gene={currentGene}
+        candidates={candidatesData?.items || []}
+        selectedGuideId={selectedGuideId}
+        onSelectCandidate={setSelectedGuideId}
+      />
+
       {/* 候选靶点大表 */}
+
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -345,10 +358,21 @@ export const CandidateSearchPanel: React.FC = () => {
                   const pam = cand.pam
                   const flank3 = cand.seq30.slice(27, 30)
 
+                  const isSelected = selectedGuideId === cand.guide_id
+
                   return (
-                    <tr key={cand.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr
+                      key={cand.id}
+                      onClick={() => setSelectedGuideId(isSelected ? null : cand.guide_id)}
+                      className={`cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-sky-50 ring-1 ring-inset ring-sky-300 font-medium'
+                          : 'hover:bg-slate-50/70'
+                      }`}
+                    >
                       <td className="py-3 px-4 font-mono text-slate-400">{globalIdx}</td>
                       <td className="py-3 px-4 font-semibold text-slate-900">{cand.guide_id}</td>
+
                       <td className="py-3 px-4">
                         <span
                           className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-mono font-bold ${
