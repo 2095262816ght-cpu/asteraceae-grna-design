@@ -1,0 +1,52 @@
+services:
+  # 1. 生产级持久化关系型数据库 PostgreSQL 16
+  db:
+    image: postgres:16-alpine
+    container_name: crispr_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: lifescience
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lifescience"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. FastAPI 后端服务 (挂载算法内核与数据入库)
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: crispr_backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/lifescience
+      - ENVIRONMENT=production
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  # 3. 前端现代 React 19 SPA (Nginx 静态托管与 API 代理)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: crispr_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "3000:80"
+
+volumes:
+  postgres_data:
+    driver: local
