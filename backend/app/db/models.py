@@ -105,3 +105,17 @@ class ScoringJobItem(Base):
     error_message = Column(Text, nullable=True, doc="单条序列错误提示")
 
     job = relationship("ScoringJob", back_populates="items")
+
+
+class ExportBatch(Base):
+    """实验设计导出批次实体。"""
+    __tablename__ = "export_batches"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(128), nullable=False, doc="导出批次名称")
+    format = Column(String(16), default="csv", doc="文件格式: csv | xlsx")
+    gene_id = Column(String(64), nullable=True, index=True, doc="关联的目标基因 ID")
+    candidate_count = Column(Integer, default=0, doc="包含候选靶点数")
+    candidate_ids = Column(Text, nullable=False, doc="包含的候选靶点主键列表 (逗号分隔或JSON)")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
