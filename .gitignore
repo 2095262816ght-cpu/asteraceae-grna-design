@@ -26,3 +26,10 @@ Thumbs.db
 
 # 会话一次性排查脚本与转储（留痕不入库）
 _scratch/
+
+# Database & Frontend builds
+*.db
+*.sqlite
+frontend/node_modules/
+frontend/dist/
+
