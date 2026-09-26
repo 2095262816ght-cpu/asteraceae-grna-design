@@ -81,6 +81,7 @@ async def query_candidates(
     min_score: Optional[float] = Query(None, description="最低预测效率分"),
     exclude_centromere: bool = Query(False, description="是否过滤掉着丝粒不稳定区靶点"),
     exon_only: bool = Query(False, description="是否仅保留外显子/编码区靶点"),
+    region_type: Optional[str] = Query(None, description="功能元件过滤：exon | promoter | all"),
     page: int = Query(1, ge=1, description="当前分页码"),
     page_size: int = Query(50, ge=1, le=500, description="每页记录数"),
     sort_by: str = Query("efficiency_score", description="排序字段：efficiency_score, start, offtarget_count_mis3, gc_pct"),
@@ -112,7 +113,9 @@ async def query_candidates(
         stmt = stmt.where(TargetCandidate.efficiency_score >= min_score)
     if exclude_centromere:
         stmt = stmt.where(TargetCandidate.is_centromere == False)
-    if exon_only:
+    if region_type and region_type.lower() in ("exon", "promoter"):
+        stmt = stmt.where(TargetCandidate.region_type == region_type.lower())
+    elif exon_only:
         stmt = stmt.where(TargetCandidate.is_exon == True)
 
     # 3. 统计总匹配数
