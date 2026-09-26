@@ -66,6 +66,7 @@ async function fetchCandidates(params: {
   min_score?: number
   exclude_centromere?: boolean
   exon_only?: boolean
+  region_type?: string
   page?: number
   page_size?: number
   sort_by?: string
@@ -79,7 +80,9 @@ async function fetchCandidates(params: {
   if (params.exclude_centromere) {
     sp.set('exclude_centromere', 'true')
   }
-  if (params.exon_only) {
+  if (params.region_type && params.region_type !== 'all') {
+    sp.set('region_type', params.region_type)
+  } else if (params.exon_only) {
     sp.set('exon_only', 'true')
   }
   if (params.page) sp.set('page', String(params.page))
@@ -98,11 +101,19 @@ export const CandidateSearchPanel: React.FC = () => {
   const [minScore, setMinScore] = useState<number>(0)
 
   const [excludeCentromere, setExcludeCentromere] = useState<boolean>(false)
-  const [exonOnly, setExonOnly] = useState<boolean>(false)
+  const [includeExon, setIncludeExon] = useState<boolean>(true)
+  const [includePromoter, setIncludePromoter] = useState<boolean>(true)
   const [sortBy, setSortBy] = useState<string>('efficiency_score')
   const [sortOrder, setSortOrder] = useState<string>('desc')
   const [page, setPage] = useState<number>(1)
   const pageSize = 20
+
+  // 计算当前区域类型过滤参数
+  const currentRegionType = useMemo<'all' | 'exon' | 'promoter'>(() => {
+    if (includeExon && !includePromoter) return 'exon'
+    if (!includeExon && includePromoter) return 'promoter'
+    return 'all'
+  }, [includeExon, includePromoter])
 
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set())
   const [batchName, setBatchName] = useState<string>('')
@@ -190,7 +201,7 @@ export const CandidateSearchPanel: React.FC = () => {
       activeGeneId,
       minScore,
       excludeCentromere,
-      exonOnly,
+      currentRegionType,
       page,
       sortBy,
       sortOrder,
@@ -200,7 +211,7 @@ export const CandidateSearchPanel: React.FC = () => {
         gene_id: activeGeneId,
         min_score: minScore,
         exclude_centromere: excludeCentromere,
-        exon_only: exonOnly,
+        region_type: currentRegionType,
         page,
         page_size: pageSize,
         sort_by: sortBy,
@@ -399,60 +410,97 @@ export const CandidateSearchPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* 过滤控制栏 */}
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3 items-center">
-          {/* 效率分滑块 */}
-          <div>
-            <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-              <span>最低效率分过滤:</span>
-              <span className="font-bold text-emerald-600">{minScore} 分</span>
+        {/* 多维过滤控制栏 */}
+        <div className="mt-5 space-y-4">
+          {/* 功能元件过滤组 (外显子与启动子) */}
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                功能元件过滤 (Functional Region)
+              </span>
+              <span className="text-[11px] text-slate-500">
+                按植物基因组功能区段筛选 gRNA 候选位点（支持多选联动）
+              </span>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="90"
-              step="5"
-              value={minScore}
-              onChange={(e) => {
-                setMinScore(Number(e.target.value))
-                setPage(1)
-              }}
-              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-emerald-600"
-            />
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center space-x-2 rounded-lg bg-white border border-slate-200 px-3 py-1.5 shadow-sm text-xs font-medium text-slate-700 cursor-pointer select-none hover:bg-slate-50 transition-colors">
+                <input
+                  type="checkbox"
+                  id="include-exon"
+                  checked={includeExon}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                    if (!next && !includePromoter) return
+                    setIncludeExon(next)
+                    setPage(1)
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800">
+                  外显子 (Exon)
+                </span>
+                <span className="text-slate-500 text-[11px]">基因敲除 (Knockout)</span>
+              </label>
+
+              <label className="flex items-center space-x-2 rounded-lg bg-white border border-slate-200 px-3 py-1.5 shadow-sm text-xs font-medium text-slate-700 cursor-pointer select-none hover:bg-slate-50 transition-colors">
+                <input
+                  type="checkbox"
+                  id="include-promoter"
+                  checked={includePromoter}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                    if (!next && !includeExon) return
+                    setIncludePromoter(next)
+                    setPage(1)
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800">
+                  启动子 (Promoter)
+                </span>
+                <span className="text-slate-500 text-[11px]">调控干涉 (CRISPRi/a)</span>
+              </label>
+            </div>
           </div>
 
-          {/* 着丝粒过滤开关 */}
-          <div className="flex items-center space-x-2.5">
-            <input
-              type="checkbox"
-              id="exclude-centro"
-              checked={excludeCentromere}
-              onChange={(e) => {
-                setExcludeCentromere(e.target.checked)
-                setPage(1)
-              }}
-              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            <label htmlFor="exclude-centro" className="text-xs font-medium text-slate-700 cursor-pointer">
-              排除着丝粒不稳定区靶点 (Centromere Filter)
-            </label>
-          </div>
+          {/* 阈值与物理特性过滤 */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 items-center pt-1">
+            {/* 效率分滑块 */}
+            <div>
+              <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                <span>最低效率分过滤:</span>
+                <span className="font-bold text-emerald-600">{minScore} 分</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="5"
+                value={minScore}
+                onChange={(e) => {
+                  setMinScore(Number(e.target.value))
+                  setPage(1)
+                }}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-emerald-600"
+              />
+            </div>
 
-          {/* 仅限外显子开关 */}
-          <div className="flex items-center space-x-2.5">
-            <input
-              type="checkbox"
-              id="exon-only"
-              checked={exonOnly}
-              onChange={(e) => {
-                setExonOnly(e.target.checked)
-                setPage(1)
-              }}
-              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            <label htmlFor="exon-only" className="text-xs font-medium text-slate-700 cursor-pointer">
-              仅限外显子 / 编码区 (Exon / CDS Only)
-            </label>
+            {/* 着丝粒过滤开关 */}
+            <div className="flex items-center space-x-2.5">
+              <input
+                type="checkbox"
+                id="exclude-centro"
+                checked={excludeCentromere}
+                onChange={(e) => {
+                  setExcludeCentromere(e.target.checked)
+                  setPage(1)
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <label htmlFor="exclude-centro" className="text-xs font-medium text-slate-700 cursor-pointer">
+                排除着丝粒不稳定区靶点 (Centromere Filter)
+              </label>
+            </div>
           </div>
         </div>
 
@@ -590,8 +638,14 @@ export const CandidateSearchPanel: React.FC = () => {
                         {cand.start.toLocaleString()} - {cand.end.toLocaleString()}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700">
-                          {cand.region_type}
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                            cand.region_type === 'exon'
+                              ? 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20'
+                              : 'bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20'
+                          }`}
+                        >
+                          {cand.region_type === 'exon' ? '外显子 (exon)' : '启动子 (promoter)'}
                         </span>
                       </td>
                       <td className="py-3 px-4 font-mono text-xs">
