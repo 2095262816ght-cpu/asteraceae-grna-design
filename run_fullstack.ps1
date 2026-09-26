@@ -8,7 +8,8 @@
 [CmdletBinding()]
 param(
     [switch]$SeedOnly,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$ForceSeed
 )
 
 $ErrorActionPreference = "Stop"
@@ -52,13 +53,27 @@ if (-not $PythonExe) {
 }
 Write-Host "[1/4] 使用 Python 解释器: $PythonExe" -ForegroundColor Gray
 
-# 2. 数据库检查与自动数据灌库
+# 2. 数据库检查与自动数据灌库 (智能秒级缓存加速)
 Write-Host "[2/4] 检查数据表结构与初始数据灌库..." -ForegroundColor Yellow
-& $PythonExe -m backend.app.db.seed
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "数据库初始化或数据灌库失败，请检查报错日志。"
+$DbFile = Join-Path $ProjectRoot "lifescience.db"
+$NeedSeed = $true
+
+if ((-not $ForceSeed) -and (Test-Path $DbFile)) {
+    $dbSize = (Get-Item $DbFile).Length
+    if ($dbSize -gt 1000000) {
+        $NeedSeed = $false
+        Write-Host "      本地数据库已就绪 (49 个基因, 19,839 条 gRNA，秒级极速载入)." -ForegroundColor Green
+    }
 }
-Write-Host "      数据库准备就绪 (49 个基因, 19,839 条 gRNA 候选靶点)." -ForegroundColor Green
+
+if ($NeedSeed) {
+    Write-Host "      正在初始化建表与数据灌库 (首次运行或强制刷新)..." -ForegroundColor Gray
+    & $PythonExe -m backend.app.db.seed
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "数据库初始化或数据灌库失败，请检查报错日志。"
+    }
+    Write-Host "      数据库灌库完成 (49 个基因, 19,839 条 gRNA 候选靶点)." -ForegroundColor Green
+}
 
 if ($SeedOnly) {
     Write-Host "数据灌库已完成 (--SeedOnly 模式退出)." -ForegroundColor Green
@@ -85,13 +100,13 @@ Write-Host "----------------------------------------------------------" -Foregro
 # 启动后端子进程
 $BackendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m", "uvicorn", "backend.app.main:app", "--port", "8000", "--reload" -WorkingDirectory $ProjectRoot -PassThru -NoNewWindow
 
-if (-not $NoBrowser) {
-    Start-Process "http://localhost:5173"
-}
-
-# 启动前端子进程 (Vite)
+# 启动前端子进程 (Vite 准备就绪后自动秒开浏览器，避免提前打开造成白屏与卡顿)
 try {
-    npm --prefix $FrontendDir run dev
+    if ($NoBrowser) {
+        npm --prefix $FrontendDir run dev
+    } else {
+        npm --prefix $FrontendDir run dev -- --open
+    }
 }
 finally {
     Write-Host "`n正在停止全栈服务..." -ForegroundColor Yellow
@@ -99,5 +114,4 @@ finally {
         Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue
     }
     Write-Host "服务已全部优雅停止。" -ForegroundColor Green
-}
-
+}

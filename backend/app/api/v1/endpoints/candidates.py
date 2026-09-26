@@ -107,6 +107,16 @@ async def query_candidates(
         )
 
     # 2. 构造查询条件
+    if region_type and region_type.lower() == "none":
+        return CandidatesResponse(
+            items=[],
+            total=0,
+            page=page,
+            page_size=page_size,
+            total_pages=1,
+            gene_summary=gene_summary,
+        )
+
     stmt = select(TargetCandidate).where(TargetCandidate.gene_id == gene_id)
 
     if min_score is not None:
