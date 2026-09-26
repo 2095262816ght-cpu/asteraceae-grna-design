@@ -5,11 +5,12 @@
 
 **Blocked by:** 01: 全栈脚手架与系统健康检查垂直切片
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] 在后端建立 `target_candidates` 数据库模型，并对 `(gene_id, efficiency_score)` 建立复合 B-Tree 索引
-- [ ] 编写并执行数据 Seed 脚本，从现存 Excel 文件自动解析 49 个代表性 NLR 基因的全部候选 gRNA 记录并批量导入数据库
-- [ ] 后端暴露 `GET /api/v1/genes`（获取所有基因列表与元数据）与 `GET /api/v1/candidates`（分页、多条件复合过滤与动态排序接口）
-- [ ] 前端构建候选检索面板：包括基因选择下拉卡片、多维过滤控制栏以及虚拟滚动的高性能数据表格
-- [ ] 编写并通过后端数据查询与分页过滤测试
-- [ ] 编写并通过前端候选表格渲染与交互过滤测试
+- [x] 在后端建立 `target_candidates` 数据库模型，并对 `(gene_id, efficiency_score)` 建立复合 B-Tree 索引
+- [x] 编写并执行数据 Seed 脚本，从现存 Excel 文件自动解析 49 个代表性 NLR 基因的全部候选 gRNA 记录并批量导入数据库
+- [x] 后端暴露 `GET /api/v1/genes`（获取所有基因列表与元数据）与 `GET /api/v1/candidates`（分页、多条件复合过滤与动态排序接口）
+- [x] 前端构建候选检索面板：包括基因选择下拉卡片、多维过滤控制栏以及虚拟滚动的高性能数据表格
+- [x] 编写并通过后端数据查询与分页过滤测试
+- [x] 编写并通过前端候选表格渲染与交互过滤测试
+

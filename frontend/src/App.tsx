@@ -1,7 +1,10 @@
 import React, { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SystemHealthCard } from './components/SystemHealthCard'
-import { Dna, Search, Calculator, History, Sparkles, ShieldCheck } from 'lucide-react'
+import { CandidateSearchPanel } from './components/CandidateSearchPanel'
+import { Dna, Search, Calculator, History } from 'lucide-react'
+
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,27 +87,8 @@ export const App: React.FC = () => {
           </div>
 
           {/* 选项卡内容区 */}
-          {activeTab === 'candidates' && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4">
-                <Search className="h-7 w-7" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">49 个 NLR 代表基因候选靶点多维检索</h2>
-              <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
-                Ticket 01 全栈脚手架已打通连通性。将在 Ticket 02 接入 49 基因候选数据自动灌库，提供外显子区域、着丝粒回避、组织表达量动态赋权及虚拟滚动大表。
-              </p>
-              <div className="mt-6 flex justify-center space-x-4">
-                <div className="inline-flex items-center space-x-1.5 text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                  <span>noB879 纯A级金标准已对齐</span>
-                </div>
-                <div className="inline-flex items-center space-x-1.5 text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span>支持橡胶草产胶时相 (S1-S9) 决策</span>
-                </div>
-              </div>
-            </div>
-          )}
+          {activeTab === 'candidates' && <CandidateSearchPanel />}
+
 
           {activeTab === 'scoring' && (
             <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
