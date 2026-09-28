@@ -33,4 +33,6 @@ _scratch/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+*.tar
+deploy_offline/*.tar
 

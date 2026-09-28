@@ -74,8 +74,8 @@ if ($envsList -match "grna-demo\s") {
     }
 }
 
-Write-Host "正在通过清华 PyPI 镜像安装 Web 界面依赖 (streamlit, pandas)..." -ForegroundColor Cyan
-conda run -n grna-demo pip install streamlit pandas -i $PIP_INDEX --trusted-host pypi.tuna.tsinghua.edu.cn
+Write-Host "正在通过清华 PyPI 镜像安装 Web 界面依赖 (streamlit, pandas, openpyxl)..." -ForegroundColor Cyan
+conda run -n grna-demo pip install streamlit pandas openpyxl -i $PIP_INDEX --trusted-host pypi.tuna.tsinghua.edu.cn
 
 # 3. 检查并创建 crispr 环境（实时打分引擎）
 Write-Host ""

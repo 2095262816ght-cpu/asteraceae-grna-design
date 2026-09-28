@@ -1,0 +1,4 @@
+@echo off
+title Launch CRISPR Docker Containers
+cd /d "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Write-Host 'Checking Docker installation...' -ForegroundColor Cyan; if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Write-Host '[Error] Docker CLI is not installed or not in PATH. Please install Docker Desktop first: https://www.docker.com/products/docker-desktop/' -ForegroundColor Red; Read-Host 'Press Enter to exit'; exit 1 }; Write-Host 'Note: first startup builds the image and seeds ~4.5M candidates into the DB, taking 10-30 minutes. The web page is ready when backend finishes seeding.' -ForegroundColor Yellow; docker compose up --build -d; if ($LASTEXITCODE -eq 0) { Write-Host 'CRISPR Fullstack started successfully at http://localhost' -ForegroundColor Green; Start-Process 'http://localhost'; Read-Host 'Press Enter to close window' } else { Read-Host 'Failed to start containers. Press Enter to exit' }"

@@ -51,7 +51,7 @@ async def execute_single_scoring(
 
     if client is not None:
         try:
-            inference_res = client.score_sequences([s], timeout=60.0)
+            inference_res = client.score_sequences([s], timeout_s=60)
             if not inference_res.raw_df.empty:
                 row = inference_res.raw_df.iloc[0]
                 deepspcas9_score = (
