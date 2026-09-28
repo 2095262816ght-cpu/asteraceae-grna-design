@@ -19,14 +19,14 @@
 - **金标准数据集 (`noB879`)**: 879 行 / 16 基因组的纯 A 级实测效率数据集，排除 90 行 B 级候选竞争地雷样本，为现行生产模型的唯一基准。
 - **形态二生产模型 (`v2.1 Hierarchical Beta-Binomial GLMM`)**: 融合 DeepSpCas9、CRISPRon 及 8 维生物物理特征，采用分层贝叶斯选择性经验贝叶斯（Selective EB）收缩机制剥离批次随机扰动，推断纯序列生物学活性 $\eta = \beta_0 + Z\beta$。
 - **相对排序效率分 (`efficiency_score`)**: 模型输出的相对活性量度（0.0–100.0），用于同一基因内候选 guide 的择优排序推荐（非绝对 indel% 承诺）。
-- **CRISPRon 来源标注 (`crispron_source`)**: 该维特征的来源标识：`wsl_real` 为 WSL 原生容器实跑模型；`approximated` 为管线不可用时的物理经验近似式降级值，前端必须如实提示用户。
+- **CRISPRon 来源标注 (`crispron_source`)**: 该维特征的来源标识：`wsl_real` 为 WSL 原生容器实跑模型；`approximated` 为管线不可用时的物理经验近似式降级值，前端必须如实提示用户。（Docker 容器部署时经镜像内原生管线实跑，同样标 `wsl_real`，语义=真实模型实跑、与训练集同管线。）
 - **推理客户端接缝 (`InferenceClient`)**: 跨进程环境适配器，隔离 Streamlit 环境与 TensorFlow/Genet 环境，负责 Python 解释器自愈探测、Windows DLL 注入、IPC 序列化及降级状态结构化返回。
 
 ---
 
 ## 3. 多组学图谱与决策引擎 (Multiomics & Decision Engine)
 
-- **跨物种注释映射 (`Crosswalk LSA↔T2T`)**: 莴苣 T2T 染色体组装与 v1.1c (LSA) 转录组表达之间的分级对应关系。
+- **跨物种注释映射 (`Crosswalk LSA↔T2T`)**: 莴苣 T2T 染色体组装与 v1.1c (LSA) 转录组表达之间的分级对应关系。demo 面板 49 基因（16 号脚本）与全基因组 45,981 基因（18 号批量定位引擎）共用同一 tier 语义与「不硬猜」纪律。
 - **表达证据状态 (`ExpressionStatus`)**:
   - `mapped`: 精确 1:1 映射至唯一 LSA 基因座；
   - `mapped_cluster`: 映射至串联重复基因簇（Tandem Cluster）；

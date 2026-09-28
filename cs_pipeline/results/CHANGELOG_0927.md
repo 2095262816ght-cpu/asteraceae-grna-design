@@ -75,4 +75,11 @@
        - 独立留出测试集（20% 留出）：Spearman $\rho = \mathbf{+0.3424}$（$p = 7.89\times 10^{-7}$），彻底治愈了传统锚定方法在测试集上的过拟合倒挂崩溃（-0.5057）；
        - LOGO-CV 全折中位相关系数：$\rho = \mathbf{+0.3635}$（有效折 9/16，超越既有基线的 +0.2970）；
        - Class A（低混杂多批核心折，跨 $\ge 3$ 批）：中位相关系数突破历史极值，达到 **$\rho = \mathbf{+0.4636}$**（所有有效核心折均呈统计学显著正相关），证实算法对真实生物学序列特征的泛化能力已突破 0.40 天花板。
+- **2026-09-28 全基因组 LsT2T↔LSA crosswalk 扩建（9.28 登记；v2.0 冻结后的数据治理工作，生产模型未动）**：
+  1. **扩建内容**：demo 49 NLR 之外，为全基因组 45,981 个 LsT2T* 基因建立 LSA 映射（此前 seed 路径 C 只能如实标"表达证据缺失"）。新批量定位引擎 `scripts/18_crosswalk_genome_wide.py`：numpy 2-bit rolling code 对 v1.1c 全基因组**一遍线性扫描**精配全部 seq20（含反向互补），复用 16 号 `load_v11c_genes`/`resolve_lsa` 注释解析语义。产物 `results/crosswalk_lsa_t2t_genome.csv`（与 demo 金标准同构，含 tier/票占比/簇/偏移一致性列）+ `crosswalk_lsa_t2t_genome_report.md`。**终值 tier 分布：tier1 27,661（60.2%）/ tier2 簇 7,272（15.8%）/ tier3 scaffold 922（2.0%）/ tier4 诚实缺失 10,126（22.0%）；可映射 35,855（78.0%），其中 35,783 收录于 5 组织表达矩阵取得真实 TPM**。
+  2. **工程事故记录（引以为戒）**：命中数随模式集线性膨胀（demo 6.2M -> Chr01 试点 28.7M），逐 guide 扇出展开达 **660M 行触发 OOM**（4.92GiB 分配失败，试点进程阵亡）。修复双管齐下：①扫描时按 code 全局限流 20 条命中（顺序前缀保留，确定性）；②投票改 **code 级最优命中**一次选择后传播 guide 行（同 code 的 guide 命中集相同、最优命中相同），杜绝 命中×guide 双重扇出。
+  3. **tier 语义扩展**：新增 `cluster_coverage`（主映射 + ≥10% 票簇成员合计占比）；弱票作废判据由"主映射票占比 <50%"改为"簇覆盖 <50%"，修复串联簇票分裂被误杀的缺陷（`mapped_cluster` 语义回归）。tier1 仍要求票占比 ≥50% + 共线偏移一致性 ≥60%；不可映射仍如实标注、**不编造映射**。
+  4. **49 基因金标准回归**（`_xwalk_regress49_report.md`）：gold 可映射 35 基因**零误杀**（tier 混淆矩阵 gold 1-3 行无 tier4）；双方可映射 35 例中 lsa_primary 完全一致 31、同位点（含串联簇成员互换）32；映射状态一致 42/49。11 例分歧全部留档 `_xwalk_regress49_regress_diff.csv`：3 例定位级分歧（tandem NLR 簇固有歧义，gold 侧证据亦薄）、4 例 gold 弱解析（解析占比 5-8%）被强证据救回、4 例边缘 mapped_cluster（票占比 0.26-0.43，与救回组特征区间完全重叠、无阈值可干净分离），一并交生物学复核。
+  5. **seed 接线**：`backend/app/db/seed.py` 新增 `build_expression_record`（crosswalk × 5 组织表达矩阵 join，demo 路径与路径 C 共用、消除双份逻辑）；路径 C 表达证据由占位改为真实 TPM/tau/tier，tier4 保持如实缺失文案。4 个单测覆盖（含 tier4 禁止编造 TPM 断言），真实 crosswalk 回放验证 35 映射/14 缺失与金标准一致。
+  6. **配套**：`.dockerignore` 白名单放行 `crosswalk_lsa_t2t_genome.csv`（Docker 交付灌库依赖）；两份 CONTEXT.md 术语表补全基因组 crosswalk 条目；USER_MANUAL 新增 FAQ Q4（表达证据缺失横幅语义）；`test_pipeline_engine.test_genome_crosswalk` 资产完整性测试（行数=基因目录、tier4 无编造映射、`in_expression_matrix` 与表达矩阵一致）。生产模型 `meta_model_hier_bb_nob879_0921.joblib` 与效率打分链路未动。
 

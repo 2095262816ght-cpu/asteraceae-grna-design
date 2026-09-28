@@ -5,7 +5,7 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.app.main import app
 from backend.app.db.session import engine, AsyncSessionLocal
-from backend.app.db.models import Base, Gene, TargetCandidate
+from backend.app.db.models import Base, Gene, TargetCandidate, GeneExpression
 from backend.app.db.seed import seed_candidates_if_empty
 from cs_pipeline.core.sequence_spec import validate_seq30, calc_gc, calc_tm
 
@@ -19,6 +19,7 @@ async def setup_parity_db():
     # 清空并确保重新完整灌入 49 个基准基因与候选数据
     async with AsyncSessionLocal() as session:
         await session.execute(TargetCandidate.__table__.delete())
+        await session.execute(GeneExpression.__table__.delete())
         await session.execute(Gene.__table__.delete())
         await session.commit()
 
@@ -28,7 +29,7 @@ async def setup_parity_db():
 
 @pytest.mark.anyio
 async def test_gene_catalog_parity_with_demo_csv():
-    """验收 1: 验证 React 后端 API 返回的 49 个 NLR 基因元数据与 Streamlit app_genes.csv 严格一致。"""
+    """验收 1: 验证 49 个 NLR 基因元数据与 Streamlit app_genes.csv 严格一致（并存方案下 API 为全基因组 + 49 NLR 超集）。"""
     csv_path = Path("cs_pipeline/demo/app_genes.csv")
     assert csv_path.exists(), "Streamlit 基准数据源 app_genes.csv 必须存在"
     df_genes_gt = pd.read_csv(csv_path)
@@ -41,7 +42,9 @@ async def test_gene_catalog_parity_with_demo_csv():
     assert res.status_code == 200
     api_genes = res.json()
 
-    assert len(api_genes) == len(df_genes_gt), f"基因总数应为 {len(df_genes_gt)}，实际为 {len(api_genes)}"
+    assert len(api_genes) >= len(df_genes_gt), (
+        f"基因总数应不少于基准 {len(df_genes_gt)}（并存方案为全基因组 + 49 NLR 超集），实际为 {len(api_genes)}"
+    )
 
     api_gene_map = {g["gene_id"]: g for g in api_genes}
 
