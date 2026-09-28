@@ -62,7 +62,7 @@ if ((-not $ForceSeed) -and (Test-Path $DbFile)) {
     $dbSize = (Get-Item $DbFile).Length
     if ($dbSize -gt 1000000) {
         $NeedSeed = $false
-        Write-Host "      本地数据库已就绪 (49 个基因, 19,839 条 gRNA，秒级极速载入)." -ForegroundColor Green
+        Write-Host "      本地数据库已就绪 (45,981 全基因组 + 49 NLR 基因，秒级极速载入)." -ForegroundColor Green
     }
 }
 
@@ -72,7 +72,7 @@ if ($NeedSeed) {
     if ($LASTEXITCODE -ne 0) {
         Write-Error "数据库初始化或数据灌库失败，请检查报错日志。"
     }
-    Write-Host "      数据库灌库完成 (49 个基因, 19,839 条 gRNA 候选靶点)." -ForegroundColor Green
+    Write-Host "      数据库灌库完成 (45,981 全基因组 + 49 NLR 基因及候选靶点)." -ForegroundColor Green
 }
 
 if ($SeedOnly) {
@@ -114,4 +114,4 @@ finally {
         Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue
     }
     Write-Host "服务已全部优雅停止。" -ForegroundColor Green
-}
+}

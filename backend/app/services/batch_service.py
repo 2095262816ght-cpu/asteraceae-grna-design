@@ -187,7 +187,7 @@ async def run_batch_scoring_task(
             inference_results = None
             if client is not None:
                 try:
-                    inference_results = client.score_sequences(seqs, timeout=180.0)
+                    inference_results = client.score_sequences(seqs, timeout_s=180)
                 except Exception as exc:
                     job.warning_message = f"批处理模型推理外部调用异常，触发降级计算: {str(exc)}"
 

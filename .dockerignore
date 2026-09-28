@@ -1,0 +1,52 @@
+# 忽略 Git 与开发缓存
+.git
+.gitignore
+.agents
+.claude
+.idea
+.vscode
+.scratch
+_scratch
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# 忽略前端依赖与构建产物 (构建阶段自行生成)
+node_modules
+frontend/node_modules
+frontend/dist
+
+# 忽略本地 SQLite 数据库与打包产物
+*.db
+*.sqlite
+*.tar
+deploy_offline/*.tar
+
+# 忽略仓库根 results/（1.28GB 全基因组扫描大表，容器不需要）
+results/
+
+# 关键瘦身: 排除 8.2GB 全基因组原始测序大文件，白名单放行 seed/打分刚需
+# （data/ 整目录排除会连表达矩阵一起排掉 → 49 NLR 表达证据静默丢失，故用 *+! 白名单）
+cs_pipeline/data/*
+!cs_pipeline/data/expression
+cs_pipeline/data/expression/*
+!cs_pipeline/data/expression/1-3_lettuce_5tissue_expression_matrix.csv
+
+# results/ 白名单：只带灌库 2 个 CSV + demo 合并用 2 个 CSV + 推理模型 2 个 joblib
+# （排除 scored_genome/ 2.2GB、backup/、grna_candidates 大表、real_crispron 产物、全部分析中间件）
+cs_pipeline/results/*
+!cs_pipeline/results/lettuce_all_genes_catalog.csv
+!cs_pipeline/results/lettuce_all_genes_top100_candidates.csv
+!cs_pipeline/results/offtarget_functional_hazard_0923.csv
+!cs_pipeline/results/crosswalk_lsa_t2t_0923.csv
+!cs_pipeline/results/crosswalk_lsa_t2t_genome.csv
+!cs_pipeline/results/meta_model_hier_bb_nob879_0921.joblib
+!cs_pipeline/results/meta_model_ridge_full_0916.joblib
+
+# demo 重打分历史备份无用
+cs_pipeline/demo/*backup*
+
+# 安装脚本仅宿主机用（WSL/conda 组装），容器内不需
+cs_pipeline/env/
+cs_pipeline/docs/

@@ -1,0 +1,8 @@
+# CRISPRon 管线子进程环境（对齐 WSL conda `crispron` 环境实测口径：
+# python3.10 + tensorflow 2.14 + numpy 1.26.4 + scipy 1.15.2 + pandas 2.3.3 + biopython 1.88）
+# RNAfold 由 bioconda viennarna=2.6.4 提供（不走 apt：bookworm 仅 2.5.1 且在 non-free）
+tensorflow==2.14.0
+numpy==1.26.4
+scipy==1.15.2
+pandas==2.3.3
+biopython==1.88
