@@ -13,6 +13,33 @@ from typing import Sequence
 
 import pandas as pd
 
+try:
+    from core.atac_annotator import (
+        COL_DIST,
+        COL_FC,
+        COL_IN_PEAK,
+        COL_PEAK_ID,
+        COL_Q,
+        COL_SCORE,
+        COL_STATUS,
+        DISPLAY_MAP as ATAC_DISPLAY_MAP,
+        annotate_guides,
+        load_default_atac,
+    )
+except ImportError:
+    from cs_pipeline.core.atac_annotator import (
+        COL_DIST,
+        COL_FC,
+        COL_IN_PEAK,
+        COL_PEAK_ID,
+        COL_Q,
+        COL_SCORE,
+        COL_STATUS,
+        DISPLAY_MAP as ATAC_DISPLAY_MAP,
+        annotate_guides,
+        load_default_atac,
+    )
+
 # 组织中英文对照
 TISSUES = {"Root": "根", "Stem": "茎", "Leaf": "叶", "Flower": "花", "Seed": "种子"}
 TISSUE_ORDER = list(TISSUES.keys())
@@ -64,6 +91,7 @@ class CandidateRankingEngine:
         genes_df: pd.DataFrame,
         priority_df: pd.DataFrame | None = None,
         hazard_df: pd.DataFrame | None = None,
+        atac_atlas=None,
     ):
         self._genes = genes_df.copy()
         
@@ -73,6 +101,12 @@ class CandidateRankingEngine:
             data = data.merge(priority_df, on="guide_id", how="left", validate="1:1")
         if hazard_df is not None:
             data = data.merge(hazard_df, on="guide_id", how="left", validate="1:1")
+
+        # ATAC 表观可及性注释（莴苣峰表；缺失时优雅降级）
+        self._atac_available = False
+        if atac_atlas is not None:
+            data = annotate_guides(data, atac_atlas)
+            self._atac_available = True
         self._data = data
 
         # 效率分列版本自适应
@@ -125,7 +159,11 @@ class CandidateRankingEngine:
         prio_df = None
         if prio_path.exists():
             prio = pd.read_csv(prio_path)
-            keep_p = [c for c in prio.columns if c.startswith(("priority_", "expr_sigmoid_", "expression_status", "lsa_id"))]
+            keep_p = [
+                c for c in prio.columns
+                if c.startswith(("priority_", "expr_sigmoid_", "expression_status", "lsa_id"))
+                or c in ("eff_percentile", "offtarget_penalty")
+            ]
             prio_df = prio[["guide_id"] + keep_p]
 
         haz_df = None
@@ -134,7 +172,9 @@ class CandidateRankingEngine:
             keep_h = [c for c in h.columns if c.startswith("hazard_")] + ["n_intra_panel_sites"]
             haz_df = h[["guide_id"] + keep_h]
 
-        return cls(cand_df, genes_df, prio_df, haz_df)
+        atac_atlas = load_default_atac(base)
+
+        return cls(cand_df, genes_df, prio_df, haz_df, atac_atlas=atac_atlas)
 
     @property
     def genes(self) -> list[str]:
@@ -145,16 +185,34 @@ class CandidateRankingEngine:
     def eff_label(self) -> str:
         return self._eff_label
 
+    @property
+    def callout(self) -> ModelCallout:
+        """获取当前模型版本定位声明。"""
+        return self._callout
+
+    @property
+    def has_offtarget(self) -> bool:
+        """候选数据是否具备脱靶评分。"""
+        return self._has_offtarget
+
+    @property
+    def has_atac(self) -> bool:
+        """是否已装载 ATAC 峰表并完成表观注释。"""
+        return self._atac_available
+
     def get_sort_options(self, target_tissue: str) -> list[str]:
         """获取当前目标组织下的合法排序选项。"""
         tissue_cn = TISSUES.get(target_tissue, target_tissue)
         off_label = "脱靶计数 mis3 升序" if self._has_offtarget else "脱靶计数 mis3 升序（待数据）"
-        return [
+        opts = [
             f"组织优先指数（{tissue_cn}）降序（方案3推荐）",
             f"{self._eff_label} 降序",
             off_label,
             "GC% 接近 50%",
         ]
+        if self._atac_available:
+            opts.insert(1, f"组织优先指数+ATAC加权（{tissue_cn}）降序（表观可及性）")
+        return opts
 
     def rank(
         self,
@@ -187,7 +245,28 @@ class CandidateRankingEngine:
         prio_col = f"priority_score_{tissue_lower}"
         haz_col = f"hazard_{tissue_lower}"
 
-        if selected_sort.startswith("组织优先指数") and prio_col in cand.columns:
+        if selected_sort.startswith("组织优先指数+ATAC") and prio_col in cand.columns:
+            # 折中方案：默认方案3 分数不变，选项启用后引入 0.10×ATAC 可及性
+            # PriorityScore_ATAC = 0.45*EffPct - 0.25*OffPen + 0.20*Expr + 0.10*Atac
+            expr_col = f"expr_sigmoid_{tissue_lower}"
+            atac_ready = (
+                COL_SCORE in cand.columns
+                and expr_col in cand.columns
+                and "eff_percentile" in cand.columns
+                and "offtarget_penalty" in cand.columns
+            )
+            if atac_ready:
+                cand = cand.assign(
+                    priority_score_atac=(
+                        0.45 * cand["eff_percentile"]
+                        - 0.25 * cand["offtarget_penalty"]
+                        + 0.20 * cand[expr_col]
+                        + 0.10 * cand[COL_SCORE]
+                    )
+                ).sort_values("priority_score_atac", ascending=False)
+            else:
+                cand = cand.sort_values(prio_col, ascending=False)
+        elif selected_sort.startswith("组织优先指数") and prio_col in cand.columns:
             cand = cand.sort_values(prio_col, ascending=False)
         elif selected_sort.startswith(self._eff_label) and self._eff_col in cand.columns:
             cand = cand.sort_values(self._eff_col, ascending=False)
@@ -203,11 +282,13 @@ class CandidateRankingEngine:
         # 格式化展示列名
         tissue_cn = TISSUES.get(target_tissue, target_tissue)
         prio_label = f"组织优先指数（{tissue_cn}）"
+        prio_atac_label = f"组织优先指数+ATAC（{tissue_cn}）"
         haz_label = f"功能性脱靶危害（{tissue_cn}）"
 
         rename_map = {
             self._eff_col: self._eff_label,
             prio_col: prio_label,
+            "priority_score_atac": prio_atac_label,
             haz_col: haz_label,
             "n_intra_panel_sites": "面板内位点数",
             "offtarget_count_mis1": "脱靶 mis1",
@@ -215,13 +296,21 @@ class CandidateRankingEngine:
             "offtarget_count_mis3": "脱靶 mis3",
             "exact_match_count": "完全匹配数",
             "in_centromere": "着丝粒区",
+            **ATAC_DISPLAY_MAP,
         }
         cand = cand.rename(columns=rename_map)
 
+        if ATAC_DISPLAY_MAP[COL_IN_PEAK] in cand.columns:
+            cand[ATAC_DISPLAY_MAP[COL_IN_PEAK]] = cand[ATAC_DISPLAY_MAP[COL_IN_PEAK]].map(
+                {True: "是", False: "否"}
+            )
+
         show_cols = [
             "guide_id", "seq20", "pam", "chrom", "start", "end", "strand",
-            "region_type", "gc_pct", "tm_c", self._eff_label, prio_label, haz_label,
+            "region_type", "gc_pct", "tm_c", self._eff_label, prio_label, prio_atac_label, haz_label,
             "面板内位点数", "表达证据",
+            ATAC_DISPLAY_MAP[COL_STATUS], ATAC_DISPLAY_MAP[COL_IN_PEAK], ATAC_DISPLAY_MAP[COL_PEAK_ID],
+            ATAC_DISPLAY_MAP[COL_DIST], ATAC_DISPLAY_MAP[COL_FC], ATAC_DISPLAY_MAP[COL_Q], ATAC_DISPLAY_MAP[COL_SCORE],
             "脱靶 mis1", "脱靶 mis2", "脱靶 mis3", "完全匹配数", "着丝粒区",
         ]
         show_cols = [c for c in show_cols if c in cand.columns]

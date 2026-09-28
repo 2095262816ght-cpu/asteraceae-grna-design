@@ -284,7 +284,7 @@ export const SingleScoringCard: React.FC = () => {
               </div>
               <p className="mt-1 text-[11px] text-slate-500">
                 {result.crispron_source === 'wsl_real'
-                  ? 'WSL 环境原生容器实跑真实模型'
+                  ? '真实模型实跑（WSL/容器原生）'
                   : '管线物理经验公式近似式降级值'}
               </p>
             </div>
