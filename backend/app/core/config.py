@@ -17,6 +17,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    # T2T 基因组 FASTA（脱靶计数按需计算用；相对路径以项目根为基准）
+    T2T_GENOME_FASTA: str = "cs_pipeline/data/reference_genomes/3-1_LsT2T.genome.fa"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
