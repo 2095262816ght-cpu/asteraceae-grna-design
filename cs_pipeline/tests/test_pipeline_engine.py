@@ -117,6 +117,37 @@ class TestMultiomicsDataIntegrity:
         assert "lsa_primary" in xw.columns
         assert "tier" in xw.columns
 
+    def test_genome_crosswalk(self):
+        """测试全基因组 crosswalk（18 号批量定位引擎产物）资产完整性。"""
+        xw_path = BASE / "results" / "crosswalk_lsa_t2t_genome.csv"
+        catalog_path = BASE / "results" / "lettuce_all_genes_catalog.csv"
+        assert xw_path.exists(), f"全基因组 Crosswalk 缺失: {xw_path}"
+        assert catalog_path.exists(), f"基因目录缺失: {catalog_path}"
+
+        xw = pd.read_csv(xw_path)
+        for col in ["gene_id", "chrom_delivered", "n_guides", "tier", "lsa_primary",
+                    "lsa_vote_frac", "lsa_resolved_frac", "in_expression_matrix"]:
+            assert col in xw.columns, f"缺少列 {col}"
+
+        catalog = pd.read_csv(catalog_path, usecols=["gene_id"])
+        assert len(xw) == len(catalog), (
+            f"crosswalk 行数 {len(xw)} != 基因目录 {len(catalog)}")
+        assert xw["gene_id"].is_unique
+
+        assert xw["tier"].isin([1, 2, 3, 4]).all()
+        t4 = xw[xw["tier"] == 4]
+        mapped = xw[xw["tier"] <= 3]
+        assert t4["lsa_primary"].isna().all(), "tier4 不可映射基因不得编造 LSA 映射"
+        assert (xw[xw["tier"] == 1]["lsa_vote_frac"] >= 0.5).all(), "tier1 精确映射票占比应 >=50%"
+        assert (mapped["lsa_resolved_frac"] >= 0.2).all(), "弱解析应作废为 tier4"
+        assert (mapped["cluster_coverage"] >= 0.5).all(), "低簇覆盖（票分散）应作废为 tier4"
+
+        expr = pd.read_csv(BASE / "data" / "expression" /
+                           "1-3_lettuce_5tissue_expression_matrix.csv", usecols=["GeneID"])
+        in_matrix = xw[xw["in_expression_matrix"]]
+        assert in_matrix["lsa_primary"].isin(set(expr["GeneID"])).all(), (
+            "in_expression_matrix=True 的主映射必须真实存在于表达矩阵")
+
     def test_tks_stage_curves(self):
         """测试橡胶草产胶发育时相曲线与 S4 推荐窗口。"""
         curves_path = BASE / "results" / "tks_pathway_stage_curves_0923.csv"

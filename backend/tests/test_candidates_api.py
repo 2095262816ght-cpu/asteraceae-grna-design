@@ -2,7 +2,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from backend.app.main import app
 from backend.app.db.session import engine, AsyncSessionLocal
-from backend.app.db.models import Base, Gene, TargetCandidate
+from backend.app.db.models import Base, Gene, TargetCandidate, GeneExpression
 from backend.app.db.seed import seed_candidates_if_empty
 from sqlalchemy import select, func
 
@@ -15,6 +15,7 @@ async def setup_test_db():
     # 插入测试用基因与候选靶点数据
     async with AsyncSessionLocal() as session:
         await session.execute(TargetCandidate.__table__.delete())
+        await session.execute(GeneExpression.__table__.delete())
         await session.execute(Gene.__table__.delete())
 
         test_gene = Gene(
@@ -28,6 +29,23 @@ async def setup_test_db():
         )
         session.add(test_gene)
         await session.flush()
+
+        expr = GeneExpression(
+            gene_id="LsaT2T01G023690",
+            lsa_id="LSA25643",
+            tier=1,
+            lsa_vote_frac=0.819,
+            is_mappable=True,
+            tpm_root=3.385,
+            tpm_stem=1.428,
+            tpm_leaf=0.951,
+            tpm_flower=1.09,
+            tpm_seed=1.72,
+            top_tissue="根",
+            top_tpm=3.385,
+            tau=0.62,
+        )
+        session.add(expr)
 
         c1 = TargetCandidate(
             guide_id="Lsat_675191",
@@ -48,6 +66,10 @@ async def setup_test_db():
             efficiency_score=24.54,
             deepspcas9_score=46.28,
             crispron_score=44.63,
+            priority_score_leaf=0.85,
+            priority_score_root=0.30,
+            hazard_leaf=0.05,
+            expression_status="mapped_cluster",
         )
 
         c2 = TargetCandidate(
@@ -69,6 +91,10 @@ async def setup_test_db():
             efficiency_score=78.20,
             deepspcas9_score=80.15,
             crispron_score=75.30,
+            priority_score_leaf=0.45,
+            priority_score_root=0.90,
+            hazard_leaf=0.00,
+            expression_status="mapped_cluster",
         )
 
         session.add_all([c1, c2])
@@ -131,3 +157,47 @@ async def test_get_candidates_with_filtering():
         score_data = res_score.json()
         assert score_data["total"] == 1
         assert score_data["items"][0]["efficiency_score"] >= 50
+
+
+@pytest.mark.anyio
+async def test_gene_expression_api():
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        res = await ac.get("/api/v1/genes/LsaT2T01G023690/expression")
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["gene_id"] == "LsaT2T01G023690"
+    assert data["is_mappable"] is True
+    assert data["lsa_id"] == "LSA25643"
+    assert data["top_tissue"] == "根"
+    assert abs(data["top_tpm"] - 3.385) < 0.01
+    assert data["tpm_dict"]["Leaf"] == 0.951
+    assert data["tau"] == 0.62
+
+
+@pytest.mark.anyio
+async def test_target_tissue_candidates_sorting():
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        # 当 target_tissue=Leaf，按 priority_score 降序排序，c1 (priority 0.85) 应排在 c2 (0.45) 前
+        res_leaf = await ac.get(
+            "/api/v1/candidates?gene_id=LsaT2T01G023690&target_tissue=Leaf&sort_by=priority_score&sort_order=desc"
+        )
+        assert res_leaf.status_code == 200
+        leaf_items = res_leaf.json()["items"]
+        assert leaf_items[0]["guide_id"] == "Lsat_675191"
+        assert leaf_items[0]["priority_score"] == 0.85
+        assert leaf_items[0]["hazard_score"] == 0.05
+        assert leaf_items[0]["expression_status_display"] == "已映射（串联簇）"
+
+        # 当 target_tissue=Root，按 priority_score 降序排序，c2 (root priority 0.90) 应排在 c1 (0.30) 前
+        res_root = await ac.get(
+            "/api/v1/candidates?gene_id=LsaT2T01G023690&target_tissue=Root&sort_by=priority_score&sort_order=desc"
+        )
+        assert res_root.status_code == 200
+        root_items = res_root.json()["items"]
+        assert root_items[0]["guide_id"] == "Lsat_675192"
+        assert root_items[0]["priority_score"] == 0.90

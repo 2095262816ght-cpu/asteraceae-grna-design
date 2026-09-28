@@ -13,9 +13,11 @@
 
 地面真值取自 results/crosswalk_lsa_t2t_0923.csv × data/expression/1-3_lettuce_5tissue_expression_matrix.csv。
 """
+import io
 import sys
 from pathlib import Path
 
+import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -33,7 +35,7 @@ TKS_FAMILIES = {"REF（TKS 成员 2 个）", "SRPP（TKS 成员 8 个）", "CPT�
 # 是 P0「推理期特征伪造」的原始证据序列。
 PROBE_SEQ30 = "ATCGGCTAAGCTAGGCTAGCATCGTGGATC"
 # 须与 app/app.py Tab2 的 src_labels 一致
-SRC_LABELS = {"wsl_real": "WSL 实跑真实模型", "approximated": "⚠️ 近似式降级"}
+SRC_LABELS = {"wsl_real": "真实模型实跑（WSL/容器原生）", "approximated": "⚠️ 近似式降级"}
 
 
 def test_app_dashboard():
@@ -145,12 +147,86 @@ def test_tab2_crispron_source():
         assert any("近似式降级值" in w.value for w in at.warning), "降级却未向用户告警"
         print("[T2] 降级路径：CRISPRon 来源 = 近似式降级，且已如实告警")
     else:
-        assert any("WSL 实跑真实模型" in c.value for c in at.caption), "真实路径缺少来源说明"
+        assert any("真实模型实跑" in c.value for c in at.caption), "真实路径缺少来源说明"
         print("[T2] 真实路径：CRISPRon 经 WSL 实跑，来源已标注")
     print("[T2] 打分结果：%s" % res.to_dict("records"))
+
+
+def test_tab2_excel_batch_import():
+    """验证 Tab2 从 Excel 表格批量导入、智能列解析与预检质检指标展示。"""
+    at = AppTest.from_file(str(APP), default_timeout=180)
+    at.run()
+    assert not at.exception, at.exception
+
+    # 切换至 Excel 批量导入分支
+    assert len(at.segmented_control) >= 2, "缺少检测模式 segmented_control"
+    at.segmented_control[1].set_value("从 Excel / CSV 表格批量导入").run()
+    assert not at.exception, at.exception
+
+    # 验证模板下载与文件上传器已渲染
+    assert len(at.file_uploader) > 0, "缺少批量文件上传器组件"
+    assert any("下载 Excel 导入模板" in b.label for b in at.download_button), "缺少 Excel 模板下载按钮"
+
+    # 构造带有 2 条合规 + 1 条异常的 Excel 文件
+    test_df = pd.DataFrame({
+        "靶点编号": ["Guide_01", "Guide_02_Bad", "Guide_03"],
+        "30bp靶位点序列": [
+            "ATCGGCTAAGCTAGGCTAGCATCGTGGATC",
+            "ATCG_TOO_SHORT",
+            "ATTCGGCGTTAGATTGACAGAAGACGGTGG",
+        ],
+        "注释": ["测试1", "测试2", "测试3"],
+    })
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        test_df.to_excel(writer, index=False)
+    excel_bytes = buf.getvalue()
+
+    # 模拟上传文件并重新运行
+    at.file_uploader[0].upload("mock_targets.xlsx", excel_bytes).run()
+    assert not at.exception, at.exception
+
+    # 验证即时质检指标
+    metrics = {m.label: m.value for m in at.metric}
+    assert metrics.get("表格数据总行数") in ("3", 3), f"总行数异常: {metrics}"
+    assert metrics.get("合规有效序列数") in ("2", 2), f"有效数异常: {metrics}"
+    assert metrics.get("格式异常行数") in ("1", 1), f"异常数异常: {metrics}"
+
+    # 验证批量打分按钮存在
+    batch_btn = next((b for b in at.button if "开始批量检测打分" in b.label), None)
+    assert batch_btn is not None, "缺少开始批量检测打分按钮"
+
+    print("[T2-Batch] Excel 批量导入组件渲染、列探测、质检指标与按钮验证全量通过！")
+
+
+def test_tab1_atac_annotations():
+    """Tab1 应透出 ATAC 整合状态、默认注释列与「组织优先指数+ATAC加权」排序（折中方案）。"""
+    at = AppTest.from_file(str(APP), default_timeout=180)
+    at.run()
+    assert not at.exception, at.exception
+
+    assert any("ATAC-seq 染色质开放峰" in x.value for x in at.info), "缺少 ATAC 整合状态提示"
+
+    top = at.dataframe[0].value
+    assert len(top) > 0, "默认基因的 Top10 表为空"
+    for frag in ("ATAC状态", "ATAC开放峰内", "ATAC可及性分"):
+        assert any(frag in c for c in top.columns), f"缺少 {frag} 列；现有 {list(top.columns)}"
+
+    atac_opt = next((o for o in at.selectbox[1].options if o.startswith("组织优先指数+ATAC")), None)
+    assert atac_opt is not None, at.selectbox[1].options
+    at.selectbox[1].set_value(atac_opt).run()
+    assert not at.exception, at.exception
+    assert any("组织优先指数+ATAC" in c for c in at.dataframe[0].value.columns), \
+        "ATAC 加权排序未产出加权分数列"
+    print("[T1-ATAC] 状态提示 + 默认注释列 + ATAC 加权排序验证通过")
 
 
 if __name__ == "__main__":
     test_app_dashboard()
     print()
+    test_tab1_atac_annotations()
+    print()
+    test_tab2_excel_batch_import()
+    print()
     test_tab2_crispron_source()
+
