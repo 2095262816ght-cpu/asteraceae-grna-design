@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""crispron_wsl.py — CRISPRon 真实打分的 WSL 调用封装（交互推理用）。
+"""crispron_wsl.py — CRISPRon 真实打分的管线调用封装（交互推理用）。
 
 为什么需要它
 ------------
@@ -18,12 +18,22 @@
      产生一个 30mer 窗口，该过滤保证每条输入恰好取到一个分数。
 实测 29 条 distinct guide：产物 30 行（29 正链 + 1 反链），精确匹配 29 行，一一对应。
 
+运行模式（CRISPRON_MODE 环境变量：auto | wsl | native，默认 auto）
+---------------------------------------------------------------
+- wsl：Windows 宿主机经 `wsl.exe` 调 WSL 内 conda `crispron` 环境（历史默认路径）。
+- native：Linux/容器内直接 `bash bin/CRISPRon.sh`，PATH 前置 `CRISPRON_PYTHON`
+  （默认 /opt/venv-crispron/bin/python3）所在目录，保证脚本 shebang `python3`
+  解析到 TF2.14 环境；RNAfold 由 PATH 提供（bioconda viennarna 2.6.4）。
+- auto：有 wsl.exe 走 wsl（Windows 行为逐字节不变），否则走 native。
+两种模式的 fasta 写入与产物解析完全共享，取值口径不变。
+
 依赖与降级
 ----------
-需要 Windows 侧 `wsl.exe` + WSL 内 `Ubuntu-22.04` 发行版 + 该发行版内的 `crispron`
-conda 环境（由 `env/setup_crispron_wsl.sh` 组装）+ `tools/CRISPRon`。
-任一缺失、超时或产物异常时 `score()` 返回空 dict；**本模块绝不返回近似值冒充真实值**，
-降级决策与标注由调用方显式承担。
+wsl 模式需要 Windows 侧 `wsl.exe` + WSL 内 `Ubuntu-22.04` 发行版 + 该发行版内的
+`crispron` conda 环境（由 `env/setup_crispron_wsl.sh` 组装）+ `tools/CRISPRon`。
+native 模式需要 `bash` + `CRISPRON_PYTHON` 指向的 TF2.14 python3 + PATH 里有 RNAfold
++ `tools/CRISPRon`。任一缺失、超时或产物异常时 `score()` 返回空 dict；
+**本模块绝不返回近似值冒充真实值**，降级决策与标注由调用方显式承担。
 
 延迟实测（WSL 热身后）：首次 1 条 13.6 秒（含 WSL 冷启动）、29 条 8.2 秒——固定开销主导，
 批量几乎不增本，故按块整批调用而非逐条调用（块大小 `CHUNK_SIZE`=500）。
@@ -33,6 +43,7 @@ conda 环境（由 `env/setup_crispron_wsl.sh` 组装）+ `tools/CRISPRon`。
 1.000000）——证明推理与训练取的是同一约定同一管线。跨次运行与跨分块方式的最大绝对差
 ≤0.01（均值 0.0007），来自产物 CSV 两位小数舍入处的 TF 浮点噪声，量级为满量程的 0.01%。
 """
+import os
 import shutil
 import subprocess
 import tempfile
@@ -51,14 +62,16 @@ CHUNK_SIZE = 500
 _ACTIVATE = f"source ~/miniconda3/etc/profile.d/conda.sh && conda activate {CONDA_ENV}"
 
 
-def _to_wsl(path) -> str:
-    """Windows 绝对路径 → WSL 自动挂载路径（D:\\a\\b → /mnt/d/a/b）。"""
-    p = str(Path(path).resolve()).replace("\\", "/")
-    return f"/mnt/{p[0].lower()}{p[2:]}"
+def _mode() -> str:
+    m = os.environ.get("CRISPRON_MODE", "auto").strip().lower()
+    return m if m in ("auto", "wsl", "native") else "auto"
 
 
-def is_available(timeout_s: int = 30) -> bool:
-    """真实 CRISPRon 管线是否可用。只做一次性探测，不实跑打分。"""
+def _native_python() -> str:
+    return os.environ.get("CRISPRON_PYTHON", "/opt/venv-crispron/bin/python3")
+
+
+def _wsl_ready(timeout_s: int) -> bool:
     if shutil.which("wsl") is None:
         return False
     if not (CRISPRON_DIR / "bin" / "CRISPRon.sh").exists():
@@ -70,6 +83,41 @@ def is_available(timeout_s: int = 30) -> bool:
     except (OSError, subprocess.SubprocessError):
         return False
     return r.returncode == 0 and b"READY" in r.stdout
+
+
+def _native_ready() -> bool:
+    return (
+        Path(_native_python()).exists()
+        and shutil.which("bash") is not None
+        and shutil.which("RNAfold") is not None
+        and (CRISPRON_DIR / "bin" / "CRISPRon.sh").exists()
+    )
+
+
+def _resolve_mode(timeout_s: int = 30) -> str | None:
+    """返回实际可用的执行模式 'wsl'/'native'，不可用返回 None。"""
+    m = _mode()
+    if m == "wsl":
+        return "wsl" if _wsl_ready(timeout_s) else None
+    if m == "native":
+        return "native" if _native_ready() else None
+    # auto：Windows 优先 wsl（行为不变），否则 native
+    if shutil.which("wsl") is not None and _wsl_ready(timeout_s):
+        return "wsl"
+    if _native_ready():
+        return "native"
+    return None
+
+
+def _to_wsl(path) -> str:
+    """Windows 绝对路径 → WSL 自动挂载路径（D:\\a\\b → /mnt/d/a/b）。"""
+    p = str(Path(path).resolve()).replace("\\", "/")
+    return f"/mnt/{p[0].lower()}{p[2:]}"
+
+
+def is_available(timeout_s: int = 30) -> bool:
+    """真实 CRISPRon 管线是否可用。只做一次性探测，不实跑打分。"""
+    return _resolve_mode(timeout_s) is not None
 
 
 def score(seq30_list, timeout_s: int = DEFAULT_TIMEOUT_S, chunk_size: int = CHUNK_SIZE) -> dict:
@@ -90,8 +138,36 @@ def score(seq30_list, timeout_s: int = DEFAULT_TIMEOUT_S, chunk_size: int = CHUN
     return out
 
 
+def _run_wsl(in_fa: Path, out_dir: Path, timeout_s: int) -> bool:
+    cmd = (f"{_ACTIVATE} && cd {_to_wsl(CRISPRON_DIR)} && "
+           f"bash bin/CRISPRon.sh {_to_wsl(in_fa)} {_to_wsl(out_dir)}")
+    try:
+        r = subprocess.run(["wsl", "-d", WSL_DISTRO, "bash", "-lc", cmd],
+                           capture_output=True, timeout=timeout_s)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0
+
+
+def _run_native(in_fa: Path, out_dir: Path, timeout_s: int) -> bool:
+    env = os.environ.copy()
+    # CRISPRon.sh 内脚本 shebang 为 `#!/usr/bin/env python3`，
+    # 必须让 PATH 解析到 TF2.14 环境（CRISPRON_PYTHON 所在目录前置）。
+    env["PATH"] = str(Path(_native_python()).parent) + os.pathsep + env.get("PATH", "")
+    cmd = ["bash", str(CRISPRON_DIR / "bin" / "CRISPRon.sh"), str(in_fa), str(out_dir)]
+    try:
+        r = subprocess.run(cmd, cwd=str(CRISPRON_DIR), env=env,
+                           capture_output=True, timeout=timeout_s)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0
+
+
 def _score_chunk(seqs, timeout_s: int) -> dict:
     """单块实跑；任何失败返回 {}（不抛异常）。"""
+    mode = _resolve_mode()
+    if mode is None:
+        return {}
     work = Path(tempfile.mkdtemp(prefix="crispron_"))
     try:
         in_fa = work / "in.fa"
@@ -101,14 +177,11 @@ def _score_chunk(seqs, timeout_s: int) -> dict:
             for k, s in zip(keys, seqs):
                 fh.write(f">{k}\n{s}\n")
 
-        cmd = (f"{_ACTIVATE} && cd {_to_wsl(CRISPRON_DIR)} && "
-               f"bash bin/CRISPRon.sh {_to_wsl(in_fa)} {_to_wsl(out_dir)}")
-        try:
-            r = subprocess.run(["wsl", "-d", WSL_DISTRO, "bash", "-lc", cmd],
-                               capture_output=True, timeout=timeout_s)
-        except (OSError, subprocess.SubprocessError):
-            return {}
-        if r.returncode != 0:
+        if mode == "wsl":
+            ok = _run_wsl(in_fa, out_dir, timeout_s)
+        else:
+            ok = _run_native(in_fa, out_dir, timeout_s)
+        if not ok:
             return {}
 
         csv_path = out_dir / "crispron.csv"

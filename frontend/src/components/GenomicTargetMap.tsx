@@ -101,7 +101,7 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
               <strong>PAM:</strong> <span style="color: #059669; font-weight: bold;">${c.pam}</span> (${c.region_type})<br/>
               <strong>Guide (20nt):</strong> ${c.seq20}<br/>
               <strong>效率分 (v2.1):</strong> <span style="color: #0284c7; font-weight: bold;">${eff}</span><br/>
-              <strong>脱靶数 (&le;3 mis):</strong> ${c.offtarget_count_mis3} | <strong>GC:</strong> ${c.gc_pct.toFixed(1)}%<br/>
+              <strong>脱靶数 (&le;3 mis):</strong> ${c.offtarget_count_mis3 ?? '未计算'} | <strong>GC:</strong> ${c.gc_pct.toFixed(1)}%<br/>
               <span style="color: #64748b; font-size: 11px;">点击图上锚点可定位联动表格</span>
             </div>
           `

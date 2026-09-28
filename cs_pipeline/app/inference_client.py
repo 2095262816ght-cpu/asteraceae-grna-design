@@ -18,7 +18,7 @@ from typing import Sequence
 import pandas as pd
 
 SRC_LABELS = {
-    "wsl_real": "WSL 实跑真实模型",
+    "wsl_real": "真实模型实跑（WSL/容器原生）",
     "approximated": "⚠️ 近似式降级",
 }
 
@@ -65,7 +65,7 @@ class BatchInferenceResult:
             return None
         return (
             f"其中 **{self.n_approximated}/{self.total_count} 条**的 CRISPRon 特征是**经验近似式降级值**，"
-            f"非真实模型输出（原因：WSL 内 CRISPRon 管线不可用，或该序列的正反链窗口与输入不完全匹配）。"
+            f"非真实模型输出（原因：CRISPRon 管线不可用，或该序列的正反链窗口与输入不完全匹配）。"
             f"近似式与真实值实测可偏约 15%，这些行的集成效率分仅供粗略参考。"
         )
 
@@ -73,7 +73,7 @@ class BatchInferenceResult:
     def caption_message(self) -> str:
         if self.has_approximated:
             return "部分特征为降级值，详见上方警示。"
-        return "CRISPRon 特征全部经 WSL 实跑真实模型产出，与训练集同一管线、同一取值约定。"
+        return "CRISPRon 特征全部经真实模型实跑产出（WSL/容器原生管线），与训练集同一管线、同一取值约定。"
 
 
 class InferenceClient:
@@ -125,7 +125,7 @@ class InferenceClient:
             py_dir = Path(self._crispr_python).parent
             lib_bin = py_dir / "Library" / "bin"
             if lib_bin.exists():
-                env["PATH"] = f"{lib_bin};{py_dir};{env.get('PATH', '')}"
+                env["PATH"] = f"{lib_bin}{os.pathsep}{py_dir}{os.pathsep}{env.get('PATH', '')}"
         return env
 
     def score_sequences(
