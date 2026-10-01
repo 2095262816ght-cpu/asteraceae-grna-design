@@ -22,10 +22,11 @@ try:
         COL_Q,
         COL_SCORE,
         COL_STATUS,
-        DISPLAY_MAP as ATAC_DISPLAY_MAP,
         annotate_guides,
         load_default_atac,
+        to_display_df,
     )
+    from core.ranking_semantics import priority_score_atac
 except ImportError:
     from cs_pipeline.core.atac_annotator import (
         COL_DIST,
@@ -35,10 +36,19 @@ except ImportError:
         COL_Q,
         COL_SCORE,
         COL_STATUS,
-        DISPLAY_MAP as ATAC_DISPLAY_MAP,
         annotate_guides,
         load_default_atac,
+        to_display_df,
     )
+    from cs_pipeline.core.ranking_semantics import priority_score_atac
+
+# 排序意图：rank() 的接口词汇。展示标签由 get_sort_options 映射，
+# 调用方（UI/测试）按意图选择排序，不再解析界面文案。
+SORT_PRIORITY = "priority"
+SORT_PRIORITY_ATAC = "priority_atac"
+SORT_EFFICIENCY = "efficiency"
+SORT_OFFTARGET_MIS3 = "offtarget_mis3"
+SORT_GC_MID = "gc_mid"
 
 # 组织中英文对照
 TISSUES = {"Root": "根", "Stem": "茎", "Leaf": "叶", "Flower": "花", "Seed": "种子"}
@@ -78,7 +88,7 @@ class RankingResult:
     gene_summary: GeneSummary
     model_callout: ModelCallout
     has_offtarget: bool
-    sort_options: list[str]
+    sort_options: list[tuple[str, str]]
     elapsed_ms: float
 
 
@@ -200,29 +210,32 @@ class CandidateRankingEngine:
         """是否已装载 ATAC 峰表并完成表观注释。"""
         return self._atac_available
 
-    def get_sort_options(self, target_tissue: str) -> list[str]:
-        """获取当前目标组织下的合法排序选项。"""
+    def get_sort_options(self, target_tissue: str) -> list[tuple[str, str]]:
+        """获取当前目标组织下的合法排序选项：(排序意图, 展示标签)。"""
         tissue_cn = TISSUES.get(target_tissue, target_tissue)
         off_label = "脱靶计数 mis3 升序" if self._has_offtarget else "脱靶计数 mis3 升序（待数据）"
         opts = [
-            f"组织优先指数（{tissue_cn}）降序（方案3推荐）",
-            f"{self._eff_label} 降序",
-            off_label,
-            "GC% 接近 50%",
+            (SORT_PRIORITY, f"组织优先指数（{tissue_cn}）降序（方案3推荐）"),
+            (SORT_EFFICIENCY, f"{self._eff_label} 降序"),
+            (SORT_OFFTARGET_MIS3, off_label),
+            (SORT_GC_MID, "GC% 接近 50%"),
         ]
         if self._atac_available:
-            opts.insert(1, f"组织优先指数+ATAC加权（{tissue_cn}）降序（表观可及性）")
+            opts.insert(1, (SORT_PRIORITY_ATAC, f"组织优先指数+ATAC加权（{tissue_cn}）降序（表观可及性）"))
         return opts
 
     def rank(
         self,
         gene_id: str,
         target_tissue: str = "Leaf",
-        sort_key: str | None = None,
+        sort_intent: str | None = None,
         region_types: Sequence[str] = ("promoter", "exon"),
         hide_centromere: bool = True,
     ) -> RankingResult:
-        """执行指定基因的候选过滤与多组学融合推荐排序。"""
+        """执行指定基因的候选过滤与多组学融合推荐排序。
+
+        sort_intent 取 SORT_* 常量；缺省为方案3 组织优先指数。
+        """
         t0 = time.perf_counter()
 
         # 基因元数据摘要
@@ -238,16 +251,15 @@ class CandidateRankingEngine:
         if region_types and "region_type" in cand.columns:
             cand = cand[cand.region_type.isin(region_types)]
 
-        # 排序策略分发
+        # 排序意图分发（公式权重单点定义在 core.ranking_semantics）
         sort_opts = self.get_sort_options(target_tissue)
-        selected_sort = sort_key or sort_opts[0]
+        intent = sort_intent or SORT_PRIORITY
         tissue_lower = target_tissue.lower()
         prio_col = f"priority_score_{tissue_lower}"
         haz_col = f"hazard_{tissue_lower}"
 
-        if selected_sort.startswith("组织优先指数+ATAC") and prio_col in cand.columns:
-            # 折中方案：默认方案3 分数不变，选项启用后引入 0.10×ATAC 可及性
-            # PriorityScore_ATAC = 0.45*EffPct - 0.25*OffPen + 0.20*Expr + 0.10*Atac
+        if intent == SORT_PRIORITY_ATAC and prio_col in cand.columns:
+            # 表观折中变体：默认方案3 分数不变，选项启用后引入 ATAC 可及性项
             expr_col = f"expr_sigmoid_{tissue_lower}"
             atac_ready = (
                 COL_SCORE in cand.columns
@@ -257,20 +269,20 @@ class CandidateRankingEngine:
             )
             if atac_ready:
                 cand = cand.assign(
-                    priority_score_atac=(
-                        0.45 * cand["eff_percentile"]
-                        - 0.25 * cand["offtarget_penalty"]
-                        + 0.20 * cand[expr_col]
-                        + 0.10 * cand[COL_SCORE]
+                    priority_score_atac=priority_score_atac(
+                        cand["eff_percentile"],
+                        cand["offtarget_penalty"],
+                        cand[expr_col],
+                        cand[COL_SCORE],
                     )
                 ).sort_values("priority_score_atac", ascending=False)
             else:
                 cand = cand.sort_values(prio_col, ascending=False)
-        elif selected_sort.startswith("组织优先指数") and prio_col in cand.columns:
+        elif intent == SORT_PRIORITY and prio_col in cand.columns:
             cand = cand.sort_values(prio_col, ascending=False)
-        elif selected_sort.startswith(self._eff_label) and self._eff_col in cand.columns:
+        elif intent == SORT_EFFICIENCY and self._eff_col in cand.columns:
             cand = cand.sort_values(self._eff_col, ascending=False)
-        elif selected_sort.startswith("脱靶") and "offtarget_count_mis3" in cand.columns:
+        elif intent == SORT_OFFTARGET_MIS3 and "offtarget_count_mis3" in cand.columns:
             cand = cand.sort_values("offtarget_count_mis3", ascending=True, na_position="last")
         elif "gc_pct" in cand.columns:
             cand = cand.assign(gc_dist=(cand.gc_pct - 50.0).abs()).sort_values("gc_dist")
@@ -296,25 +308,20 @@ class CandidateRankingEngine:
             "offtarget_count_mis3": "脱靶 mis3",
             "exact_match_count": "完全匹配数",
             "in_centromere": "着丝粒区",
-            **ATAC_DISPLAY_MAP,
         }
         cand = cand.rename(columns=rename_map)
-
-        if ATAC_DISPLAY_MAP[COL_IN_PEAK] in cand.columns:
-            cand[ATAC_DISPLAY_MAP[COL_IN_PEAK]] = cand[ATAC_DISPLAY_MAP[COL_IN_PEAK]].map(
-                {True: "是", False: "否"}
-            )
 
         show_cols = [
             "guide_id", "seq20", "pam", "chrom", "start", "end", "strand",
             "region_type", "gc_pct", "tm_c", self._eff_label, prio_label, prio_atac_label, haz_label,
             "面板内位点数", "表达证据",
-            ATAC_DISPLAY_MAP[COL_STATUS], ATAC_DISPLAY_MAP[COL_IN_PEAK], ATAC_DISPLAY_MAP[COL_PEAK_ID],
-            ATAC_DISPLAY_MAP[COL_DIST], ATAC_DISPLAY_MAP[COL_FC], ATAC_DISPLAY_MAP[COL_Q], ATAC_DISPLAY_MAP[COL_SCORE],
+            COL_STATUS, COL_IN_PEAK, COL_PEAK_ID,
+            COL_DIST, COL_FC, COL_Q, COL_SCORE,
             "脱靶 mis1", "脱靶 mis2", "脱靶 mis3", "完全匹配数", "着丝粒区",
         ]
         show_cols = [c for c in show_cols if c in cand.columns]
-        view = cand[show_cols]
+        # ATAC 展示语义（列名映射 + 是/否）由 to_display_df 单点定义
+        view = to_display_df(cand[show_cols])
 
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
 

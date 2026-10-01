@@ -24,7 +24,7 @@ BASE = Path(__file__).resolve().parent.parent
 # 也可能被 app/score_deepspcas9_cli.py 以 `from scripts.predict import ...` 导入
 # （此时 sys.path[0] = cs_pipeline/）。两种情形都要能取到同目录的 features_common。
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import crispron_wsl
+from crispron_scorer import CrispronScorer
 from features_common import FEATURE_COLS, seq_features
 # 2026-09-21 架构决议升级：默认加载 noB879 纯A级金标准 + 形态二 (分层选择性 Beta-Binomial GLMM) 生产模型
 MODEL_PATH = BASE / "results" / "meta_model_hier_bb_nob879_0921.joblib"
@@ -74,14 +74,11 @@ def predict_details(seq30_list: list[str]) -> pd.DataFrame:
     pred_deep = spcas9.predict(seq30_list)
     feat_df["deepspcas9_score"] = pred_deep["SpCas9"].values.round(4)
 
-    # 2. CRISPRon：优先经 WSL 实跑真实模型（与训练集 scripts/03 同一管线、同一取值约定）；
-    #    管线不可用、或该条序列正反链窗口都与输入不完全相等时，退回经验近似式，
-    #    并在 crispron_source 列逐条标注来源 —— 绝不静默用近似值冒充真实值。
-    approx = (feat_df["deepspcas9_score"] * 0.95 + (feat_df["tm"] - 50.0) * 0.25).round(2)
-    real = crispron_wsl.score(seqs)
-    real_vals = pd.Series([real.get(s, np.nan) for s in feat_df["seq30"]], index=feat_df.index)
-    feat_df["crispron_source"] = np.where(real_vals.notna(), "wsl_real", "approximated")
-    feat_df["crispron_score"] = real_vals.fillna(approx)
+    # 2. CRISPRon：来源裁决统一由 CrispronScorer 承担（真实模型优先、逐条降级并标注
+    #    crispron_source）—— 绝不静默用近似值冒充真实值。
+    scored = CrispronScorer().score(seqs, feat_df["deepspcas9_score"], feat_df["tm"])
+    feat_df["crispron_score"] = scored["crispron_score"]
+    feat_df["crispron_source"] = scored["crispron_source"]
 
     # 3. 推理逻辑自适应
     if isinstance(meta, dict) and "beta" in meta:

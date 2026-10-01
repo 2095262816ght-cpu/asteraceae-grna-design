@@ -97,8 +97,8 @@ Write-Host ""
 Write-Host "按 Ctrl+C 即可同时停止前后端服务进程。" -ForegroundColor DarkGray
 Write-Host "----------------------------------------------------------" -ForegroundColor DarkGray
 
-# 启动后端子进程
-$BackendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m", "uvicorn", "backend.app.main:app", "--port", "8000", "--reload" -WorkingDirectory $ProjectRoot -PassThru -NoNewWindow
+# 启动后端子进程（--reload-dir 限定只监听代码目录：_scratch/results/数据库等写入不再触发全量重启）
+$BackendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m", "uvicorn", "backend.app.main:app", "--port", "8000", "--reload", "--reload-dir", "backend", "--reload-dir", "cs_pipeline" -WorkingDirectory $ProjectRoot -PassThru -NoNewWindow
 
 # 启动前端子进程 (Vite 准备就绪后自动秒开浏览器，避免提前打开造成白屏与卡顿)
 try {

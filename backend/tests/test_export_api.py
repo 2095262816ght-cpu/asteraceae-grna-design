@@ -219,24 +219,79 @@ async def test_export_expression_evidence_and_uncomputed_columns():
     # TEST_GENE_02：tier4 → 表达证据缺失 + 理由随导出带出
     assert rows[103]["表达证据状态"] == "表达证据缺失"
     assert rows[103]["表达证据说明"] == "测试理由：crosswalk 缺失"
-    # 未计算/不适用如实渲染，不以 0 冒充
+    # 未计算如实渲染，不以 0 冒充；多组学 4 列不再静默留白
     for _, r in df.iterrows():
         assert r["潜在脱靶位点数(<=3)"] == "未计算"
-        assert r["面板内位点数"] == "不适用（面板仅覆盖49个NLR基因）"
+        assert r["面板内位点数(49NLR面板)"] == "未计算"
+        assert r["组织优先指数(叶)"] == "未计算"
+        assert r["组织优先指数(根)"] == "未计算"
+        assert r["功能性脱靶危害(叶)"] == "未计算"
+        assert r["功能性脱靶危害(根)"] == "未计算"
 
 
 @pytest.mark.anyio
-async def test_export_computes_offtarget_on_demand(monkeypatch):
+async def test_export_xlsx_includes_methodology_sheet():
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        create_res = await ac.post(
+            "/api/v1/exports",
+            json={"name": "方法说明", "format": "xlsx", "candidate_ids": [101, 102]},
+        )
+        assert create_res.status_code == 201
+        batch_id = create_res.json()["id"]
+        dl_res = await ac.get(f"/api/v1/exports/{batch_id}/download")
+        assert dl_res.status_code == 200
+
+    import io
+    import pandas as pd
+    xls = pd.ExcelFile(io.BytesIO(dl_res.content))
+    assert "gRNA实验设计优选清单" in xls.sheet_names
+    assert "指标方法说明" in xls.sheet_names
+
+    text = "\n".join(
+        xls.parse("指标方法说明").astype(str).agg(" ".join, axis=1).tolist()
+    )
+    # 老师三问的口径：综合分与两活性分的关系与权重、入模因素、脱靶计数来源
+    assert "DeepSpCas9" in text and "CRISPRon" in text
+    assert "标准化系数 β" in text
+    assert "13.4%" in text
+    assert "MIT" in text and "CFD" in text
+    # 其余列与歧义口径同样备注
+    assert "“未计算”≠ 0" in text
+    assert "1-based 闭区间" in text
+    assert "CCN" in text
+    assert "组织优先指数" in text and "功能性脱靶危害" in text
+    assert "表达证据状态" in text
+    # 覆盖全部数据列名
+    for col in pd.read_excel(io.BytesIO(dl_res.content), sheet_name="gRNA实验设计优选清单").columns:
+        key = col.split("(")[0].split("（")[0]
+        assert key in text, f"方法说明缺少对列 {col} 的备注"
+
+
+@pytest.mark.anyio
+async def test_export_reuses_computed_offtarget_without_download_rescan(monkeypatch):
     from backend.app.services import offtarget_service
+    from backend.app.services.offtarget_service import OfftargetProfile
 
-    def fake_compute(seq20s, genome_fasta=None):
-        return {s.upper(): 7 for s in seq20s}
+    fake_profile = OfftargetProfile(exact=1, mis1=2, mis2=3, mis3=7)
+    scan_calls = []
 
-    monkeypatch.setattr(offtarget_service, "compute_offtarget_counts", fake_compute)
+    def fake_profiles(seq20s, genome_fasta=None):
+        scan_calls.append(list(seq20s))
+        return {s.upper(): fake_profile for s in seq20s}
+
+    monkeypatch.setattr(offtarget_service, "compute_offtarget_profiles", fake_profiles)
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
+        # 显式"按需脱靶计算"流程（导出前预计算：同口径 fill_missing_multiomics 回填持久化）
+        compute_res = await ac.post("/api/v1/offtarget/compute", json={"candidate_ids": [101, 102]})
+        assert compute_res.status_code == 200
+        assert compute_res.json()["computed"] == 2
+        scans_after_compute = len(scan_calls)
+
         create_res = await ac.post(
             "/api/v1/exports",
             json={"name": "按需脱靶", "format": "csv", "candidate_ids": [101, 102]},
@@ -246,14 +301,28 @@ async def test_export_computes_offtarget_on_demand(monkeypatch):
         dl_res = await ac.get(f"/api/v1/exports/{batch_id}/download")
         assert dl_res.status_code == 200
 
+    # 快下载：下载请求不再触发全基因组扫描（只读已回填的持久化值）
+    assert len(scan_calls) == scans_after_compute
+
     import io
     import pandas as pd
     df = pd.read_csv(io.BytesIO(dl_res.content))
     assert (df["潜在脱靶位点数(<=3)"] == 7).all()
+    # 优先指数：基因内百分位（101=1.0, 102=0.5），Penalty=0.295，无表达项
+    rows = {int(r["靶点唯一ID"]): r for _, r in df.iterrows()}
+    assert abs(rows[101]["组织优先指数(叶)"] - 0.42625) < 1e-6
+    assert abs(rows[102]["组织优先指数(叶)"] - 0.17625) < 1e-6
+    # 测试库无 NLR 面板 → 危害 0 且面板位点数 0（真实计算值）
+    assert (df["功能性脱靶危害(叶)"] == 0.0).all()
+    assert (df["面板内位点数(49NLR面板)"] == 0).all()
 
     async with AsyncSessionLocal() as session:
         from sqlalchemy import select
         res = await session.execute(
-            select(TargetCandidate.offtarget_count_mis3).where(TargetCandidate.id == 101)
+            select(TargetCandidate.offtarget_count_mis3, TargetCandidate.priority_score_leaf, TargetCandidate.n_intra_panel_sites)
+            .where(TargetCandidate.id == 101)
         )
-        assert res.scalar_one() == 7
+        row = res.one()
+        assert row[0] == 7
+        assert abs(row[1] - 0.42625) < 1e-6
+        assert row[2] == 0

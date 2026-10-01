@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -18,6 +18,21 @@ from cs_pipeline.app.batch_importer import (
 )
 
 router = APIRouter()
+
+# 特征构建单一来源：与训练/推理同口径（features_common.seq_features）
+try:
+    import pandas as _pd
+    from cs_pipeline.scripts.features_common import seq_features as _seq_features
+
+    def seq_features_of(seq30: str) -> Optional[Dict[str, float]]:
+        try:
+            frow = _seq_features(_pd.Series([seq30], dtype=str)).iloc[0]
+            return {k: float(v) for k, v in frow.items()}
+        except Exception:
+            return None
+except Exception:
+    def seq_features_of(seq30: str) -> Optional[Dict[str, float]]:
+        return None
 
 
 class SingleScoringRequest(BaseModel):
@@ -44,8 +59,11 @@ class SingleScoringResponse(BaseModel):
     gc_pct: float
     tm_c: float
     deepspcas9_score: Optional[float] = None
+    crispron_score: Optional[float] = None
     crispron_source: Optional[str] = None
     efficiency_score: Optional[float] = None
+    features: Optional[Dict[str, float]] = None
+    expression_fitness: Optional[Dict] = None
     warning_message: Optional[str] = None
     duration_seconds: float
     created_at: str
@@ -75,6 +93,9 @@ class ScoringJobItemDetail(BaseModel):
     deepspcas9_score: Optional[float] = None
     crispron_source: Optional[str] = None
     efficiency_score: Optional[float] = None
+    features: Optional[Dict[str, float]] = None
+    batch_percentile: Optional[float] = None
+    percentile_basis: Optional[str] = None
     is_valid: bool
     error_message: Optional[str] = None
 
@@ -109,7 +130,10 @@ async def score_single(
         title=payload.title,
         db=db,
     )
-    return SingleScoringResponse(**res)
+    from backend.app.services.expression_fitness_service import expression_fitness
+
+    fit = expression_fitness(res["guide_seq"])
+    return SingleScoringResponse(**res, expression_fitness=fit)
 
 
 @router.get(
@@ -241,6 +265,25 @@ async def get_scoring_job_detail(
     processed = job.processed_sequences or 0
     progress_pct = round((processed / total * 100.0), 1) if total > 0 else 0.0
 
+    # D3 档③贴入集合百分位：同批有效分 rank(pct=True)（批内排名口径，非基因内排名）
+    from cs_pipeline.core.ranking_semantics import within_gene_percentiles
+
+    scored = [
+        (i, float(item.efficiency_score))
+        for i, item in enumerate(sorted(job.items, key=lambda x: x.id))
+        if item.is_valid and item.efficiency_score is not None
+    ]
+    pct_map = (
+        within_gene_percentiles([("paste_set", i, sc) for i, sc in scored])
+        if len(scored) >= 2
+        else {}
+    )
+    n_scored = len(scored)
+    if n_scored >= 2:
+        basis_tpl = f"贴入集合百分位（批内排名口径，同批 {n_scored} 条，非基因内排名）"
+    else:
+        basis_tpl = "单条/有效分数不足，无贴入集合可排名：百分位不适用"
+
     items_detail = [
         ScoringJobItemDetail(
             id=item.id,
@@ -255,10 +298,13 @@ async def get_scoring_job_detail(
             deepspcas9_score=item.deepspcas9_score,
             crispron_source=item.crispron_source,
             efficiency_score=item.efficiency_score,
+            features=seq_features_of(item.seq30) if item.is_valid else None,
+            batch_percentile=pct_map.get(idx),
+            percentile_basis=basis_tpl if (item.is_valid and item.efficiency_score is not None) else None,
             is_valid=item.is_valid,
             error_message=item.error_message,
         )
-        for item in sorted(job.items, key=lambda x: x.id)
+        for idx, item in enumerate(sorted(job.items, key=lambda x: x.id))
     ]
 
     return ScoringJobDetailResponse(
@@ -275,4 +321,31 @@ async def get_scoring_job_detail(
         created_at=job.created_at.isoformat(),
         completed_at=job.completed_at.isoformat() if job.completed_at else None,
         items=items_detail,
+    )
+
+
+@router.get(
+    "/scoring/jobs/{job_id}/export",
+    summary="导出打分任务结果（三态多组学注释 + 缺失原因/所需数据/所用参考包/百分位口径）",
+)
+async def download_scoring_job_export(
+    job_id: str,
+    format: str = Query("xlsx", pattern="^(csv|xlsx)$", description="导出格式"),
+    bundle_id: str = Query("lettuce", description="多组学注释所用参考包 ID（预置 lettuce/tks 或导入包）"),
+    db: AsyncSession = Depends(get_db),
+):
+    from backend.app.services.export_service import generate_scoring_job_export_bytes
+
+    content, media_type, filename = await generate_scoring_job_export_bytes(
+        job_id, db, bundle_id=bundle_id, fmt=format
+    )
+    from urllib.parse import quote
+
+    encoded_filename = quote(filename)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{encoded_filename}\"; filename*=UTF-8''{encoded_filename}"
+        },
     )

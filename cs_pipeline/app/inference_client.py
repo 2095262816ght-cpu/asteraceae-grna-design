@@ -17,14 +17,20 @@ from typing import Sequence
 
 import pandas as pd
 
+try:
+    from scripts.crispron_scorer import SOURCE_APPROXIMATED, SOURCE_WSL_REAL
+except ImportError:
+    from cs_pipeline.scripts.crispron_scorer import SOURCE_APPROXIMATED, SOURCE_WSL_REAL
+
 SRC_LABELS = {
-    "wsl_real": "真实模型实跑（WSL/容器原生）",
-    "approximated": "⚠️ 近似式降级",
+    SOURCE_WSL_REAL: "真实模型实跑（WSL/容器原生）",
+    SOURCE_APPROXIMATED: "⚠️ 近似式降级",
 }
 
 COL_DISPLAY_MAP = {
     "seq30": "30bp 序列",
     "deepspcas9_score": "DeepSpCas9 分数",
+    "crispron_score": "CRISPRon 分数",
     "crispron_source": "CRISPRon 来源",
     "stacking_score": "Stacking 集成效率分",
 }
@@ -192,7 +198,7 @@ class InferenceClient:
         n_approx = 0
         scores_display = scores_raw.copy()
         if "crispron_source" in scores_display.columns:
-            n_approx = int((scores_display["crispron_source"] == "approximated").sum())
+            n_approx = int((scores_display["crispron_source"] == SOURCE_APPROXIMATED).sum())
             scores_display["crispron_source"] = [
                 SRC_LABELS.get(str(v), str(v)) for v in scores_display["crispron_source"]
             ]

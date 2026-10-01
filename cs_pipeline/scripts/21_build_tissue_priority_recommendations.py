@@ -29,6 +29,15 @@ import pandas as pd
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR))
+# 公式与权重单点定义在 core.ranking_semantics（与 backend、demo 引擎同源）
+from core.ranking_semantics import (  # noqa: E402
+    MIS_WEIGHTS,
+    PENALTY_CAP,
+    SIGMOID_CENTER,
+    priority_score,
+)
+
 APP_DATA = BASE_DIR / "demo" / "app_data.csv"
 XWALK = BASE_DIR / "results" / "crosswalk_lsa_t2t_0923.csv"
 EXPR = BASE_DIR / "data" / "expression" / "1-3_lettuce_5tissue_expression_matrix.csv"
@@ -36,7 +45,6 @@ OUT = BASE_DIR / "demo" / "app_data_tissue_priority.csv"
 
 TISSUES = ["Root", "Stem", "Leaf", "Flower", "Seed"]
 EFF_COL = "efficiency_score_v21_nob879"
-SIGMOID_CENTER = 2.0
 
 
 def main():
@@ -70,15 +78,15 @@ def main():
     pct = df[EFF_COL].rank(pct=True)
     pen = np.minimum(
         1.0,
-        (df["exact_match_count"] * 1.0
-         + df["offtarget_count_mis1"] * 0.5
-         + df["offtarget_count_mis2"] * 0.2
-         + df["offtarget_count_mis3"] * 0.05) / 10.0)
+        (df["exact_match_count"] * MIS_WEIGHTS[0]
+         + df["offtarget_count_mis1"] * MIS_WEIGHTS[1]
+         + df["offtarget_count_mis2"] * MIS_WEIGHTS[2]
+         + df["offtarget_count_mis3"] * MIS_WEIGHTS[3]) / PENALTY_CAP)
     df["eff_percentile"] = pct.round(6)
     df["offtarget_penalty"] = pen.round(6)
 
     for t in TISSUES:
-        score = 0.50 * pct - 0.25 * pen + 0.25 * df[f"expr_sigmoid_{t.lower()}"]
+        score = priority_score(pct, pen, df[f"expr_sigmoid_{t.lower()}"])
         tl = t.lower()
         df[f"priority_score_{tl}"] = score.round(6)
         df[f"priority_rank_{tl}"] = score.rank(ascending=False, method="first").astype(int)

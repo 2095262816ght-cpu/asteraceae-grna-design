@@ -93,12 +93,13 @@ export const App: React.FC = () => {
             <SystemHealthCard />
           </div>
 
-          {/* 选项卡内容区 */}
-          {activeTab === 'candidates' && <CandidateSearchPanel />}
+          {/* 选项卡内容区：保持挂载、仅切换可见性，避免切页丢失已打分结果等本地状态 */}
+          <div className={activeTab === 'candidates' ? '' : 'hidden'}>
+            <CandidateSearchPanel />
+          </div>
 
 
-          {activeTab === 'scoring' && (
-            <div className="space-y-6">
+          <div className={`space-y-6 ${activeTab === 'scoring' ? '' : 'hidden'}`}>
               {/* 打分模式二级切换器 */}
               <div className="flex border-b border-slate-200">
                 <button
@@ -134,12 +135,18 @@ export const App: React.FC = () => {
                 </button>
               </div>
 
-              {scoringSubTab === 'single' ? <SingleScoringCard /> : <BatchUploadCard />}
-            </div>
-          )}
+              <div className={scoringSubTab === 'single' ? '' : 'hidden'}>
+                <SingleScoringCard />
+              </div>
+              <div className={scoringSubTab === 'batch' ? '' : 'hidden'}>
+                <BatchUploadCard />
+              </div>
+          </div>
 
 
-          {activeTab === 'history' && <ExportHistoryPanel />}
+          <div className={activeTab === 'history' ? '' : 'hidden'}>
+            <ExportHistoryPanel />
+          </div>
         </main>
 
         {/* 历史任务滑出式抽屉 */}

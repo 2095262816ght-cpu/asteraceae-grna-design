@@ -25,18 +25,15 @@ for p in (str(BASE), str(APP_DIR)):
 try:
     from inference_client import InferenceClient, InferenceError
     from recommendation_engine import CandidateRankingEngine
+    from batch_session import BatchScoringSession
 except ImportError:
     from app.inference_client import InferenceClient, InferenceError
     from app.recommendation_engine import CandidateRankingEngine
+    from app.batch_session import BatchScoringSession
 
 try:
     from core.sequence_spec import validate_seq30
     from core.atac_annotator import (
-        COL_IN_PEAK,
-        COL_STATUS,
-        STATUS_NEAR,
-        DISPLAY_MAP as ATAC_DISPLAY_MAP,
-        annotate_guides,
         detect_coord_columns,
         load_default_atac,
         peaks_from_dataframe,
@@ -44,11 +41,6 @@ try:
 except ImportError:
     from cs_pipeline.core.sequence_spec import validate_seq30
     from cs_pipeline.core.atac_annotator import (
-        COL_IN_PEAK,
-        COL_STATUS,
-        STATUS_NEAR,
-        DISPLAY_MAP as ATAC_DISPLAY_MAP,
-        annotate_guides,
         detect_coord_columns,
         load_default_atac,
         peaks_from_dataframe,
@@ -56,7 +48,6 @@ except ImportError:
 
 try:
     from batch_importer import (
-        compute_file_hash,
         detect_id_column,
         detect_sequence_column,
         export_dataframe_to_csv,
@@ -64,13 +55,10 @@ try:
         generate_template_csv,
         generate_template_excel,
         get_excel_sheet_names,
-        merge_batch_results,
-        precheck_table,
         read_uploaded_table,
     )
 except ImportError:
     from app.batch_importer import (
-        compute_file_hash,
         detect_id_column,
         detect_sequence_column,
         export_dataframe_to_csv,
@@ -78,8 +66,6 @@ except ImportError:
         generate_template_csv,
         generate_template_excel,
         get_excel_sheet_names,
-        merge_batch_results,
-        precheck_table,
         read_uploaded_table,
     )
 
@@ -158,14 +144,15 @@ with tab1:
             "区域类型", ["promoter", "exon"], default=["promoter", "exon"]
         )
     with colf3:
-        sort_opts = engine.get_sort_options(target_tissue)
-        sort_key = st.selectbox("排序依据", sort_opts)
+        sort_opts = engine.get_sort_options(target_tissue)  # (排序意图, 展示标签)
+        sort_label = st.selectbox("排序依据", [lbl for _, lbl in sort_opts])
+        sort_intent = next(i for i, lbl in sort_opts if lbl == sort_label)
 
     # 委托深度推荐引擎执行过滤、排序与多组学标注
     result = engine.rank(
         gene_id=gene_id,
         target_tissue=target_tissue,
-        sort_key=sort_key,
+        sort_intent=sort_intent,
         region_types=region,
         hide_centromere=hide_cen,
     )
@@ -208,6 +195,8 @@ with tab2:
     st.info(
         "已接入自主训练的 Stacking 集成模型预测引擎（融合 DeepSpCas9、CRISPRon 及序列物理特征）；"
         "支持输入 30bp 序列实时输出 DeepSpCas9 单模型分与 Stacking 集成预测分。"
+        "支持任意物种 30bp 靶位点（橡胶草 / 莴苣等）：v2.1 生产模型以橡胶草 Hi-TOM 实测金标准训练，"
+        "橡胶草序列属同物种对口预测；效率分为同一基因内相对排序参考，非绝对 indel% 承诺。"
     )
 
     score_mode = st.segmented_control(
@@ -318,7 +307,6 @@ with tab2:
 
         if uploaded_file is not None:
             file_bytes = uploaded_file.getvalue()
-            file_hash = compute_file_hash(file_bytes)
             sheet_names = get_excel_sheet_names(io.BytesIO(file_bytes), uploaded_file.name)
 
             if len(sheet_names) > 1:
@@ -369,7 +357,10 @@ with tab2:
 
                 # 执行序列质检与预检分析（绑定 ID 列）
                 actual_id_col = selected_id_col if selected_id_col != "（无，使用默认序号）" else None
-                precheck = precheck_table(raw_df, selected_seq_col, id_col=actual_id_col)
+                session = BatchScoringSession(
+                    file_bytes, uploaded_file.name, selected_sheet, selected_seq_col, actual_id_col
+                )
+                precheck = session.precheck(raw_df)
 
                 with st.container(border=True):
                     st.markdown("#### 3. 序列规格即时质检")
@@ -399,8 +390,8 @@ with tab2:
                             icon="✅",
                         )
 
-                # 独一无二防碰撞缓存 Key
-                cache_key = f"{file_hash}_{selected_sheet}_{selected_seq_col}_{actual_id_col}"
+                # 防碰撞缓存键（构成策略内聚在 BatchScoringSession）
+                cache_key = session.cache_key
 
                 # 开始批量打分
                 if precheck.valid_count == 0:
@@ -413,16 +404,10 @@ with tab2:
                     ):
                         client = get_inference_client()
                         try:
-                            # 动态超时：根据条数合理调整超时阈值
-                            dynamic_timeout = max(180, len(precheck.valid_sequences) * 5 + 60)
                             with st.spinner(
                                 f"正在调用双模型与集成模型对 {precheck.valid_count} 条序列执行批量打分，请稍候..."
                             ):
-                                infer_res = client.score_sequences(
-                                    precheck.valid_sequences,
-                                    timeout_s=dynamic_timeout,
-                                )
-                                merged_df = merge_batch_results(raw_df, precheck, infer_res)
+                                infer_res, merged_df = session.run(raw_df, precheck, client)
                                 st.session_state["batch_infer_state"] = {
                                     "key": cache_key,
                                     "infer_res": infer_res,
@@ -525,17 +510,12 @@ with tab2:
                                     st.error(f"解析 ATAC 峰表失败：{exc}")
 
                         if atlas is not None:
-                            annotated = annotate_guides(
-                                merged_df, atlas, chrom_col=chrom_c, start_col=start_c, end_col=end_c
-                            )
-                            display_df = annotated.rename(columns=ATAC_DISPLAY_MAP)
-                            display_df[ATAC_DISPLAY_MAP[COL_IN_PEAK]] = display_df[ATAC_DISPLAY_MAP[COL_IN_PEAK]].map(
-                                {True: "是", False: "否"}
-                            )
+                            atac = session.annotate_atac(merged_df, atlas, chrom_c, start_c, end_c)
+                            display_df = atac.display_df
 
                             m1, m2, m3 = st.columns(3)
-                            m1.metric("落入 ATAC 开放峰（条）", int(annotated[COL_IN_PEAK].sum()))
-                            m2.metric("峰近端 ≤5kb（条）", int((annotated[COL_STATUS] == STATUS_NEAR).sum()))
+                            m1.metric("落入 ATAC 开放峰（条）", atac.n_in_peak)
+                            m2.metric("峰近端 ≤5kb（条）", atac.n_near)
                             m3.metric("ATAC 峰表峰数", atlas.n_peaks)
 
                             st.dataframe(display_df, width="stretch")

@@ -12,6 +12,8 @@ data/lettuce/casoffinder_input.txt 模式行 NNNNNNNNNNNNNNNNNNNNNNGG）：
 guide 块码必然不匹配，N 密集窗口可能被漏计（对计数影响可忽略，如实标注于此）。
 """
 import logging
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
@@ -42,6 +44,31 @@ PAD_BEFORE = 3  # 负链行 PAM(=正链 CCN) 在窗口前 3bp
 PAD_AFTER = 23  # 窗口 20bp + 正链 PAM NGG 3bp
 CODE_C = 1
 CODE_G = 2
+
+BASES_ASCII = np.array([65, 67, 71, 84, 78], dtype=np.uint8)  # ACGTN
+COMP_CODE = np.array([3, 2, 1, 0, 4], dtype=np.uint8)  # A<->T, C<->G, N->N
+MAX_SITES = 200  # 位点明细返回上限（计数仍全量精确）
+
+# 进程内计数缓存：(基因组路径, seq20) -> 分档计数
+_COUNT_CACHE: Dict[Tuple[str, str], "OfftargetProfile"] = {}
+# 进程内位点明细缓存：(基因组路径, seq20, max_sites) -> (分档计数, 位点列表)
+_SITE_CACHE: Dict[Tuple[str, str, int], Tuple["OfftargetProfile", List[dict]]] = {}
+
+
+def _cache_key(fasta: Path) -> str:
+    return str(Path(fasta))
+
+
+@dataclass(frozen=True)
+class OfftargetProfile:
+    """脱靶分档计数（同 cs_pipeline/scripts/09 聚合口径）：
+
+    exact = 完全匹配行数；mis1/mis2/mis3 = 1..k 错配的**累计**行数（mis3 即原"潜在脱靶位点数(<=3)"）。
+    """
+    exact: int
+    mis1: int
+    mis2: int
+    mis3: int
 
 
 def _repo_root() -> Path:
@@ -112,7 +139,81 @@ def _revcomp(seq20: str) -> str:
 
 
 def count_offtargets_for_seq20(seq20: str, fasta: Path) -> int:
-    """统计全基因组脱靶行数：20-mer 错配 1..3 且 PAM 为 NGG 的链特异行（完全匹配行不计）。"""
+    """兼容包装：返回 mis3（1..3 错配累计行数）。"""
+    return profile_seq20(seq20, fasta).mis3
+
+
+def profile_seq20(seq20: str, fasta: Path) -> OfftargetProfile:
+    """全基因组脱靶分档：20-mer 错配 0..3 且 PAM 为 NGG 的链特异行（分档累计口径）。
+
+    经 scan_seq20 的共享缓存取数（顺带收集位点明细），使"按需计算脱靶"之后
+    打开位点明细抽屉零重复扫描（反之亦然）。
+    """
+    seq20 = seq20.upper()
+    key = (_cache_key(fasta), seq20)
+    if key in _COUNT_CACHE:
+        return _COUNT_CACHE[key]
+    return scan_seq20(seq20, fasta)[0]
+
+
+def scan_seq20(seq20: str, fasta: Path, max_sites: int = MAX_SITES) -> Tuple[OfftargetProfile, List[dict]]:
+    """脱靶分档 + 位点明细（坐标、链、错配数、错配位置、比对序列、CFD/MIT 评分）。
+
+    位点列表按发现顺序截断到 max_sites（计数不受影响，始终全量精确）；
+    同一基因组位点双链均合格时计两行（与 Cas-OFFinder 行计数口径一致）。
+    结果进程内缓存（计数与位点明细共享同一次扫描，重复查询不重扫全基因组）；
+    返回缓存副本，调用方就地补注释（区域/风险）不会污染缓存。
+    """
+    seq20 = seq20.upper()
+    key = (_cache_key(fasta), seq20, max_sites)
+    cached = _SITE_CACHE.get(key)
+    if cached is None:
+        profile, sites = _scan_seq20(seq20, fasta, collect_sites=True, max_sites=max_sites)
+        _SITE_CACHE[key] = (profile, sites)
+        _COUNT_CACHE[(_cache_key(fasta), seq20)] = profile
+    else:
+        profile, sites = cached
+    return profile, [dict(s) for s in sites]
+
+
+def _site_record(
+    seq20: str,
+    chrom: str,
+    g0: int,
+    strand: str,
+    pam: str,
+    win_codes: np.ndarray,
+    mm_idx: np.ndarray,
+) -> dict:
+    """构造单个脱靶位点明细（坐标 1-based 闭区间，错配位置按 gRNA 方向 1-based）。"""
+    from backend.app.services.cfd_score import cfd_site_score, mit_hit_score
+
+    win_bases = BASES_ASCII[win_codes].tobytes().decode("ascii")
+    if strand == "+":
+        protospacer = win_bases
+        mismatch_positions = [int(i) + 1 for i in mm_idx]
+    else:
+        protospacer = _revcomp(win_bases)
+        mismatch_positions = [WINDOW - int(i) for i in mm_idx]
+
+    return {
+        "chrom": chrom,
+        "start": g0 + 1,
+        "end": g0 + WINDOW,
+        "strand": strand,
+        "protospacer20": protospacer,
+        "pam": pam,
+        "mismatch_count": int(mm_idx.size),
+        "mismatch_positions": mismatch_positions,
+        "cfd_score": round(cfd_site_score(seq20, protospacer), 6),
+        "mit_hit_score": round(mit_hit_score(seq20, protospacer), 4),
+    }
+
+
+def _scan_seq20(
+    seq20: str, fasta: Path, collect_sites: bool, max_sites: int = MAX_SITES
+) -> Tuple[OfftargetProfile, List[dict]]:
+    """全基因组脱靶扫描核心：分档计数（始终）+ 位点明细（可选）。"""
     seq20 = seq20.upper()
     if len(seq20) != WINDOW or any(b not in b"ACGT" for b in seq20.encode()):
         raise ValueError(f"seq20 必须为 20nt ACGT: {seq20!r}")
@@ -121,8 +222,10 @@ def count_offtargets_for_seq20(seq20: str, fasta: Path) -> int:
     p2 = LUT[np.frombuffer(_revcomp(seq20).encode(), dtype=np.uint8)]
     block_codes = _pattern_block_codes(p1) + _pattern_block_codes(p2)
 
-    total = 0
+    total_exact = total_mis1 = total_mis2 = total_mis3 = 0
+    sites: List[dict] = []
     for rec in _load_fai(fasta):
+        chrom = rec[0]
         length = rec[1]
         n_total = length - (WINDOW - 1)
         for s in range(0, max(n_total, 0), CHUNK_BASES):
@@ -144,33 +247,94 @@ def count_offtargets_for_seq20(seq20: str, fasta: Path) -> int:
                 continue
 
             # 行合格性：正链行 = 窗口后 2bp 为 GG（PAM NGG）；负链行 = 窗口前 2bp 为 CC（正链读作 CCN）
+            # 仅对下标合法的窗口读 PAM 碱基：染色体末端 fetch 会被截断，越界花式索引会抛
+            # IndexError（曾在全基因组末端命中时让整批导出静默降级为"未计算"）
             g = starts.astype(np.int64) + fetch_start
-            p1_elig = (g + 22 < length) & (t[starts + 21] == CODE_G) & (t[starts + 22] == CODE_G)
-            p2_elig = (g >= 3) & (t[starts - 3] == CODE_C) & (t[starts - 2] == CODE_C)
+            p1_elig = np.zeros(starts.size, dtype=bool)
+            p2_elig = np.zeros(starts.size, dtype=bool)
+            ok1 = (g + 22 < length) & (starts + 22 < t.size)
+            ok2 = (g >= 3) & (starts >= 3)
+            if ok1.any():
+                s1 = starts[ok1]
+                p1_elig[ok1] = (t[s1 + 21] == CODE_G) & (t[s1 + 22] == CODE_G)
+            if ok2.any():
+                s2 = starts[ok2]
+                p2_elig[ok2] = (t[s2 - 3] == CODE_C) & (t[s2 - 2] == CODE_C)
 
             idx = np.flatnonzero(p1_elig | p2_elig)
             ar = np.arange(WINDOW)
             for i in range(0, idx.size, VERIFY_BATCH):
                 sel = idx[i : i + VERIFY_BATCH]
                 wins = t[starts[sel][:, None] + ar[None, :]]
-                if p1_elig[sel].any():
-                    h1 = (wins != p1[None, :]).sum(axis=1)
-                    total += int(((h1 >= 1) & (h1 <= 3) & p1_elig[sel]).sum())
-                if p2_elig[sel].any():
-                    h2 = (wins != p2[None, :]).sum(axis=1)
-                    total += int(((h2 >= 1) & (h2 <= 3) & p2_elig[sel]).sum())
-    return total
+                for pat, elig_arr, strand in ((p1, p1_elig, "+"), (p2, p2_elig, "-")):
+                    e = elig_arr[sel]
+                    if not e.any():
+                        continue
+                    mm_all = wins != pat[None, :]
+                    h_all = mm_all.sum(axis=1)
+                    h = h_all[e]
+                    bc = np.bincount(h, minlength=4)
+                    total_exact += int(bc[0])
+                    total_mis1 += int(bc[1])
+                    total_mis2 += int(bc[1] + bc[2])
+                    total_mis3 += int(bc[1] + bc[2] + bc[3])
+                    if collect_sites and len(sites) < max_sites:
+                        g_sel = g[sel]
+                        t_sel = starts[sel]
+                        for r in np.flatnonzero(e):
+                            hh = int(h_all[r])
+                            if hh > 3 or len(sites) >= max_sites:
+                                continue
+                            tl = int(t_sel[r])
+                            if strand == "+":
+                                pam_nt = BASES_ASCII[t[tl + 20]]
+                            else:
+                                pam_nt = BASES_ASCII[COMP_CODE[t[tl - 1]]]
+                            pam = bytes([int(pam_nt)]).decode("ascii") + "GG"
+                            sites.append(
+                                _site_record(
+                                    seq20, chrom, int(g_sel[r]), strand, pam,
+                                    wins[r], np.flatnonzero(mm_all[r]),
+                                )
+                            )
+    profile = OfftargetProfile(exact=total_exact, mis1=total_mis1, mis2=total_mis2, mis3=total_mis3)
+    return profile, sites
 
 
-def compute_offtarget_counts(seq20s: Iterable[str], genome_fasta: Path | None = None) -> Dict[str, int]:
-    """对唯一 seq20 批量计数；返回 {seq20: count}。基因组缺失时抛异常由调用方降级。"""
+def compute_offtarget_profiles(seq20s: Iterable[str], genome_fasta: Path | None = None) -> Dict[str, OfftargetProfile]:
+    """对唯一 seq20 批量分档计数；返回 {seq20: OfftargetProfile}。基因组缺失时抛异常由调用方降级。
+
+    多 guide 并行扫描（numpy 比较释放 GIL）；进程内按 (基因组, seq20) 记忆，
+    同一 guide 不重复扫描。
+    """
     fasta = genome_fasta or resolve_genome_fasta()
     if not fasta.exists():
         raise FileNotFoundError(f"T2T 基因组 FASTA 不存在: {fasta}")
 
     uniq = list(dict.fromkeys(s.upper() for s in seq20s))
-    out: Dict[str, int] = {}
-    for s in uniq:
-        out[s] = count_offtargets_for_seq20(s, fasta)
-        logger.info("脱靶计数完成 %s: %d", s, out[s])
+    out: Dict[str, OfftargetProfile] = {
+        s: _COUNT_CACHE[(_cache_key(fasta), s)] for s in uniq if (_cache_key(fasta), s) in _COUNT_CACHE
+    }
+    todo = [s for s in uniq if s not in out]
+    if todo:
+        with ThreadPoolExecutor(max_workers=min(4, len(todo))) as pool:
+            for s, p in zip(todo, pool.map(lambda x: profile_seq20(x, fasta), todo)):
+                out[s] = p
+                _COUNT_CACHE[(_cache_key(fasta), s)] = p
+                logger.info("脱靶分档完成 %s: mis3=%d exact=%d", s, p.mis3, p.exact)
+    return out
+
+
+def compute_offtarget_counts(seq20s: Iterable[str], genome_fasta: Path | None = None) -> Dict[str, int]:
+    """兼容包装：返回 {seq20: mis3}。"""
+    return {s: p.mis3 for s, p in compute_offtarget_profiles(seq20s, genome_fasta).items()}
+
+
+def peek_profiles(seq20s: Iterable[str], genome_fasta: Path) -> Dict[str, OfftargetProfile]:
+    """仅读进程内已扫描缓存，绝不触发全基因组扫描（快导出复用按需计算产物）。"""
+    out: Dict[str, OfftargetProfile] = {}
+    for s in seq20s:
+        p = _COUNT_CACHE.get((_cache_key(genome_fasta), s.upper()))
+        if p is not None:
+            out[s.upper()] = p
     return out

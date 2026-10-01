@@ -37,7 +37,7 @@ from core.atac_annotator import (
     load_default_atac,
     peaks_from_dataframe,
 )
-from recommendation_engine import CandidateRankingEngine
+from recommendation_engine import CandidateRankingEngine, SORT_PRIORITY_ATAC
 
 ATAC_XLSX = BASE / "data" / "reference_genomes" / "1-3_Stem_lettuce_ATAC_peaks.xlsx"
 
@@ -165,14 +165,13 @@ def test_engine_atac_annotation_columns_shown():
 def test_engine_atac_weighted_sort_reorders():
     engine = _engine(_atlas())
     opts = engine.get_sort_options("Stem")
-    atac_opt = next((o for o in opts if o.startswith("组织优先指数+ATAC")), None)
-    assert atac_opt is not None, opts
+    assert any(i == SORT_PRIORITY_ATAC for i, _ in opts), opts
 
     base = engine.rank("G1", target_tissue="Stem", region_types=("promoter",), hide_centromere=False)
     assert base.all_df["guide_id"].iloc[0] == "g3", "默认方案3 排序应由 priority_score 决定"
 
     weighted = engine.rank(
-        "G1", target_tissue="Stem", sort_key=atac_opt, region_types=("promoter",), hide_centromere=False
+        "G1", target_tissue="Stem", sort_intent=SORT_PRIORITY_ATAC, region_types=("promoter",), hide_centromere=False
     )
     # ATAC 开放峰内的 g1 应反超默认第一的 g3（远离峰）
     assert weighted.all_df["guide_id"].iloc[0] == "g1", weighted.all_df[["guide_id", "ATAC状态"]]

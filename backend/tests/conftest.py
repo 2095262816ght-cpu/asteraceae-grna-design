@@ -5,3 +5,6 @@
 import os
 
 os.environ.setdefault("T2T_GENOME_FASTA", "tests/_genome_disabled_for_tests.fa")
+# 测试与演示库隔离：测试夹具会清空 scoring_jobs/genes/target_candidates 等表，
+# 绝不能让 pytest 触碰正式 lifescience.db（测试走独立的 lifescience_test.db）
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./lifescience_test.db")

@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 from datetime import datetime, timezone
@@ -7,6 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models import ScoringJob, ScoringJobItem
 from cs_pipeline.core.sequence_spec import validate_seq30, calc_gc, calc_tm
+
+# 特征构建单一来源：与训练/推理同口径（features_common.seq_features）
+try:
+    import pandas as pd
+    from cs_pipeline.scripts.features_common import seq_features
+    _HAS_FEATURES = True
+except Exception:
+    pd = None
+    seq_features = None
+    _HAS_FEATURES = False
 
 # 尝试导入 InferenceClient；在特殊无独立 Conda 环境的测试中支持优雅平滑降级
 try:
@@ -38,6 +49,7 @@ async def execute_single_scoring(
 
     t0 = time.time()
     deepspcas9_score = None
+    crispron_score = None
     crispron_source = "approximated"
     efficiency_score = None
     warning_msg = None
@@ -51,12 +63,18 @@ async def execute_single_scoring(
 
     if client is not None:
         try:
-            inference_res = client.score_sequences([s], timeout_s=60)
+            # 推理为同步阻塞调用：放入线程池，避免卡死事件循环导致其他请求无响应
+            inference_res = await asyncio.to_thread(client.score_sequences, [s], timeout_s=60)
             if not inference_res.raw_df.empty:
                 row = inference_res.raw_df.iloc[0]
                 deepspcas9_score = (
                     round(float(row["deepspcas9_score"]), 2)
                     if "deepspcas9_score" in row and row["deepspcas9_score"] is not None
+                    else None
+                )
+                crispron_score = (
+                    round(float(row["crispron_score"]), 2)
+                    if "crispron_score" in row and row["crispron_score"] is not None
                     else None
                 )
                 crispron_source = str(row.get("crispron_source", "approximated"))
@@ -79,6 +97,15 @@ async def execute_single_scoring(
     latency = round(time.time() - t0, 3)
     job_id = str(uuid.uuid4())
     job_title = title.strip() if title and title.strip() else f"单序列打分 ({guide_seq[:8]}...)"
+
+    # 特征向量（单一来源 seq_features：gc_total/gc_seed/tm/poly_t/pam_n_ACGT）
+    features = None
+    if _HAS_FEATURES:
+        try:
+            frow = seq_features(pd.Series([s], dtype=str)).iloc[0]
+            features = {k: float(v) for k, v in frow.items()}
+        except Exception:
+            features = None
 
     # 3. 构造持久化实体
     job = ScoringJob(
@@ -124,8 +151,10 @@ async def execute_single_scoring(
         "gc_pct": gc_pct,
         "tm_c": tm_c,
         "deepspcas9_score": deepspcas9_score,
+        "crispron_score": crispron_score,
         "crispron_source": crispron_source,
         "efficiency_score": efficiency_score,
+        "features": features,
         "warning_message": warning_msg,
         "duration_seconds": latency,
         "created_at": datetime.now(timezone.utc).isoformat(),

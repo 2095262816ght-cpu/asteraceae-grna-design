@@ -29,12 +29,14 @@ from core.sequence_spec import (
 try:
     from recommendation_engine import (
         CandidateRankingEngine,
+        SORT_EFFICIENCY,
         TISSUES,
         EXPRESSION_STATUS_MAP,
     )
 except ImportError:
     from app.recommendation_engine import (
         CandidateRankingEngine,
+        SORT_EFFICIENCY,
         TISSUES,
         EXPRESSION_STATUS_MAP,
     )
@@ -123,9 +125,8 @@ class TestCandidateRankingEngine:
         res_prio = self.engine.rank("LsaT2T01G023690", "Leaf")
         top_prio = res_prio.top10_df["guide_id"].tolist()
 
-        # 切换为纯效率分排序
-        eff_sort = next(o for o in res_prio.sort_options if o.startswith(self.engine.eff_label))
-        res_eff = self.engine.rank("LsaT2T01G023690", "Leaf", sort_key=eff_sort)
+        # 切换为纯效率分排序（按排序意图选择，不解析界面文案）
+        res_eff = self.engine.rank("LsaT2T01G023690", "Leaf", sort_intent=SORT_EFFICIENCY)
         top_eff = res_eff.top10_df["guide_id"].tolist()
 
         # 推荐序列必须真实发生改变
@@ -170,7 +171,7 @@ class TestInferenceClientArchitecture:
             n_approximated=0,
         )
         assert not res.has_approximated
-        assert "WSL 实跑真实模型" in res.caption_message
+        assert "真实模型实跑" in res.caption_message
 
 
 def run_all_tests():
