@@ -43,6 +43,21 @@ DISPLAY_MAP = {
 
 ANNOTATION_COLS = [COL_IN_PEAK, COL_PEAK_ID, COL_DIST, COL_FC, COL_Q, COL_SCORE, COL_STATUS]
 
+# 展示层布尔→中文（是/否）映射：ATAC 注释的展示形态转换由 to_display_df 单点定义
+DISPLAY_BOOL = {True: "是", False: "否"}
+
+
+def to_display_df(df: pd.DataFrame) -> pd.DataFrame:
+    """ATAC 注释列的展示形态转换单点定义：DISPLAY_MAP 列名映射 + 峰内布尔列 → 是/否。
+
+    demo Tab-2 批量流与 Tab-1 排序引擎共用本转换，不再各持一份副本。
+    """
+    out = df.rename(columns=DISPLAY_MAP)
+    col = DISPLAY_MAP[COL_IN_PEAK]
+    if col in out.columns:
+        out[col] = out[col].map(DISPLAY_BOOL)
+    return out
+
 # 峰表列名归一化（兼容 LettuceGDB xlsx 与常见 BED/narrowPeak 导出）
 _COL_ALIASES = {
     "peak": "peak_id",

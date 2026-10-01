@@ -76,6 +76,11 @@ async def test_candidate_scoring_and_ranking_parity():
     gene_gt = df_cand_gt[df_cand_gt["gene_id"] == target_gene].copy()
     assert not gene_gt.empty, f"基准数据应包含 {target_gene} 的候选靶点"
 
+    # poly-T 硬过滤口径（教师反馈 #2）：含 TTTT 的候选在枚举/检索阶段被剔除，
+    # 基线同样排除后逐字段比对；过滤数量单独断言（与 API gene_summary.poly_t_filtered_count 一致）
+    n_poly_t_gt = int(gene_gt["seq20"].str.contains("TTTT").sum())
+    gene_gt = gene_gt[~gene_gt["seq20"].str.contains("TTTT")].copy()
+
     # 按 efficiency_score 降序排布
     score_col = "efficiency_score_v21_nob879" if "efficiency_score_v21_nob879" in gene_gt.columns else "efficiency_score"
     gene_gt_sorted = gene_gt.sort_values(by=score_col, ascending=False).reset_index(drop=True)
@@ -91,6 +96,7 @@ async def test_candidate_scoring_and_ranking_parity():
     api_data = res.json()
     api_items = api_data["items"]
     assert len(api_items) > 0
+    assert api_data["gene_summary"]["poly_t_filtered_count"] == n_poly_t_gt
 
     # 抽样前 10 个靶点进行逐字段高精度数值吻合度比对
     compare_n = min(10, len(api_items), len(gene_gt_sorted))

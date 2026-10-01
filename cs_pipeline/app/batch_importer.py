@@ -79,6 +79,18 @@ SAMPLE_RECORDS = [
         "目标基因": "LsaT2T06G019420",
         "备注": "高表达适宜靶向位点",
     },
+    {
+        "靶点编号": "Sample_TKS_01",
+        "30bp靶位点序列": "ATATGAAAATGTCAGGATGCCTGAAGGACA",
+        "目标基因": "EVM.MODEL.LG07.3296",
+        "备注": "橡胶草 (TKS) 实测靶点 · Hi-TOM 金标准来源",
+    },
+    {
+        "靶点编号": "Sample_TKS_02",
+        "30bp靶位点序列": "TGGAAGAGTCGCCCCTGTTGATTCTGGATT",
+        "目标基因": "EVM.MODEL.LG07.3933",
+        "备注": "橡胶草 (TKS) 实测靶点 · Hi-TOM 金标准来源",
+    },
 ]
 
 
@@ -379,6 +391,11 @@ def generate_template_excel() -> bytes:
             "字段名称": "备注 (可选)",
             "说明": "任何实验注释、组织偏好或靶向策略说明，打分结果将完整保留此列。",
             "示例": "外显子功能区候选",
+        },
+        {
+            "字段名称": "物种支持说明",
+            "说明": "支持任意物种 30bp 靶位点（橡胶草 / 莴苣等）。v2.1 生产模型以橡胶草 Hi-TOM 实测金标准训练，橡胶草序列属同物种对口预测；效率分为同一基因内候选的相对排序参考，非绝对 indel% 承诺。",
+            "示例": "Sample_TKS_01 / Sample_TKS_02 为橡胶草实测示例",
         },
     ])
 

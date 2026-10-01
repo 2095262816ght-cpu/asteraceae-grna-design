@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import ReactECharts from 'echarts-for-react'
 import {
   UploadCloud,
   FileSpreadsheet,
-  Download,
   CheckCircle,
   AlertTriangle,
   XCircle,
@@ -13,6 +13,7 @@ import {
   FileCheck,
   Clock,
 } from 'lucide-react'
+import { DownloadButton } from './DownloadButton'
 
 export interface JobItemDetail {
   id: number
@@ -27,6 +28,7 @@ export interface JobItemDetail {
   deepspcas9_score: number | null
   crispron_source: string | null
   efficiency_score: number | null
+  features?: Record<string, number> | null
   is_valid: boolean
   error_message: string | null
 }
@@ -53,6 +55,10 @@ export const BatchUploadCard: React.FC = () => {
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [validityFilter, setValidityFilter] = useState<'all' | 'valid' | 'invalid'>('all')
+  const [minScore, setMinScore] = useState<string>('')
+  const [sortKey, setSortKey] = useState<'efficiency' | 'deepspcas9' | 'gc' | 'id'>('efficiency')
+  const [topN, setTopN] = useState<string>('all')
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -141,18 +147,61 @@ export const BatchUploadCard: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const filteredItems = (jobData?.items || []).filter((item) => {
-    if (validityFilter === 'valid' && !item.is_valid) return false
-    if (validityFilter === 'invalid' && item.is_valid) return false
-    if (!searchQuery.trim()) return true
-    const q = searchQuery.toLowerCase().trim()
-    const idMatch = (item.custom_id || '').toLowerCase().includes(q)
-    const seqMatch = item.seq30.toLowerCase().includes(q)
-    return idMatch || seqMatch
-  })
+  const filteredItems = useMemo(() => {
+    const min = parseFloat(minScore)
+    let items = (jobData?.items || []).filter((item) => {
+      if (validityFilter === 'valid' && !item.is_valid) return false
+      if (validityFilter === 'invalid' && item.is_valid) return false
+      if (!Number.isNaN(min) && (item.efficiency_score === null || item.efficiency_score < min)) return false
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.toLowerCase().trim()
+      const idMatch = (item.custom_id || '').toLowerCase().includes(q)
+      const seqMatch = item.seq30.toLowerCase().includes(q)
+      return idMatch || seqMatch
+    })
+    items = [...items].sort((a, b) => {
+      switch (sortKey) {
+        case 'efficiency':
+          return (b.efficiency_score ?? -1) - (a.efficiency_score ?? -1)
+        case 'deepspcas9':
+          return (b.deepspcas9_score ?? -1) - (a.deepspcas9_score ?? -1)
+        case 'gc':
+          return (b.gc_pct ?? -1) - (a.gc_pct ?? -1)
+        case 'id':
+          return (a.custom_id || '').localeCompare(b.custom_id || '')
+      }
+    })
+    if (topN !== 'all') items = items.slice(0, parseInt(topN, 10))
+    return items
+  }, [jobData?.items, validityFilter, searchQuery, minScore, sortKey, topN])
 
   const validCount = (jobData?.items || []).filter((i) => i.is_valid).length
   const invalidCount = (jobData?.items || []).filter((i) => !i.is_valid).length
+
+  // C2 可视化数据：效率分分布直方图 + 双模型散点 + GC-效率散点（仅有效条目）
+  const validScored = useMemo(
+    () => (jobData?.items || []).filter((i) => i.is_valid && i.efficiency_score !== null),
+    [jobData?.items]
+  )
+  const effHist = useMemo(() => {
+    const bins = new Array(10).fill(0)
+    for (const it of validScored) {
+      const b = Math.min(9, Math.floor((it.efficiency_score as number) / 10))
+      bins[b] += 1
+    }
+    return bins
+  }, [validScored])
+  const scatterDeep = useMemo(
+    () =>
+      validScored
+        .filter((i) => i.deepspcas9_score !== null)
+        .map((i) => [i.deepspcas9_score as number, i.efficiency_score as number]),
+    [validScored]
+  )
+  const scatterGc = useMemo(
+    () => validScored.map((i) => [i.gc_pct as number, i.efficiency_score as number]),
+    [validScored]
+  )
 
   return (
     <div className="space-y-6">
@@ -171,22 +220,18 @@ export const BatchUploadCard: React.FC = () => {
 
           {/* 模板下载按钮组 */}
           <div className="flex items-center gap-2">
-            <a
-              href="/api/v1/scoring/template?format=csv"
-              download="grna_batch_template.csv"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors shadow-sm"
+            <DownloadButton
+              url="/api/v1/scoring/template?format=csv"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors shadow-sm disabled:opacity-60"
             >
-              <Download className="h-3.5 w-3.5 text-slate-500" />
-              <span>下载 CSV 模板</span>
-            </a>
-            <a
-              href="/api/v1/scoring/template?format=xlsx"
-              download="grna_batch_template.xlsx"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors shadow-sm"
+              下载 CSV 模板
+            </DownloadButton>
+            <DownloadButton
+              url="/api/v1/scoring/template?format=xlsx"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors shadow-sm disabled:opacity-60"
             >
-              <Download className="h-3.5 w-3.5 text-emerald-600" />
-              <span>下载 Excel 模板</span>
-            </a>
+              下载 Excel 模板
+            </DownloadButton>
           </div>
         </div>
 
@@ -312,6 +357,19 @@ export const BatchUploadCard: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <DownloadButton
+                url={`/api/v1/scoring/jobs/${activeJobId}/export?format=xlsx`}
+                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-60"
+                title="导出打分结果与多组学注释（缺啥写啥：缺失原因/所需数据/所用参考包/百分位口径）"
+              >
+                导出结果 (xlsx)
+              </DownloadButton>
+              <DownloadButton
+                url={`/api/v1/scoring/jobs/${activeJobId}/export?format=csv`}
+                title="CSV 格式导出（仅数据表）"
+              >
+                CSV
+              </DownloadButton>
               <button
                 onClick={() => refetch()}
                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50 transition-colors"
@@ -385,6 +443,55 @@ export const BatchUploadCard: React.FC = () => {
             </div>
           </div>
 
+          {/* C2 打分结果可视化：效率分分布与特征散点 */}
+          {validScored.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="text-xs font-semibold text-slate-600 mb-1">预测效率分分布</div>
+                <ReactECharts
+                  style={{ height: 220 }}
+                  option={{
+                    grid: { left: 40, right: 12, top: 20, bottom: 40 },
+                    xAxis: {
+                      type: 'category',
+                      data: ['0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90', '90-100'],
+                      axisLabel: { rotate: 40, fontSize: 9 },
+                    },
+                    yAxis: { type: 'value', name: '条目数', minInterval: 1 },
+                    series: [{ type: 'bar', data: effHist, itemStyle: { color: '#10b981' } }],
+                    tooltip: { trigger: 'axis' },
+                  }}
+                />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="text-xs font-semibold text-slate-600 mb-1">DeepSpCas9 vs 集成效率分</div>
+                <ReactECharts
+                  style={{ height: 220 }}
+                  option={{
+                    grid: { left: 45, right: 12, top: 20, bottom: 35 },
+                    xAxis: { type: 'value', name: 'DeepSpCas9', nameLocation: 'middle', nameGap: 22 },
+                    yAxis: { type: 'value', name: '效率分' },
+                    series: [{ type: 'scatter', data: scatterDeep, symbolSize: 6, itemStyle: { color: '#6366f1' } }],
+                    tooltip: { trigger: 'item' },
+                  }}
+                />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="text-xs font-semibold text-slate-600 mb-1">GC 含量 vs 集成效率分</div>
+                <ReactECharts
+                  style={{ height: 220 }}
+                  option={{
+                    grid: { left: 45, right: 12, top: 20, bottom: 35 },
+                    xAxis: { type: 'value', name: 'GC (%)', nameLocation: 'middle', nameGap: 22 },
+                    yAxis: { type: 'value', name: '效率分' },
+                    series: [{ type: 'scatter', data: scatterGc, symbolSize: 6, itemStyle: { color: '#f59e0b' } }],
+                    tooltip: { trigger: 'item' },
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* 结果表格展示 (当任务已完成或部分有结果时) */}
           {jobData?.items && jobData.items.length > 0 && (
             <div className="space-y-4 pt-2">
@@ -418,6 +525,42 @@ export const BatchUploadCard: React.FC = () => {
                     <option value="valid">仅合规条目</option>
                     <option value="invalid">仅异常条目</option>
                   </select>
+
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={5}
+                    placeholder="最低效率分"
+                    value={minScore}
+                    onChange={(e) => setMinScore(e.target.value)}
+                    className="w-24 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:outline-none"
+                    title="低于该效率分的条目将被过滤"
+                  />
+
+                  <select
+                    value={sortKey}
+                    onChange={(e) => setSortKey(e.target.value as any)}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-emerald-500 focus:outline-none"
+                    title="排序依据（降序）"
+                  >
+                    <option value="efficiency">按效率分排序</option>
+                    <option value="deepspcas9">按 DeepSpCas9 排序</option>
+                    <option value="gc">按 GC 含量排序</option>
+                    <option value="id">按编号排序</option>
+                  </select>
+
+                  <select
+                    value={topN}
+                    onChange={(e) => setTopN(e.target.value)}
+                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-emerald-500 focus:outline-none"
+                    title="仅显示排序最优先的 N 条（Top-N 择优）"
+                  >
+                    <option value="all">全部显示</option>
+                    <option value="5">Top 5</option>
+                    <option value="10">Top 10</option>
+                    <option value="20">Top 20</option>
+                  </select>
                 </div>
               </div>
 
@@ -439,13 +582,15 @@ export const BatchUploadCard: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-mono">
                     {filteredItems.map((item) => (
+                      <React.Fragment key={item.id}>
                       <tr
-                        key={item.id}
-                        className={
+                        onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                        title={item.features ? '点击展开/收起 10 维特征向量' : undefined}
+                        className={`cursor-pointer ${
                           item.is_valid
                             ? 'hover:bg-slate-50/80 transition-colors'
                             : 'bg-rose-50/40 text-rose-900 hover:bg-rose-50/70'
-                        }
+                        }`}
                       >
                         <td className="px-3 py-2.5 font-sans font-medium text-slate-800">
                           {item.custom_id || `Seq_${item.id}`}
@@ -513,6 +658,24 @@ export const BatchUploadCard: React.FC = () => {
                           )}
                         </td>
                       </tr>
+                      {expandedId === item.id && item.features && (
+                        <tr className="bg-slate-50/70">
+                          <td colSpan={7} className="px-3 py-2.5 font-sans">
+                            <div className="text-[11px] font-semibold text-slate-500 mb-1">
+                              10 维模型特征向量（单一来源：features_common.seq_features，与训练/推理同口径）
+                            </div>
+                            <div className="flex flex-wrap gap-2 text-[11px]">
+                              {Object.entries(item.features).map(([k, v]) => (
+                                <span key={k} className="rounded border border-slate-200 bg-white px-2 py-0.5">
+                                  <span className="text-slate-500">{k}:</span>{' '}
+                                  <strong className="font-mono text-slate-800">{Number(v).toFixed(3)}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

@@ -1,3 +1,4 @@
+import asyncio
 import io
 import time
 import uuid
@@ -175,8 +176,6 @@ async def run_batch_scoring_task(
                 await session.commit()
                 return
 
-            seqs = [item.seq30 for item in valid_items]
-
             # 实例化或调用 InferenceClient
             if client is None and _HAS_INFERENCE_CLIENT:
                 try:
@@ -184,39 +183,54 @@ async def run_batch_scoring_task(
                 except Exception:
                     client = None
 
-            inference_results = None
-            if client is not None:
-                try:
-                    inference_results = client.score_sequences(seqs, timeout_s=180)
-                except Exception as exc:
-                    job.warning_message = f"批处理模型推理外部调用异常，触发降级计算: {str(exc)}"
+            # 分块推理并滚动提交进度：推理为同步阻塞调用，放线程池执行；
+            # 逐块更新 processed_sequences，让前端进度条平滑推进而非 0% 直接跳满。
+            # 分块自适应：约 8 个进度台阶（大批次少切、避免逐块调用的固定开销），最少 4 条/块
+            chunk_size = max(4, (len(valid_items) + 7) // 8)
+            base_processed = job.total_sequences - len(valid_items)
 
-            # 赋值并持久化每个 item 的打分
-            for idx, item in enumerate(valid_items):
-                deepspcas9_score = None
-                crispron_source = "approximated"
-                efficiency_score = None
+            for start in range(0, len(valid_items), chunk_size):
+                chunk_items = valid_items[start:start + chunk_size]
+                chunk_result = None
+                if client is not None:
+                    try:
+                        chunk_result = await asyncio.to_thread(
+                            client.score_sequences,
+                            [it.seq30 for it in chunk_items],
+                            timeout_s=180,
+                        )
+                    except Exception as exc:
+                        job.warning_message = f"批处理模型推理外部调用异常，触发降级计算: {str(exc)}"
 
-                if inference_results is not None and not inference_results.raw_df.empty and idx < len(inference_results.raw_df):
-                    row = inference_results.raw_df.iloc[idx]
-                    if "deepspcas9_score" in row and row["deepspcas9_score"] is not None:
-                        deepspcas9_score = round(float(row["deepspcas9_score"]), 2)
-                    crispron_source = str(row.get("crispron_source", "approximated"))
-
-                    for score_key in ("stacking_score", "efficiency_score", "efficiency_score_v21_nob879"):
-                        if score_key in row and row[score_key] is not None:
-                            efficiency_score = round(float(row[score_key]), 2)
-                            break
-
-                # 兜底启发式评分
-                if efficiency_score is None:
-                    gc = item.gc_pct if item.gc_pct is not None else 50.0
-                    efficiency_score = round(max(10.0, min(95.0, 50.0 + (gc - 50.0) * 0.5)), 2)
+                for idx, item in enumerate(chunk_items):
+                    deepspcas9_score = None
                     crispron_source = "approximated"
+                    efficiency_score = None
 
-                item.deepspcas9_score = deepspcas9_score
-                item.crispron_source = crispron_source
-                item.efficiency_score = efficiency_score
+                    raw_df = chunk_result.raw_df if chunk_result is not None else None
+                    if raw_df is not None and not raw_df.empty and idx < len(raw_df):
+                        row = raw_df.iloc[idx]
+                        if "deepspcas9_score" in row and row["deepspcas9_score"] is not None:
+                            deepspcas9_score = round(float(row["deepspcas9_score"]), 2)
+                        crispron_source = str(row.get("crispron_source", "approximated"))
+
+                        for score_key in ("stacking_score", "efficiency_score", "efficiency_score_v21_nob879"):
+                            if score_key in row and row[score_key] is not None:
+                                efficiency_score = round(float(row[score_key]), 2)
+                                break
+
+                    # 兜底启发式评分
+                    if efficiency_score is None:
+                        gc = item.gc_pct if item.gc_pct is not None else 50.0
+                        efficiency_score = round(max(10.0, min(95.0, 50.0 + (gc - 50.0) * 0.5)), 2)
+                        crispron_source = "approximated"
+
+                    item.deepspcas9_score = deepspcas9_score
+                    item.crispron_source = crispron_source
+                    item.efficiency_score = efficiency_score
+
+                job.processed_sequences = base_processed + start + len(chunk_items)
+                await session.commit()
 
             # 所有条目（含无效条目）均算入 processed
             job.processed_sequences = job.total_sequences

@@ -34,6 +34,7 @@ import pandas as pd
 BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE))
 from scripts.features_common import FEATURE_COLS, seq_features  # noqa: E402
+from scripts.crispron_scorer import SOURCE_WSL_REAL  # noqa: E402
 
 REAL_CSV = BASE / "results" / "real_crispron_top100_0927.csv"
 TOP_CSV = BASE / "results" / "lettuce_all_genes_top100_candidates.csv"
@@ -76,7 +77,7 @@ def main() -> None:
     print(f"可回填真值 {n_real} / {len_df}（{(n_real / len_df * 100):.2f}%）", flush=True)
 
     df.loc[is_real, "crispron_score"] = df.loc[is_real, "seq30"].map(real_map)
-    df.loc[is_real, "crispron_source"] = "wsl_real"
+    df.loc[is_real, "crispron_source"] = SOURCE_WSL_REAL
 
     meta = joblib.load(MODEL_PATH)
     feat = seq_features(df["seq30"].astype(str))
@@ -119,7 +120,7 @@ def main() -> None:
             if hit.any():
                 d.loc[hit, "crispron_score"] = d.loc[hit, "guide_id"].map(real_guide["crispron_score"])
                 d.loc[hit, "efficiency_score"] = d.loc[hit, "guide_id"].map(real_guide["efficiency_score"])
-                d.loc[hit, "crispron_source"] = "wsl_real"
+                d.loc[hit, "crispron_source"] = SOURCE_WSL_REAL
                 d.to_csv(p, index=False)
             if (i + 1) % 50 == 0:
                 print(f"分片更新 {i + 1}/{len(parts)}", flush=True)

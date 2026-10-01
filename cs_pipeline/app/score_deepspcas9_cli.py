@@ -31,11 +31,12 @@ def main() -> int:
 
     res_df = predict_details(seqs)
     writer = csv.writer(sys.stdout)
-    writer.writerow(["seq30", "deepspcas9_score", "crispron_source", "stacking_score"])
+    writer.writerow(["seq30", "deepspcas9_score", "crispron_score", "crispron_source", "stacking_score"])
     for _, row in res_df.iterrows():
         writer.writerow([
             row["seq30"],
             f"{float(row['deepspcas9_score']):.4f}",
+            f"{float(row['crispron_score']):.4f}",
             str(row["crispron_source"]),
             f"{float(row['stacking_score']):.2f}",
         ])

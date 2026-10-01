@@ -79,8 +79,8 @@ async def setup_test_db():
             start=83871000,
             end=83871022,
             strand="-",
-            seq30="AAACCCCGGGGTTTTCCCCAAAATTTGGCC",
-            seq20="CCCCGGGGTTTTCCCCAAAA",
+            seq30="AAACCCCCGGGGTTTACCCCAAAACGGGGC",
+            seq20="CCCCGGGGTTTACCCCAAAA",
             pam="CGG",
             region_type="exon",
             is_centromere=True,
@@ -97,7 +97,30 @@ async def setup_test_db():
             expression_status="mapped_cluster",
         )
 
-        session.add_all([c1, c2])
+        # poly-T 硬过滤样本：seq20 含 TTTT（U6 转录终止信号），应不出现在候选列表
+        c3 = TargetCandidate(
+            guide_id="Lsat_675193",
+            gene_id="LsaT2T01G023690",
+            chrom="Chr01",
+            start=83872000,
+            end=83872022,
+            strand="+",
+            seq30="AAACCCCCGGGGTTTTCCCCAAAACGGGGC",
+            seq20="CCCCGGGGTTTTCCCCAAAA",
+            pam="CGG",
+            region_type="exon",
+            is_centromere=False,
+            is_exon=True,
+            gc_pct=60.0,
+            tm_c=62.0,
+            offtarget_count_mis3=1,
+            efficiency_score=90.00,
+            deepspcas9_score=85.0,
+            crispron_score=80.0,
+            expression_status="mapped_cluster",
+        )
+
+        session.add_all([c1, c2, c3])
         await session.commit()
 
     yield
@@ -123,13 +146,17 @@ async def test_get_candidates_with_filtering():
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
-        # 1. 默认查询所有
+        # 1. 默认查询所有（含 TTTT 的 c3 已被 poly-T 硬过滤）
         res_all = await ac.get("/api/v1/candidates?gene_id=LsaT2T01G023690")
         assert res_all.status_code == 200
         all_data = res_all.json()
         assert all_data["total"] == 2
         assert len(all_data["items"]) == 2
         assert all_data["gene_summary"]["gene_id"] == "LsaT2T01G023690"
+        assert all_data["gene_summary"]["poly_t_filtered_count"] == 1
+        assert all(i["guide_id"] != "Lsat_675193" for i in all_data["items"])
+        # 表达适配度字段（MFE/5'G）
+        assert all(i["expression_fitness_note"] for i in all_data["items"])
 
         # 2. 排除着丝粒
         res_no_centro = await ac.get(

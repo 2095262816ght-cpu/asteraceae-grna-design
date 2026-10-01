@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-"""features_common.py — noB879 / train969 队列装载与 10 维标准特征构建的**单一来源**。
+"""features_common.py — noB879 / train969 队列装载与 10 维标准特征的向量化适配器。
+
+特征语义（seq30 布局、9 维派生特征、Tm/GC 口径）单点定义在 core.sequence_spec；
+本模块负责队列口径、装载、结构防呆与落盘。
 
 背景（P2 工程债）
 ----------------
@@ -41,12 +44,24 @@ train969  「训练集」sheet 全部行 → 969 行 / 17 基因组，是 noB879
    按固定列数读取的下游会随机崩，且崩不崩取决于数据而非代码。
 """
 from pathlib import Path
+import sys
 
 import pandas as pd
-from Bio.SeqUtils import gc_fraction
-from Bio.SeqUtils.MeltingTemp import Tm_NN
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+# 特征语义（seq30 布局切片、9 维派生特征取值定义、PAM one-hot 列名）单点定义在
+# core.sequence_spec；本模块只是其向量化适配器 + 队列装载器，不再自持第二份定义。
+from core.sequence_spec import (  # noqa: E402
+    GUIDE_SLICE,
+    PAM_N_SLICE,
+    PAM_ONEHOT,
+    SEED_SLICE,
+    SEQ_FEATURE_COLS,
+    seq_feature_dict,
+)
 XLSX_161 = BASE_DIR / "data" / "1_Hi-results-16.1-efficiency-20260921.xlsx"
 SEQ30_CSV = BASE_DIR / "data" / "hitom" / "hitom_seq30_merged_0918.csv"
 DSS_CSV = BASE_DIR / "results" / "scores_deepspcas9_merged_0918.csv"
@@ -67,15 +82,6 @@ FEATURE_COLS = [
     "deepspcas9_score", "crispron_score", "gc_total", "gc_seed",
     "tm", "poly_t", "pam_n_A", "pam_n_C", "pam_n_G", "pam_n_T",
 ]
-PAM_ONEHOT = ["pam_n_A", "pam_n_C", "pam_n_G", "pam_n_T"]
-
-# 9 个序列派生特征（10 维中除去 deepspcas9_score / crispron_score 两个模型分）
-SEQ_FEATURE_COLS = ["gc_total", "gc_seed", "tm", "poly_t"] + PAM_ONEHOT
-
-# seq30 布局：4nt 上游 + 20nt guide + NGG PAM + 3nt 下游（与 app/app.py 的 validate_seq30 一致）
-GUIDE_SLICE = slice(4, 24)
-SEED_SLICE = slice(18, 24)   # guide 第 15–20 位，紧邻 PAM 的种子区，Cas9 最敏感
-PAM_N_SLICE = slice(24, 25)  # PAM 首碱基（NGG 的 N）
 
 EXPECTED_ROWS = {"noB879": 879, "train969": 969}
 EXPECTED_GROUPS = {"noB879": 16, "train969": 17}
@@ -95,10 +101,10 @@ META_COLS = [
 def seq_features(seq30):
     """从 30bp 序列构建 9 个序列派生特征，返回与 seq30 同索引的 DataFrame。
 
-    **训练与推理四条路径的唯一特征定义处**：load_cohort（scripts/15 训练、scripts/17 消融）、
-    scripts/predict.py（单序列推理）、demo/rescore_demo_v21_nob879.py（demo 批量重打分）
-    全部调用本函数。此前四处各存一份副本，gc_seed 的种子区切片这类细节一旦改动就会
-    让训练与推理静默分家。
+    **core.sequence_spec.seq_feature_dict 的向量化适配器**：特征语义（哪个切片算哪个
+    特征、Tm/GC 取值口径、PAM one-hot 划分）在 SequenceSpec 单点定义，本函数只负责
+    逐行套用 + 拼表。训练与推理四条路径（load_cohort、scripts/predict.py、
+    demo/rescore_demo_v21_nob879.py、批量打分）共用本函数，不再各存副本。
 
     一律以 seq30 为唯一原语（不用源表存储的 seq20/pam 列）：实测在 noB879（879 行）、
     train969（969 行）与 demo app_data（19,839 行）上，存储列 seq20 == seq30[4:24]、
@@ -110,15 +116,11 @@ def seq_features(seq30):
     True/False 而非数值。
     """
     seq30 = seq30.astype(str)
-    seq20 = seq30.str[GUIDE_SLICE]
-    pam_n = seq30.str[PAM_N_SLICE]
-    out = pd.DataFrame(index=seq30.index)
-    out["gc_total"] = seq20.map(gc_fraction)
-    out["gc_seed"] = seq30.str[SEED_SLICE].map(gc_fraction)
-    out["tm"] = seq20.map(Tm_NN)
-    out["poly_t"] = seq20.str.contains("TTTT").astype(int)
-    for b in "ACGT":
-        out[f"pam_n_{b}"] = (pam_n == b).astype(float)
+    if len(seq30) == 0:
+        return pd.DataFrame(columns=SEQ_FEATURE_COLS, index=seq30.index)
+    out = pd.DataFrame.from_records(
+        [seq_feature_dict(s) for s in seq30], index=seq30.index
+    )
     return out[SEQ_FEATURE_COLS]
 
 

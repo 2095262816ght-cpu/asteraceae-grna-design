@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
   AlertTriangle,
   ArrowUpDown,
+  BookOpen,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -17,8 +18,16 @@ import {
   X,
 } from 'lucide-react'
 import { GenomicTargetMap } from './GenomicTargetMap'
-
-export type TargetTissue = 'Leaf' | 'Root' | 'Stem' | 'Flower' | 'Seed'
+import {
+  computeOfftarget,
+  fetchCandidates,
+  fetchSortHelp,
+  precomputeOfftargetForExport,
+  type CandidateItem,
+  type CandidatesResponse,
+  type SortHelpItem,
+  type TargetTissue,
+} from '../lib/candidateQuery'
 
 export const TISSUE_NAMES: Record<TargetTissue, string> = {
   Leaf: '叶',
@@ -29,6 +38,19 @@ export const TISSUE_NAMES: Record<TargetTissue, string> = {
 }
 
 export const TISSUE_ORDER: TargetTissue[] = ['Leaf', 'Root', 'Stem', 'Flower', 'Seed']
+
+// 各排序指标的推荐方向：切换排序指标时自动套用；GC 含量无推荐方向，保持手动切换
+const SORT_RECOMMENDED_ORDER: Record<string, 'asc' | 'desc' | null> = {
+  efficiency_score: 'desc',
+  priority_score: 'desc',
+  hazard_score: 'asc',
+  start: 'asc',
+  offtarget_count_mis3: 'asc',
+  gc_pct: null,
+}
+
+// 排序说明弹窗文案取自后端 /api/v1/meta/sort-help（公式文案单点定义在
+// cs_pipeline.core.ranking_semantics，前端不复述公式）
 
 export interface GeneInfo {
   gene_id: string
@@ -62,50 +84,71 @@ export interface GeneExpressionData {
   tpm_dict: Record<string, number>
 }
 
-export interface CandidateItem {
-  id: number
-  guide_id: string
-  gene_id: string
+// ============ 脱靶位点明细 API（教师反馈 #1） ============
+export interface OfftargetSite {
   chrom: string
   start: number
   end: number
   strand: string
-  seq30: string
-  seq20: string
+  protospacer20: string
   pam: string
-  region_type: string
-  is_centromere: boolean
-  is_exon: boolean
-  gc_pct: number
-  tm_c: number
-  offtarget_count_mis3?: number | null
-  deepspcas9_score?: number
-  crispron_score?: number
-  efficiency_score?: number
-  priority_score?: number
-  hazard_score?: number
-  expression_status?: string
-  expression_status_display?: string
-  expression_evidence_note?: string
-  n_intra_panel_sites?: number | null
-  target_tissue?: string
+  mismatch_count: number
+  mismatch_positions: number[]
+  cfd_score: number
+  mit_hit_score: number
+  region_type?: string | null
+  region_label?: string | null
+  gene_id?: string | null
+  risk_level: string
+  risk_note: string
+  is_ontarget: boolean
 }
 
-export interface CandidatesResponse {
-  items: CandidateItem[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
-  gene_summary?: {
-    gene_id: string
-    chrom: string
-    start: number
-    end: number
-    strand: string
-    total_candidates: number
-    filtered_candidates: number
+export interface OfftargetSitesResponse {
+  seq20: string
+  bundle_id: string
+  bundle_name: string
+  genome_note: string
+  profile: { exact: number; mis1: number; mis2: number; mis3: number }
+  sites: OfftargetSite[]
+  sites_truncated: boolean
+  specificity: {
+    n_offtarget_sites_scored: number
+    mit_hit_sum: number
+    mit_specificity: number
+    cfd_hit_sum: number
+    cfd_specificity: number
+    on_target_excluded: boolean
   }
+  method_note: string
+}
+
+// ============ 方法与版本说明 API（教师反馈 #4/#5） ============
+export interface MethodsInfo {
+  efficiency_model: {
+    name: string
+    kind: string
+    components: string[]
+    validation: string
+    model_card: string
+    lineage_note: string
+  }
+  offtarget: {
+    search: string
+    params: { pam: string; gRNA_length: string; max_mismatches: number; strands: string }
+    site_scores: string[]
+    guide_specificity: string
+    risk_note: string
+  }
+  expression_fitness: { poly_t: string; five_prime_g: string; mfe: string; gc: string }
+  gene_structure: { source: string; protein_domains: string }
+  reference_genomes: Array<{
+    id: string
+    display_name: string
+    fasta_available: boolean
+    gff_available: boolean
+  }>
+  disclaimer: string
 }
 
 async function fetchGenes(): Promise<GeneInfo[]> {
@@ -120,42 +163,61 @@ async function fetchGeneExpression(geneId: string): Promise<GeneExpressionData> 
   return res.json()
 }
 
-async function fetchCandidates(params: {
-  gene_id: string
-  target_tissue?: TargetTissue
-  min_score?: number
-  exclude_centromere?: boolean
-  exon_only?: boolean
-  region_type?: string
-  page?: number
-  page_size?: number
-  sort_by?: string
-  sort_order?: string
-}): Promise<CandidatesResponse> {
+// 脱靶位点明细：点击"脱靶数"数字时按需请求（20nt 全基因组扫描，秒级~分钟级）
+async function fetchOfftargetSites(params: {
+  seq20: string
+  bundle_id?: string
+  max_sites?: number
+  ontarget_start?: number
+  ontarget_end?: number
+}): Promise<OfftargetSitesResponse> {
   const sp = new URLSearchParams()
-  sp.set('gene_id', params.gene_id)
-  if (params.target_tissue) {
-    sp.set('target_tissue', params.target_tissue)
-  }
-  if (params.min_score !== undefined && params.min_score > 0) {
-    sp.set('min_score', String(params.min_score))
-  }
-  if (params.exclude_centromere) {
-    sp.set('exclude_centromere', 'true')
-  }
-  if (params.region_type && params.region_type !== 'all') {
-    sp.set('region_type', params.region_type)
-  } else if (params.exon_only) {
-    sp.set('exon_only', 'true')
-  }
-  if (params.page) sp.set('page', String(params.page))
-  if (params.page_size) sp.set('page_size', String(params.page_size))
-  if (params.sort_by) sp.set('sort_by', params.sort_by)
-  if (params.sort_order) sp.set('sort_order', params.sort_order)
-
-  const res = await fetch(`/api/v1/candidates?${sp.toString()}`)
-  if (!res.ok) throw new Error('获取候选靶点失败')
+  sp.set('seq20', params.seq20)
+  if (params.bundle_id) sp.set('bundle_id', params.bundle_id)
+  if (params.max_sites) sp.set('max_sites', String(params.max_sites))
+  if (params.ontarget_start !== undefined) sp.set('ontarget_start', String(params.ontarget_start))
+  if (params.ontarget_end !== undefined) sp.set('ontarget_end', String(params.ontarget_end))
+  const res = await fetch(`/api/v1/offtarget/sites?${sp.toString()}`)
+  if (!res.ok) throw new Error('获取脱靶位点明细失败')
   return res.json()
+}
+
+// 方法与版本说明：点击"方法与版本"按钮时按需请求
+async function fetchMethodsInfo(): Promise<MethodsInfo> {
+  const res = await fetch('/api/v1/meta/methods')
+  if (!res.ok) throw new Error('获取方法与版本信息失败')
+  return res.json()
+}
+
+// 比对序列渲染：protospacer20 按 gRNA 方向 5'→3' 展示，错配碱基高亮（错配位置 1-based，PAM 远端为 1）
+function renderAlignedSeq(seq: string, mismatchPositions: number[] | null | undefined) {
+  const posSet = new Set(mismatchPositions || [])
+  return seq.split('').map((ch, i) => (
+    <span
+      key={i}
+      className={posSet.has(i + 1) ? 'rounded-sm bg-rose-500 px-[1px] font-bold text-white' : 'text-slate-700'}
+    >
+      {ch}
+    </span>
+  ))
+}
+
+// 风险等级着色：在靶=灰、致命=红、高危=橙、中=黄、低=绿
+function riskBadgeClass(level: string): string {
+  switch (level) {
+    case '在靶':
+      return 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-400/30'
+    case '致命':
+      return 'bg-rose-100 text-rose-700 ring-1 ring-inset ring-rose-600/30'
+    case '高危':
+      return 'bg-orange-100 text-orange-700 ring-1 ring-inset ring-orange-600/30'
+    case '中':
+      return 'bg-yellow-100 text-yellow-800 ring-1 ring-inset ring-yellow-600/30'
+    case '低':
+      return 'bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-600/30'
+    default:
+      return 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-400/30'
+  }
 }
 
 export const CandidateSearchPanel: React.FC = () => {
@@ -167,8 +229,11 @@ export const CandidateSearchPanel: React.FC = () => {
   const [excludeCentromere, setExcludeCentromere] = useState<boolean>(false)
   const [includeExon, setIncludeExon] = useState<boolean>(true)
   const [includePromoter, setIncludePromoter] = useState<boolean>(true)
-  const [sortBy, setSortBy] = useState<string>('priority_score')
+  const [sortBy, setSortBy] = useState<string>('efficiency_score')
   const [sortOrder, setSortOrder] = useState<string>('desc')
+  const [showSortHelp, setShowSortHelp] = useState<boolean>(false)
+  // 排序帮助条目取自后端（公式文案单点定义在 cs_pipeline.core.ranking_semantics）
+  const [sortHelpItems, setSortHelpItems] = useState<SortHelpItem[]>([])
   const [page, setPage] = useState<number>(1)
   const pageSize = 20
 
@@ -182,7 +247,43 @@ export const CandidateSearchPanel: React.FC = () => {
 
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set())
   const [batchName, setBatchName] = useState<string>('')
+
+  useEffect(() => {
+    let alive = true
+    fetchSortHelp(TISSUE_NAMES[targetTissue])
+      .then((items) => {
+        if (alive) setSortHelpItems(items)
+      })
+      .catch(() => {
+        if (alive) setSortHelpItems([])
+      })
+    return () => {
+      alive = false
+    }
+  }, [targetTissue])
   const [isExporting, setIsExporting] = useState<boolean>(false)
+  const queryClient = useQueryClient()
+
+  // "未计算"格：确认框（要计算脱靶吗）+ 计算中行 + 导出进度（脱靶扫描 n/N → 生成文件）
+  const [computeConfirm, setComputeConfirm] = useState<CandidateItem | null>(null)
+  const [computingIds, setComputingIds] = useState<Set<number>>(new Set())
+  const [exportProgress, setExportProgress] = useState<{
+    done: number
+    total: number
+    phase: 'scan' | 'generate'
+  } | null>(null)
+
+  // 脱靶位点明细抽屉状态（点击"脱靶数"数字时按需加载，不预先请求）
+  const [offtargetCand, setOfftargetCand] = useState<CandidateItem | null>(null)
+  const [offtargetData, setOfftargetData] = useState<OfftargetSitesResponse | null>(null)
+  const [offtargetLoading, setOfftargetLoading] = useState<boolean>(false)
+  const [offtargetError, setOfftargetError] = useState<string | null>(null)
+
+  // 方法与版本弹窗状态（点击按钮时按需加载，不预先请求）
+  const [showMethods, setShowMethods] = useState<boolean>(false)
+  const [methodsData, setMethodsData] = useState<MethodsInfo | null>(null)
+  const [methodsLoading, setMethodsLoading] = useState<boolean>(false)
+  const [methodsError, setMethodsError] = useState<string | null>(null)
 
   // 基因即输即搜 Combobox 状态
   const [isGeneDropdownOpen, setIsGeneDropdownOpen] = useState<boolean>(false)
@@ -216,6 +317,25 @@ export const CandidateSearchPanel: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // 排序说明 / 方法与版本弹窗与脱靶明细抽屉 / 脱靶计算确认框：Esc 关闭（确认框与抽屉优先）
+  useEffect(() => {
+    if (!showSortHelp && !showMethods && !offtargetCand && !computeConfirm) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (computeConfirm) {
+        setComputeConfirm(null)
+      } else if (offtargetCand) {
+        setOfftargetCand(null)
+      } else if (showMethods) {
+        setShowMethods(false)
+      } else {
+        setShowSortHelp(false)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showSortHelp, showMethods, offtargetCand, computeConfirm])
+
   // 模糊匹配过滤
   const filteredGenes = useMemo(() => {
     if (!genes) return []
@@ -238,27 +358,113 @@ export const CandidateSearchPanel: React.FC = () => {
   }
 
   const handleExport = async (format: 'csv' | 'xlsx') => {
-    if (selectedCandidateIds.size === 0) return
+    if (selectedCandidateIds.size === 0 || isExporting) return
     setIsExporting(true)
+    const ids = Array.from(selectedCandidateIds)
     try {
       const finalName = batchName.trim() || `${activeGeneId || 'gRNA'}_优选方案`
+      // 阶段1：逐条按需计算脱靶（编排隐藏在候选查询模块），进度条随 n/N 前进
+      await precomputeOfftargetForExport(ids, (done, total) =>
+        setExportProgress({ done, total, phase: 'scan' }),
+      )
+      // 阶段2：创建批次并生成文件下载（此时脱靶已回填，下载不再触发长扫描）
+      setExportProgress({ done: ids.length, total: ids.length, phase: 'generate' })
       const res = await fetch('/api/v1/exports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: finalName,
           format,
-          candidate_ids: Array.from(selectedCandidateIds),
+          candidate_ids: ids,
           gene_id: activeGeneId || undefined,
         }),
       })
       if (!res.ok) throw new Error('创建导出批次失败')
       const data = await res.json()
-      window.location.href = `/api/v1/exports/${data.id}/download`
+      const dl = await fetch(`/api/v1/exports/${data.id}/download`)
+      if (!dl.ok) throw new Error('导出文件生成失败')
+      const blob = await dl.blob()
+      const cd = dl.headers.get('Content-Disposition') || ''
+      const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = m ? decodeURIComponent(m[1]) : `${finalName}.${format === 'xlsx' ? 'xlsx' : 'csv'}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      // 刷新表格：新算出的脱靶数/优先指数就地显示，不再挂"未计算"
+      await queryClient.invalidateQueries({ queryKey: ['candidates'] })
     } catch (err: any) {
       alert(err.message || '导出错误')
     } finally {
       setIsExporting(false)
+      setExportProgress(null)
+    }
+  }
+
+  // "未计算"格确认后按需计算脱靶：格内转圈 → 刷新数字 → 自动打开位点明细抽屉
+  const confirmComputeOfftarget = async () => {
+    const cand = computeConfirm
+    if (!cand) return
+    setComputeConfirm(null)
+    setComputingIds((prev) => new Set(prev).add(cand.id))
+    try {
+      await computeOfftarget([cand.id])
+      await queryClient.invalidateQueries({ queryKey: ['candidates'] })
+      openOfftargetDrawer(cand)
+    } catch (err: any) {
+      alert(err?.message || '计算脱靶失败，请稍后重试')
+    } finally {
+      setComputingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(cand.id)
+        return next
+      })
+    }
+  }
+
+  // 打开脱靶明细抽屉并按需拉取位点明细（seq20 无效 / 请求失败时优雅降级）
+  const openOfftargetDrawer = async (cand: CandidateItem) => {
+    setOfftargetCand(cand)
+    setOfftargetData(null)
+    setOfftargetError(null)
+    const seq = (cand.seq20 || '').trim()
+    if (seq.length !== 20) {
+      setOfftargetLoading(false)
+      setOfftargetError('该候选缺少有效的 20nt guide 序列，无法查询脱靶位点明细')
+      return
+    }
+    setOfftargetLoading(true)
+    try {
+      const data = await fetchOfftargetSites({
+        seq20: seq,
+        bundle_id: 'lettuce',
+        max_sites: 200,
+        ontarget_start: cand.start,
+        ontarget_end: cand.end,
+      })
+      setOfftargetData(data)
+    } catch (err: any) {
+      setOfftargetError(err?.message || '获取脱靶位点明细失败，请稍后重试')
+    } finally {
+      setOfftargetLoading(false)
+    }
+  }
+
+  // 打开方法与版本弹窗（已加载则复用缓存，不重复请求）
+  const openMethods = async () => {
+    setShowMethods(true)
+    if (methodsData || methodsLoading) return
+    setMethodsLoading(true)
+    setMethodsError(null)
+    try {
+      setMethodsData(await fetchMethodsInfo())
+    } catch (err: any) {
+      setMethodsError(err?.message || '获取方法与版本信息失败，请稍后重试')
+    } finally {
+      setMethodsLoading(false)
     }
   }
 
@@ -281,15 +487,15 @@ export const CandidateSearchPanel: React.FC = () => {
     ],
     queryFn: () =>
       fetchCandidates({
-        gene_id: activeGeneId,
-        target_tissue: targetTissue,
-        min_score: minScore,
-        exclude_centromere: excludeCentromere,
-        region_type: currentRegionType,
+        geneId: activeGeneId,
+        targetTissue,
+        minScore,
+        excludeCentromere,
+        regionType: currentRegionType,
         page,
-        page_size: pageSize,
-        sort_by: sortBy,
-        sort_order: sortOrder,
+        pageSize,
+        sortBy,
+        sortOrder,
       }),
     enabled: !!activeGeneId,
   })
@@ -298,6 +504,9 @@ export const CandidateSearchPanel: React.FC = () => {
   const summary = candidatesData?.gene_summary
 
   const currentItems = candidatesData?.items || []
+  const pendingScanCount = currentItems.filter(
+    (c) => selectedCandidateIds.has(c.id) && (c.offtarget_count_mis3 === null || c.offtarget_count_mis3 === undefined)
+  ).length
   const isAllCurrentSelected =
     currentItems.length > 0 && currentItems.every((c) => selectedCandidateIds.has(c.id))
 
@@ -416,7 +625,7 @@ export const CandidateSearchPanel: React.FC = () => {
                         </div>
                       ) : (
                         <div className="divide-y divide-slate-50">
-                          {filteredGenes.map((g) => {
+                          {filteredGenes.slice(0, 200).map((g) => {
                             const isSelected = g.gene_id === activeGeneId
                             return (
                               <button
@@ -435,7 +644,7 @@ export const CandidateSearchPanel: React.FC = () => {
                                     {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>}
                                   </span>
                                   <span className="text-[11px] text-slate-400 font-normal">
-                                    {g.chrom} · {g.nlr_type || 'NLR'} · {g.candidate_count} 候选位点
+                                    {g.chrom} · {g.gene_id.startsWith('Lsa') ? 'NLR 专项注释' : '全基因组注释'}{g.nlr_type ? ` · ${g.nlr_type}` : ''} · {g.candidate_count} 候选位点
                                   </span>
                                 </div>
                                 {isSelected && (
@@ -444,6 +653,11 @@ export const CandidateSearchPanel: React.FC = () => {
                               </button>
                             )
                           })}
+                          {filteredGenes.length > 200 && (
+                            <div className="px-3 py-2 text-center text-[11px] text-slate-400">
+                              仅显示前 200 条（共 {filteredGenes.length} 条），请输入关键字缩小范围
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -492,13 +706,16 @@ export const CandidateSearchPanel: React.FC = () => {
             <select
               value={sortBy}
               onChange={(e) => {
-                setSortBy(e.target.value)
+                const v = e.target.value
+                setSortBy(v)
+                const rec = SORT_RECOMMENDED_ORDER[v]
+                if (rec) setSortOrder(rec)
                 setPage(1)
               }}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm focus:border-emerald-500 focus:outline-none"
             >
+              <option value="efficiency_score">on-target 效率分 (v2.1 推荐排序)</option>
               <option value="priority_score">组织优先指数（{TISSUE_NAMES[targetTissue]}）降序 · 方案3推荐</option>
-              <option value="efficiency_score">效率分 (v2.1 推荐排序)</option>
               <option value="hazard_score">功能性脱靶危害（{TISSUE_NAMES[targetTissue]}）升序</option>
               <option value="start">基因物理起始坐标</option>
               <option value="offtarget_count_mis3">潜在脱靶位点数 (升序优先)</option>
@@ -515,6 +732,15 @@ export const CandidateSearchPanel: React.FC = () => {
             >
               <ArrowUpDown className="h-4 w-4" />
               <span className="ml-1 text-xs">{sortOrder === 'desc' ? '降序' : '升序'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSortHelp(true)}
+              title="查看各排序方式的详细排名方法"
+              className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm hover:bg-slate-50 hover:text-emerald-700"
+            >
+              <Info className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -862,10 +1088,27 @@ export const CandidateSearchPanel: React.FC = () => {
         <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <h3 className="text-base font-bold text-slate-900">候选 gRNA 靶位点推荐清单</h3>
+            <button
+              type="button"
+              onClick={openMethods}
+              title="查看算法、版本、参数与参考基因组口径说明"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-emerald-700"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              方法与版本
+            </button>
             {isFetching && <span className="text-xs text-slate-400 animate-pulse">(更新中...)</span>}
           </div>
           <div className="text-xs text-slate-500">
             共匹配到 <strong className="text-emerald-600">{candidatesData?.total || 0}</strong> 条符合条件的靶点
+            {(summary?.poly_t_filtered_count ?? 0) > 0 && (
+              <span
+                className="ml-2 inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700"
+                title="U6 启动子（RNA Pol III）转录遇 TTTT 提前终止，含 poly-T 信号的候选已在枚举阶段硬过滤，不参与列表与排序"
+              >
+                另有 {summary?.poly_t_filtered_count} 条含 TTTT poly-T 终止信号已过滤
+              </span>
+            )}
           </div>
         </div>
 
@@ -895,18 +1138,46 @@ export const CandidateSearchPanel: React.FC = () => {
                   PAM
                 </th>
                 <th className="py-3 px-2">GC %</th>
-                <th className="py-3 px-2">脱靶数 (&le;3)</th>
+                <th
+                  className="py-3 px-2"
+                  title="表达适配度：含 TTTT poly-T 终止信号的候选已硬过滤；5' 端为 G 提高 U6 转录效率（G-start 徽章）；MFE 为 20nt spacer 自折叠最小自由能（ViennaRNA RNAfold，不含 scaffold 骨架），ΔG < -5 kcal/mol 标红警示"
+                >
+                  表达适配
+                </th>
+                <th
+                  className="py-3 px-2"
+                  title="DeepSpCas9 深度学习模型预测的 on-target 切割活性分（0–1），业界常用基准；越高预期在靶切割效率越高"
+                >
+                  DeepSpCas9 活性
+                </th>
+                <th
+                  className="py-3 px-2"
+                  title="CRISPRon 模型预测的 on-target 切割活性分；真实模型不可用时降级为经验近似式（详见导出表《指标方法说明》）"
+                >
+                  CRISPRon 活性
+                </th>
+                <th
+                  className="py-3 px-2"
+                  title="全基因组潜在脱靶位点计数（错配 1–3 累计，不含完全匹配行）；点击数字查看脱靶位点明细（坐标/错配位置/CFD/MIT 评分/区域）"
+                >
+                  脱靶数 (&le;3)
+                </th>
                 <th className="py-3 px-3 text-right">组织优先 ({TISSUE_NAMES[targetTissue]})</th>
                 <th className="py-3 px-3 text-right">功能危害 ({TISSUE_NAMES[targetTissue]})</th>
                 <th className="py-3 px-3 text-center">表达证据</th>
                 <th className="py-3 px-2">着丝粒</th>
-                <th className="py-3 px-4 text-right">效率分 (v2.1)</th>
+                <th
+                  className="py-3 px-4 text-right"
+                  title="on-target 效率分：自训练 Stacking 元模型（v2.1）预测的在靶切割活性综合分，0–100，由 DeepSpCas9 活性、CRISPRon 活性、GC、Tm、polyT 等 10 维序列特征构成；悬停每行分数可查看两个成分分"
+                >
+                  on-target 效率分 (v2.1)
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {candidatesLoading ? (
                 <tr>
-                  <td colSpan={15} className="py-12 text-center text-slate-400">
+                  <td colSpan={18} className="py-12 text-center text-slate-400">
                     <div className="flex items-center justify-center space-x-2">
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent"></div>
                       <span>正在检索候选 gRNA 靶位点...</span>
@@ -915,7 +1186,7 @@ export const CandidateSearchPanel: React.FC = () => {
                 </tr>
               ) : !candidatesData?.items || candidatesData.items.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-12 text-center text-slate-500">
+                  <td colSpan={18} className="py-12 text-center text-slate-500">
                     {currentRegionType === 'none' ? (
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <span className="text-sm font-semibold text-slate-700">当前未勾选任何功能元件</span>
@@ -1011,18 +1282,100 @@ export const CandidateSearchPanel: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-emerald-700">{cand.pam}</td>
                       <td className="py-3 px-4 font-mono text-slate-700">{cand.gc_pct.toFixed(1)}%</td>
-                      <td className="py-3 px-4 font-mono text-slate-700">
-                        {cand.offtarget_count_mis3 === null || cand.offtarget_count_mis3 === undefined ? (
+
+                      {/* 表达适配度（教师反馈 #2）：MFE + 5'G 徽章 */}
+                      <td className="py-3 px-3" title={cand.expression_fitness_note || undefined}>
+                        <div className="flex flex-col items-start gap-1">
+                          {cand.mfe_kcal !== undefined && cand.mfe_kcal !== null ? (
+                            <span
+                              className={`inline-flex items-center gap-1 font-mono text-[11px] font-semibold ${
+                                cand.mfe_risk ? 'text-rose-600' : 'text-slate-700'
+                              }`}
+                            >
+                              {cand.mfe_kcal.toFixed(1)} kcal/mol
+                              {cand.mfe_risk && (
+                                <span
+                                  title="ΔG < -5 kcal/mol：自折叠可能抑制靶向活性"
+                                  className="inline-flex items-center rounded bg-rose-100 px-1 py-0.5 text-[10px] font-bold text-rose-700"
+                                >
+                                  <AlertTriangle className="h-3 w-3" />
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span
+                              className="text-slate-400 text-[11px]"
+                              title="ViennaRNA 不可用：无法计算 spacer 自折叠 MFE"
+                            >
+                              — <span className="text-[10px]">ViennaRNA 不可用</span>
+                            </span>
+                          )}
                           <span
-                            className="text-slate-400"
-                            title="未计算：未对该 guide 做全基因组脱靶扫描，不能读作'已验证无脱靶'"
+                            className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                              cand.five_prime_g
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                                : 'bg-slate-50 text-slate-400 border border-slate-200/70'
+                            }`}
+                          >
+                            G-start
+                          </span>
+                        </div>
+                      </td>
+                      <td
+                        className="py-3 px-2 font-mono text-slate-700"
+                        title="DeepSpCas9 模型预测的 on-target 切割活性分（0–1）"
+                      >
+                        {cand.deepspcas9_score !== undefined && cand.deepspcas9_score !== null ? (
+                          cand.deepspcas9_score.toFixed(3)
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td
+                        className="py-3 px-2 font-mono text-slate-700"
+                        title="CRISPRon 模型预测的 on-target 切割活性分"
+                      >
+                        {cand.crispron_score !== undefined && cand.crispron_score !== null ? (
+                          cand.crispron_score.toFixed(2)
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-700">
+                        {computingIds.has(cand.id) ? (
+                          <span
+                            className="inline-flex items-center gap-1.5 text-emerald-600"
+                            title="正在计算脱靶：全基因组扫描（Cas-OFFinder 口径，≤3 错配、PAM=NGG），约 1 分钟/条，请稍候"
+                          >
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                            <span className="text-[11px] font-semibold">计算中</span>
+                          </span>
+                        ) : cand.offtarget_count_mis3 === null || cand.offtarget_count_mis3 === undefined ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setComputeConfirm(cand)
+                            }}
+                            title="未计算：未对该 guide 做全基因组脱靶扫描，不能读作'已验证无脱靶'；点击可计算脱靶并查看位点明细"
+                            className="text-slate-400 underline decoration-dotted underline-offset-2 transition-colors hover:decoration-solid hover:text-emerald-700"
                           >
                             未计算
-                          </span>
-                        ) : cand.offtarget_count_mis3 > 0 ? (
-                          <span className="text-amber-600 font-semibold">{cand.offtarget_count_mis3}</span>
+                          </button>
                         ) : (
-                          <span className="text-emerald-600">0</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openOfftargetDrawer(cand)
+                            }}
+                            title="点击查看脱靶位点明细（坐标/错配位置/CFD/MIT 评分/区域）"
+                            className={`font-semibold underline decoration-dotted underline-offset-2 transition-colors hover:decoration-solid hover:text-emerald-700 ${
+                              cand.offtarget_count_mis3 > 0 ? 'text-amber-600' : 'text-emerald-600'
+                            }`}
+                          >
+                            {cand.offtarget_count_mis3}
+                          </button>
                         )}
                       </td>
 
@@ -1090,6 +1443,15 @@ export const CandidateSearchPanel: React.FC = () => {
                       <td className="py-3 px-4 text-right">
                         <span
                           className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold font-mono ring-1 ring-inset ${effColor}`}
+                          title={`on-target 效率分（Stacking 元模型 v2.1，0–100）\n成分：DeepSpCas9 ${
+                            cand.deepspcas9_score !== undefined && cand.deepspcas9_score !== null
+                              ? cand.deepspcas9_score.toFixed(3)
+                              : '—'
+                          } · CRISPRon ${
+                            cand.crispron_score !== undefined && cand.crispron_score !== null
+                              ? cand.crispron_score.toFixed(2)
+                              : '—'
+                          }\n预测的是在靶切割活性，与脱靶数互相独立，需两者综合评价`}
                         >
                           {eff > 0 ? eff.toFixed(2) : '-'}
                         </span>
@@ -1154,6 +1516,39 @@ export const CandidateSearchPanel: React.FC = () => {
               onChange={(e) => setBatchName(e.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none w-48"
             />
+            {isExporting && exportProgress ? (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1.5">
+                <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                <div
+                  className="h-1.5 w-36 overflow-hidden rounded-full bg-emerald-100"
+                  role="progressbar"
+                  aria-label="导出进度"
+                  aria-valuemin={0}
+                  aria-valuemax={exportProgress.total}
+                  aria-valuenow={exportProgress.done}
+                >
+                  <div
+                    className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                    style={{
+                      width: `${Math.round(
+                        ((exportProgress.done + (exportProgress.phase === 'scan' ? 0.5 : 0)) /
+                          exportProgress.total) *
+                          100
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-[10px] font-semibold text-emerald-800">
+                  {exportProgress.phase === 'scan'
+                    ? `脱靶扫描中 ${Math.min(exportProgress.done + 1, exportProgress.total)}/${exportProgress.total}…约 1 分钟/条`
+                    : '正在生成导出文件…'}
+                </span>
+              </div>
+            ) : pendingScanCount > 0 ? (
+              <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 max-w-[220px]">
+                {pendingScanCount} 个靶点脱靶数未计算，首次导出需全基因组扫描（约 1 分钟/条）
+              </span>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2">
@@ -1163,7 +1558,13 @@ export const CandidateSearchPanel: React.FC = () => {
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
-              <span>{isExporting ? '生成中...' : '导出 CSV'}</span>
+              <span>
+                {isExporting
+                  ? exportProgress?.phase === 'scan'
+                    ? '脱靶扫描中…请稍候'
+                    : '生成中...'
+                  : '导出 CSV'}
+              </span>
             </button>
 
             <button
@@ -1172,7 +1573,13 @@ export const CandidateSearchPanel: React.FC = () => {
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 transition-colors"
             >
               <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-              <span>{isExporting ? '生成中...' : '导出 Excel'}</span>
+              <span>
+                {isExporting
+                  ? exportProgress?.phase === 'scan'
+                    ? '脱靶扫描中…请稍候'
+                    : '生成中...'
+                  : '导出 Excel'}
+              </span>
             </button>
 
             <button
@@ -1182,6 +1589,524 @@ export const CandidateSearchPanel: React.FC = () => {
             >
               <X className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 计算脱靶确认框：点击"未计算"格弹出，确认后按需全基因组扫描并回填 */}
+      {computeConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+          onClick={() => setComputeConfirm(null)}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">要计算脱靶吗？</h3>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                  将对{' '}
+                  <span className="font-mono font-semibold text-slate-700">{computeConfirm.guide_id}</span>{' '}
+                  （<span className="font-mono text-slate-600">{computeConfirm.seq20}</span>）做 Cas-OFFinder
+                  口径全基因组脱靶扫描（≤3 错配、PAM=NGG、正负链分行计数），单条约 1 分钟。完成后本行显示脱靶数，并自动打开脱靶位点明细抽屉。
+                </p>
+              </div>
+              <button
+                onClick={() => setComputeConfirm(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                title="关闭"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4">
+              <button
+                onClick={() => setComputeConfirm(null)}
+                className="rounded-lg border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmComputeOfftarget}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors"
+              >
+                <Dna className="h-3.5 w-3.5" />
+                计算脱靶
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 排序方式说明弹窗 */}
+      {showSortHelp && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 backdrop-blur-sm sm:p-8"
+          onClick={() => setShowSortHelp(false)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">排序方式说明 · 各指标详细排名方法</h3>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  切换排序指标时自动套用该指标的推荐方向（升降序按钮仍可手动切换）；「未计算」的候选在任何排序下都排在最后
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSortHelp(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                title="关闭"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              {sortHelpItems.map((it) => (
+                <div
+                  key={it.key}
+                  className={`rounded-xl border px-4 py-3 ${
+                    it.key === sortBy
+                      ? 'border-emerald-200 bg-emerald-50/60'
+                      : 'border-slate-200/80 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800">{it.title}</span>
+                    {it.key === sortBy && (
+                      <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                        当前选中
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] font-medium text-emerald-700">排名方式：{it.direction}</p>
+                  {it.lines.map((ln) => (
+                    <p key={ln} className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                      {ln}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500">
+              各指标完整口径（含特征系数、公式来源）见导出 Excel 的《指标方法说明》sheet。
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 脱靶位点明细抽屉（教师反馈 #1）：点击"脱靶数"数字打开，按需加载 */}
+      {offtargetCand && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm"
+          onClick={() => setOfftargetCand(null)}
+        >
+          <div
+            className="h-full w-full max-w-3xl overflow-y-auto bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 抽屉头部 */}
+            <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">脱靶位点明细（全基因组 ≤3 错配扫描）</h3>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
+                  <span className="font-mono font-semibold text-slate-700">{offtargetCand.guide_id}</span>
+                  <span className="font-mono text-slate-600">{offtargetCand.seq20}</span>
+                  <span>按 Esc 或点击左侧空白关闭</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setOfftargetCand(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                title="关闭"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 px-5 py-4">
+              {offtargetLoading && (
+                <div className="flex items-center justify-center space-x-2 rounded-xl border border-slate-200 bg-slate-50/70 py-10 text-xs text-slate-500">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent"></div>
+                  <span>
+                    正在扫描全基因组脱靶位点（Cas-OFFinder 口径，≤3 错配、PAM=NGG）…首次查询可能需要数秒到数分钟，请稍候
+                  </span>
+                </div>
+              )}
+
+              {offtargetError && (
+                <div className="flex items-start space-x-2 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                  <div>
+                    <span className="font-bold">脱靶明细获取失败：</span>
+                    <span>{offtargetError}</span>
+                  </div>
+                </div>
+              )}
+
+              {offtargetData &&
+                (() => {
+                  const sp = offtargetData.specificity
+                  return (
+                    <>
+                      {/* ① 顶部摘要：profile 四档计数 + 参考基因组 + 特异性汇总 */}
+                      <div className="space-y-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5">
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { label: '完全匹配', value: offtargetData.profile.exact, cls: 'text-slate-800' },
+                            { label: '1 错配', value: offtargetData.profile.mis1, cls: 'text-orange-700' },
+                            { label: '2 错配', value: offtargetData.profile.mis2, cls: 'text-amber-700' },
+                            { label: '3 错配', value: offtargetData.profile.mis3, cls: 'text-emerald-700' },
+                          ].map((it) => (
+                            <div key={it.label} className="rounded-lg border border-slate-200/80 bg-white p-2 text-center">
+                              <div className={`font-mono text-lg font-bold ${it.cls}`}>{it.value}</div>
+                              <div className="text-[10px] text-slate-500">{it.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[11px] text-slate-600">{offtargetData.genome_note}</p>
+                        <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2.5 text-[11px] text-slate-700">
+                          <div className="mb-1 font-semibold text-emerald-800">guide 级特异性汇总（CRISPOR 口径）</div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            <span>
+                              MIT Sguide：<strong className="font-mono">{Number(sp.mit_specificity).toFixed(2)}</strong>
+                            </span>
+                            <span>
+                              CFD 特异性：<strong className="font-mono">{Number(sp.cfd_specificity).toFixed(2)}</strong>
+                            </span>
+                            <span>计分脱靶位点：{sp.n_offtarget_sites_scored} 个</span>
+                            <span>Σ MIT hit：{Number(sp.mit_hit_sum).toFixed(1)}</span>
+                            <span>Σ CFD site：{Number(sp.cfd_hit_sum).toFixed(2)}</span>
+                          </div>
+                          <p className="mt-1 text-slate-500">
+                            口径：MIT Sguide = 100/(100+ΣhitScore)×100；CFD 特异性 = 100/Σcfd_site
+                            {sp.on_target_excluded ? '；已排除候选自身在靶位点，不计入脱靶风险汇总' : ''}
+                          </p>
+                        </div>
+                        {offtargetData.sites_truncated && (
+                          <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-2.5 py-1.5 text-[11px] text-amber-800">
+                            明细已截断，计数仍为全量（位点表格仅展示前 {offtargetData.sites.length} 行）
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ② 位点明细表格 */}
+                      <div>
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-800">
+                            位点明细（{offtargetData.sites.length} 行，正负链分行计数）
+                          </h4>
+                          <span className="text-[10px] text-slate-400">
+                            错配位置为 gRNA 方向 1-based（PAM 远端为 1）；错配碱基以红色高亮
+                          </span>
+                        </div>
+                        {offtargetData.sites.length === 0 ? (
+                          <div className="rounded-xl border border-slate-200 bg-white py-8 text-center text-xs text-slate-500">
+                            未发现 ≤3 错配的脱靶位点（含完全匹配行）。
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto rounded-xl border border-slate-200">
+                            <table className="w-full text-left text-[11px]">
+                              <thead>
+                                <tr className="border-b border-slate-200 bg-slate-50/75 text-slate-500 font-semibold">
+                                  <th className="px-2 py-2">风险</th>
+                                  <th className="px-2 py-2">染色体:坐标</th>
+                                  <th className="px-2 py-2">链</th>
+                                  <th
+                                    className="px-2 py-2"
+                                    title="错配位置为 gRNA 方向 1-based（PAM 远端为 1）"
+                                  >
+                                    错配数
+                                  </th>
+                                  <th
+                                    className="px-2 py-2"
+                                    title="错配位置为 gRNA 方向 1-based（PAM 远端为 1）"
+                                  >
+                                    错配位置
+                                  </th>
+                                  <th className="px-2 py-2 font-mono" title="protospacer20，gRNA 方向 5'→3'，错配碱基高亮">
+                                    比对序列
+                                  </th>
+                                  <th className="px-2 py-2">PAM</th>
+                                  <th className="px-2 py-2" title="CFD（Doench 2016）单位点分，4 位小数">
+                                    CFD
+                                  </th>
+                                  <th className="px-2 py-2" title="MIT/Hsu 2013 单位点 hit score，2 位小数">
+                                    MIT
+                                  </th>
+                                  <th className="px-2 py-2">所在区域</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {offtargetData.sites.map((s, i) => (
+                                  <tr
+                                    key={`${s.chrom}-${s.start}-${s.end}-${s.strand}-${i}`}
+                                    className={`border-b border-slate-100 last:border-b-0 ${
+                                      s.is_ontarget ? 'bg-slate-50' : ''
+                                    }`}
+                                  >
+                                    <td className="px-2 py-2">
+                                      <span
+                                        title={s.risk_note}
+                                        className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${riskBadgeClass(
+                                          s.risk_level
+                                        )}`}
+                                      >
+                                        {s.risk_level}
+                                      </span>
+                                    </td>
+                                    <td className="whitespace-nowrap px-2 py-2 font-mono text-slate-700">
+                                      {s.chrom}:{s.start.toLocaleString()}-{s.end.toLocaleString()}
+                                    </td>
+                                    <td className="px-2 py-2 font-mono text-slate-700">{s.strand}</td>
+                                    <td className="px-2 py-2 font-mono text-slate-700">{s.mismatch_count}</td>
+                                    <td className="px-2 py-2 font-mono text-slate-500">
+                                      {s.mismatch_positions && s.mismatch_positions.length > 0
+                                        ? s.mismatch_positions.join(', ')
+                                        : '—'}
+                                    </td>
+                                    <td className="whitespace-nowrap px-2 py-2 font-mono">
+                                      {renderAlignedSeq(s.protospacer20, s.mismatch_positions)}
+                                    </td>
+                                    <td className="px-2 py-2 font-mono font-semibold text-emerald-700">{s.pam}</td>
+                                    <td className="px-2 py-2 font-mono text-slate-700">
+                                      {Number(s.cfd_score).toFixed(4)}
+                                    </td>
+                                    <td className="px-2 py-2 font-mono text-slate-700">
+                                      {Number(s.mit_hit_score).toFixed(2)}
+                                    </td>
+                                    <td className="px-2 py-2 text-slate-600">
+                                      {s.region_label || '—'}
+                                      {s.gene_id && (
+                                        <span className="ml-1 font-mono text-[10px] text-slate-400">{s.gene_id}</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ③ 搜索与评分口径 */}
+                      <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3">
+                        <div className="mb-1 text-[11px] font-bold text-slate-700">搜索与评分口径</div>
+                        <p className="text-[11px] leading-relaxed text-slate-600">{offtargetData.method_note}</p>
+                      </div>
+                    </>
+                  )
+                })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 方法与版本弹窗（教师反馈 #4/#5）：算法、版本、参数与参考基因组口径 */}
+      {showMethods && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 backdrop-blur-sm sm:p-8"
+          onClick={() => setShowMethods(false)}
+        >
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">方法与版本 · 算法口径与参考基因组说明</h3>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  效率模型、脱靶检测、表达适配度与基因结构注释的方法、参数与版本（透明性声明）
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMethods(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                title="关闭"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 px-5 py-4">
+              {methodsLoading && (
+                <div className="flex items-center justify-center space-x-2 rounded-xl border border-slate-200 bg-slate-50/70 py-10 text-xs text-slate-500">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent"></div>
+                  <span>正在加载方法与版本说明…</span>
+                </div>
+              )}
+
+              {methodsError && (
+                <div className="flex items-start space-x-2 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                  <div>
+                    <span className="font-bold">方法与版本信息获取失败：</span>
+                    <span>{methodsError}</span>
+                  </div>
+                </div>
+              )}
+
+              {methodsData && (
+                <div className="space-y-3">
+                  {/* 效率分模型 */}
+                  <section className="rounded-xl border border-slate-200/80 bg-white p-4">
+                    <h4 className="mb-2 border-b border-slate-100 pb-1.5 text-xs font-bold text-slate-800">
+                      效率分模型（on-target 效率分）
+                    </h4>
+                    <div className="space-y-1.5 text-[11px] leading-relaxed text-slate-600">
+                      <p>
+                        <span className="font-semibold text-slate-700">名称：</span>
+                        {methodsData.efficiency_model.name}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-700">类型：</span>
+                        {methodsData.efficiency_model.kind}
+                      </p>
+                      <div>
+                        <span className="font-semibold text-slate-700">组成成分：</span>
+                        <ul className="mt-1 list-inside list-disc space-y-0.5 pl-1">
+                          {(methodsData.efficiency_model.components || []).map((c, i) => (
+                            <li key={i}>{c}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <p>
+                        <span className="font-semibold text-slate-700">验证：</span>
+                        {methodsData.efficiency_model.validation}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-700">模型卡：</span>
+                        <span className="font-mono text-slate-500">{methodsData.efficiency_model.model_card}</span>
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-700">模型谱系：</span>
+                        {methodsData.efficiency_model.lineage_note}
+                      </p>
+                    </div>
+                  </section>
+
+                  {/* 脱靶检测 */}
+                  <section className="rounded-xl border border-slate-200/80 bg-white p-4">
+                    <h4 className="mb-2 border-b border-slate-100 pb-1.5 text-xs font-bold text-slate-800">
+                      脱靶检测（全基因组扫描与位点评分）
+                    </h4>
+                    <div className="space-y-1.5 text-[11px] leading-relaxed text-slate-600">
+                      <p>
+                        <span className="font-semibold text-slate-700">搜索方法：</span>
+                        {methodsData.offtarget.search}
+                      </p>
+                      <div>
+                        <span className="font-semibold text-slate-700">参数：</span>
+                        <ul className="mt-1 list-inside list-disc space-y-0.5 pl-1">
+                          <li>PAM：{methodsData.offtarget.params?.pam}</li>
+                          <li>gRNA 长度：{methodsData.offtarget.params?.gRNA_length}</li>
+                          <li>最大错配数：{methodsData.offtarget.params?.max_mismatches}</li>
+                          <li>链处理：{methodsData.offtarget.params?.strands}</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-slate-700">位点评分：</span>
+                        <ul className="mt-1 list-inside list-disc space-y-0.5 pl-1">
+                          {(methodsData.offtarget.site_scores || []).map((s, i) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <p>
+                        <span className="font-semibold text-slate-700">guide 级特异性：</span>
+                        {methodsData.offtarget.guide_specificity}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-700">风险分档：</span>
+                        {methodsData.offtarget.risk_note}
+                      </p>
+                    </div>
+                  </section>
+
+                  {/* 表达适配度 */}
+                  <section className="rounded-xl border border-slate-200/80 bg-white p-4">
+                    <h4 className="mb-2 border-b border-slate-100 pb-1.5 text-xs font-bold text-slate-800">
+                      表达适配度（poly-T / 5'G / MFE / GC）
+                    </h4>
+                    <div className="space-y-1.5 text-[11px] leading-relaxed text-slate-600">
+                      <p>
+                        <span className="font-semibold text-slate-700">poly-T：</span>
+                        {methodsData.expression_fitness.poly_t}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-700">5' 端 G：</span>
+                        {methodsData.expression_fitness.five_prime_g}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-700">MFE 自折叠：</span>
+                        {methodsData.expression_fitness.mfe}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-700">GC 含量：</span>
+                        {methodsData.expression_fitness.gc}
+                      </p>
+                    </div>
+                  </section>
+
+                  {/* 基因结构注释 */}
+                  <section className="rounded-xl border border-slate-200/80 bg-white p-4">
+                    <h4 className="mb-2 border-b border-slate-100 pb-1.5 text-xs font-bold text-slate-800">
+                      基因结构注释
+                    </h4>
+                    <div className="space-y-1.5 text-[11px] leading-relaxed text-slate-600">
+                      <p>
+                        <span className="font-semibold text-slate-700">结构来源：</span>
+                        {methodsData.gene_structure.source}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-700">蛋白功能域：</span>
+                        {methodsData.gene_structure.protein_domains}
+                      </p>
+                    </div>
+                  </section>
+
+                  {/* 参考基因组 */}
+                  <section className="rounded-xl border border-slate-200/80 bg-white p-4">
+                    <h4 className="mb-2 border-b border-slate-100 pb-1.5 text-xs font-bold text-slate-800">
+                      参考基因组（{(methodsData.reference_genomes || []).length} 个参考包）
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {(methodsData.reference_genomes || []).map((g) => (
+                        <li
+                          key={g.id}
+                          className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/70 px-2.5 py-1.5 text-[11px]"
+                        >
+                          <span className="font-mono font-semibold text-slate-700">{g.id}</span>
+                          <span className="text-slate-600">{g.display_name}</span>
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                              g.fasta_available
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                                : 'bg-slate-100 text-slate-400 border border-slate-200'
+                            }`}
+                          >
+                            FASTA {g.fasta_available ? '可用' : '缺失'}
+                          </span>
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                              g.gff_available
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                                : 'bg-slate-100 text-slate-400 border border-slate-200'
+                            }`}
+                          >
+                            GFF {g.gff_available ? '可用' : '缺失'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+
+                  {/* 免责声明 */}
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] leading-relaxed text-amber-900">
+                    <span className="font-bold">免责声明：</span>
+                    {methodsData.disclaimer}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

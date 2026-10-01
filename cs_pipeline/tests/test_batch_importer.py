@@ -68,13 +68,16 @@ def test_template_generation():
     assert "格式说明与规范" in sheets
 
     df = read_uploaded_table(excel_file, "template.xlsx", sheet_name="待检测序列导入模板")
-    assert len(df) == 3
+    assert len(df) == 5
     assert "30bp靶位点序列" in df.columns
+    # 橡胶草 (TKS) 实测示例行（B1：自定义通道橡胶草支持）
+    assert "Sample_TKS_01" in set(df["靶点编号"])
+    assert "Sample_TKS_02" in set(df["靶点编号"])
 
     csv_bytes = generate_template_csv()
     assert len(csv_bytes) > 0
     csv_df = read_uploaded_table(io.BytesIO(csv_bytes), "template.csv")
-    assert len(csv_df) == 3
+    assert len(csv_df) == 5
 
 
 def test_read_uploaded_table_and_sheets():

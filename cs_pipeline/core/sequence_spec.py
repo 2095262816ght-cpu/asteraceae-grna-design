@@ -25,6 +25,11 @@ FLANK_3P_SLICE = slice(27, 30)
 
 SEQ30_PATTERN = re.compile(r"^[ACGT]{30}$")
 
+# 9 个序列派生特征（10 维标准特征中除去 deepspcas9_score / crispron_score 两个模型分）。
+# 列名与顺序即模型输入语义，由本模块单点定义；features_common.seq_features 是其向量化适配器。
+PAM_ONEHOT = ["pam_n_A", "pam_n_C", "pam_n_G", "pam_n_T"]
+SEQ_FEATURE_COLS = ["gc_total", "gc_seed", "tm", "poly_t"] + PAM_ONEHOT
+
 # 尝试导入 Bio.SeqUtils，环境缺失时平滑降级（如 demo 环境无 Bio）
 try:
     from Bio.SeqUtils import gc_fraction as _bio_gc_fraction
@@ -105,10 +110,32 @@ def calc_tm(seq: str) -> float:
     return float(tm_kelvin - 273.15)
 
 
+def seq_feature_dict(seq30: str) -> dict:
+    """seq30 → 9 个序列派生特征（SEQ_FEATURE_COLS 的取值语义单点定义）。
+
+    不做校验——校验是 validate_seq30 的职责；本函数只管特征语义：
+    gc_total=guide GC、gc_seed=种子区 GC、tm=guide Tm、poly_t=guide 含 TTTT、
+    pam_n_* = PAM 首碱基 one-hot。SequenceSpec 的特征属性与
+    features_common.seq_features（向量化适配器）都从这里取定义，训练与推理不得分家。
+    """
+    s = str(seq30).upper()
+    guide = s[GUIDE_SLICE]
+    out = {
+        "gc_total": calc_gc(guide),
+        "gc_seed": calc_gc(s[SEED_SLICE]),
+        "tm": calc_tm(guide),
+        "poly_t": 1 if "TTTT" in guide else 0,
+    }
+    pam_n = s[PAM_N_SLICE]
+    for b in "ACGT":
+        out[f"pam_n_{b}"] = 1.0 if pam_n == b else 0.0
+    return out
+
+
 class SequenceSpec:
     """30bp 靶位点序列领域值对象。"""
 
-    __slots__ = ("_raw", "_seq30", "_guide", "_seed", "_pam", "_pam_n", "_flank_5p", "_flank_3p")
+    __slots__ = ("_raw", "_seq30", "_guide", "_seed", "_pam", "_pam_n", "_flank_5p", "_flank_3p", "_feat")
 
     def __init__(self, seq30: str):
         err = validate_seq30(seq30)
@@ -122,6 +149,7 @@ class SequenceSpec:
         self._pam = self._seq30[PAM_SLICE]
         self._pam_n = self._seq30[PAM_N_SLICE]
         self._flank_3p = self._seq30[FLANK_3P_SLICE]
+        self._feat = seq_feature_dict(self._seq30)
 
     @classmethod
     def parse(cls, seq: str) -> SequenceSpec:
@@ -164,23 +192,23 @@ class SequenceSpec:
 
     @property
     def gc_total(self) -> float:
-        return calc_gc(self._guide)
+        return self._feat["gc_total"]
 
     @property
     def gc_seed(self) -> float:
-        return calc_gc(self._seed)
+        return self._feat["gc_seed"]
 
     @property
     def tm(self) -> float:
-        return calc_tm(self._guide)
+        return self._feat["tm"]
 
     @property
     def poly_t(self) -> int:
-        return 1 if "TTTT" in self._guide else 0
+        return self._feat["poly_t"]
 
     @property
     def pam_onehot(self) -> dict[str, float]:
-        return {f"pam_n_{b}": 1.0 if self._pam_n == b else 0.0 for b in "ACGT"}
+        return {k: self._feat[k] for k in PAM_ONEHOT}
 
     def __repr__(self) -> str:
         return f"SequenceSpec({self._seq30[0:4]}-{self._guide}-{self._pam}-{self._seq30[27:30]})"

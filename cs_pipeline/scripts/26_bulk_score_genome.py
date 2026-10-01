@@ -32,16 +32,17 @@ import sys
 BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE))
 from scripts.features_common import FEATURE_COLS, seq_features  # noqa: E402
+from scripts.crispron_scorer import (  # noqa: E402
+    SOURCE_APPROXIMATED,
+    CrispronScorer,
+    no_real_runner,
+)
 
 IN_CSV = BASE / "results" / "grna_candidates_lettuce_0923.csv"
 OUT_DIR = BASE / "results" / "scored_genome"
 MODEL_PATH = BASE / "results" / "meta_model_hier_bb_nob879_0921.joblib"
 MANIFEST = OUT_DIR / "scored_genome_manifest.json"
 CHUNK = 20000
-
-
-def approx_crispron(deep: pd.Series, tm: pd.Series) -> pd.Series:
-    return (deep.astype(float) * 0.95 + (tm.astype(float) - 50.0) * 0.25).round(2)
 
 
 def load_meta():
@@ -64,8 +65,11 @@ def score_block(df: pd.DataFrame, meta: dict) -> pd.DataFrame:
     pred = sp.predict(out["seq30"].astype(str).tolist())
     deep = np.asarray(pred["SpCas9"].values, dtype=float)
     out["deepspcas9_score"] = np.round(deep, 4)
-    out["crispron_score"] = approx_crispron(out["deepspcas9_score"], out["tm"])
-    out["crispron_source"] = "approximated"
+    scored = CrispronScorer(real_runner=no_real_runner).score(
+        out["seq30"].astype(str), out["deepspcas9_score"], out["tm"]
+    )
+    out["crispron_score"] = scored["crispron_score"]
+    out["crispron_source"] = scored["crispron_source"]
 
     X = out[FEATURE_COLS].astype(float).values
     Z = (X - meta["mu"]) / meta["std"]
@@ -135,7 +139,7 @@ def main():
                     "input": str(IN_CSV),
                     "rows_scored": n_done,
                     "parts": part_id,
-                    "crispron_source": "approximated",
+                    "crispron_source": SOURCE_APPROXIMATED,
                     "model": MODEL_PATH.name,
                     "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
                 },

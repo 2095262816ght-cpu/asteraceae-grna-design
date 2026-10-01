@@ -1,12 +1,13 @@
 from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select, func, desc, asc
+from sqlalchemy import select, func, desc, asc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models import Gene, TargetCandidate, GeneExpression
 from backend.app.db.session import get_db
 from backend.app.services.expression_evidence import derive_expression_evidence
+from backend.app.services.expression_fitness_service import expression_fitness
 
 router = APIRouter()
 
@@ -71,6 +72,13 @@ class CandidateItem(BaseModel):
     crispron_score: Optional[float] = None
     efficiency_score: Optional[float] = None
 
+    # 表达适配度（教师反馈 #2）：poly-T 硬过滤后列表内 poly_t 恒为 False；MFE 为 spacer-only 口径
+    poly_t: bool = False
+    five_prime_g: bool = False
+    mfe_kcal: Optional[float] = None
+    mfe_risk: Optional[bool] = None
+    expression_fitness_note: Optional[str] = None
+
     # 多组学与方案3/方案5组织特异性字段
     priority_score: Optional[float] = None
     hazard_score: Optional[float] = None
@@ -92,6 +100,7 @@ class GeneSummary(BaseModel):
     strand: str
     total_candidates: int
     filtered_candidates: int
+    poly_t_filtered_count: int = 0
 
 
 class CandidatesResponse(BaseModel):
@@ -103,11 +112,25 @@ class CandidatesResponse(BaseModel):
     gene_summary: Optional[GeneSummary] = None
 
 
-@router.get("/genes", response_model=List[GeneResponse], summary="获取所有代表基因元数据")
+@router.get("/genes", response_model=List[GeneResponse], summary="获取基因元数据（支持关键字搜索与限量）")
 async def list_genes(
+    q: Optional[str] = Query(None, description="搜索关键字，模糊匹配基因 ID / 染色体 / 类型"),
+    limit: Optional[int] = Query(None, ge=1, le=60000, description="返回条数上限（缺省返回全部）"),
     db: AsyncSession = Depends(get_db),
 ) -> List[GeneResponse]:
-    stmt = select(Gene).order_by(Gene.gene_id)
+    stmt = select(Gene)
+    if q:
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Gene.gene_id.like(like),
+                Gene.chrom.like(like),
+                Gene.nlr_type.like(like),
+            )
+        )
+    stmt = stmt.order_by(Gene.gene_id)
+    if limit is not None:
+        stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -211,6 +234,14 @@ async def query_candidates(
 
     stmt = select(TargetCandidate).where(TargetCandidate.gene_id == gene_id)
 
+    # poly-T 硬过滤（教师反馈 #2）：U6 转录遇 TTTT 提前终止，含 TTTT 的候选不参与列表
+    poly_t_stmt = select(func.count()).where(
+        TargetCandidate.gene_id == gene_id,
+        TargetCandidate.seq20.like("%TTTT%"),
+    )
+    poly_t_filtered_count = (await db.execute(poly_t_stmt)).scalar() or 0
+    stmt = stmt.where(TargetCandidate.seq20.notlike("%TTTT%"))
+
     if min_score is not None:
         stmt = stmt.where(TargetCandidate.efficiency_score >= min_score)
     if exclude_centromere:
@@ -227,6 +258,7 @@ async def query_candidates(
 
     if gene_summary:
         gene_summary.filtered_candidates = total_count
+        gene_summary.poly_t_filtered_count = poly_t_filtered_count
 
     # 4. 排序处理（支持根据目标组织进行方案3组织优先指数或方案5脱靶危害排序）
     if sort_by in ("priority_score", f"priority_score_{tissue_lower}"):
@@ -258,6 +290,7 @@ async def query_candidates(
         prio = getattr(c, f"priority_score_{tissue_lower}", None)
         haz = getattr(c, f"hazard_{tissue_lower}", None)
         expr_status, expr_display, expr_note = derive_expression_evidence(c.expression_status, gene_expr)
+        fit = expression_fitness(c.seq20)
 
         items.append(
             CandidateItem(
@@ -280,6 +313,11 @@ async def query_candidates(
                 deepspcas9_score=c.deepspcas9_score,
                 crispron_score=c.crispron_score,
                 efficiency_score=c.efficiency_score,
+                poly_t=fit["poly_t"],
+                five_prime_g=fit["five_prime_g"],
+                mfe_kcal=fit["mfe_kcal"],
+                mfe_risk=fit["mfe_risk"],
+                expression_fitness_note=fit["note"],
                 priority_score=prio,
                 hazard_score=haz,
                 expression_status=expr_status,

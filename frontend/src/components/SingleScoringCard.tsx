@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   Calculator,
   Sparkles,
@@ -9,7 +9,20 @@ import {
   Zap,
   Info,
   CheckCircle2,
+  FolderPlus,
 } from 'lucide-react'
+import { DownloadButton } from './DownloadButton'
+import { ReferenceBundleImporter, type BundleSummary } from './ReferenceBundleImporter'
+
+export interface ExpressionFitness {
+  poly_t: boolean
+  poly_t_filtered?: boolean
+  five_prime_g: boolean
+  mfe_kcal: number | null
+  mfe_risk: boolean
+  mfe_threshold?: number | null
+  note?: string | null
+}
 
 export interface ScoringResult {
   job_id: string
@@ -22,8 +35,11 @@ export interface ScoringResult {
   gc_pct: number
   tm_c: number
   deepspcas9_score?: number
+  crispron_score?: number
   crispron_source?: string
   efficiency_score?: number
+  features?: Record<string, number>
+  expression_fitness?: ExpressionFitness | null
   warning_message?: string | null
   duration_seconds: number
   created_at: string
@@ -45,9 +61,66 @@ async function requestSingleScore(params: {
   return res.json()
 }
 
+export interface AnnotateResult {
+  state: 'precomputed' | 'annotated' | 'custom' | 'invalid'
+  seq30: string
+  species: string
+  bundle_id?: string
+  bundle_name?: string
+  gene_id?: string | null
+  region_type?: string | null
+  annotation_note?: string
+  hit?: { chrom: string; start: number; end: number; strand: string } | null
+  candidate?: Record<string, number | string | null> | null
+  offtarget?: { exact: number; mis1: number; mis2: number; mis3: number } | null
+  priority_scores?: Record<string, number> | null
+  priority_note?: string | null
+  percentile?: number | null
+  percentile_basis?: string | null
+  missing_requirements?: string[]
+  tks_expression?: {
+    matched_id: string
+    stage_means: Record<string, Record<string, number>>
+    peak_stage_latex?: string | null
+    peak_stage_root?: string | null
+    recommended_window: string
+    evidence_note: string
+  } | null
+  error?: string
+}
+
+async function requestAnnotate(params: {
+  seq30: string
+  bundle_id: string
+  efficiency_score?: number
+  compute_offtarget: boolean
+}): Promise<AnnotateResult> {
+  const res = await fetch('/api/v1/sequence/annotate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  if (!res.ok) throw new Error('回贴注释请求失败')
+  return res.json()
+}
+
 export const SingleScoringCard: React.FC = () => {
   const [seqInput, setSeqInput] = useState<string>('')
   const [titleInput, setTitleInput] = useState<string>('')
+  const [bundleId, setBundleId] = useState<string>('lettuce')
+  const [showImporter, setShowImporter] = useState<boolean>(false)
+  const [annotateRes, setAnnotateRes] = useState<AnnotateResult | null>(null)
+
+  const bundlesQuery = useQuery<BundleSummary[]>({
+    queryKey: ['reference-bundles'],
+    queryFn: async () => {
+      const res = await fetch('/api/v1/sequence/bundles')
+      if (!res.ok) throw new Error('参考包清单加载失败')
+      return res.json()
+    },
+  })
+  const bundles = Array.isArray(bundlesQuery.data) ? bundlesQuery.data : []
+  const currentBundle = bundles.find((b) => b.id === bundleId)
 
   const cleanSeq = seqInput.trim().toUpperCase()
   const len = cleanSeq.length
@@ -69,6 +142,33 @@ export const SingleScoringCard: React.FC = () => {
   const mutation = useMutation<ScoringResult, Error, { seq30: string; title?: string }>({
     mutationFn: requestSingleScore,
   })
+
+  // 基因组回贴三态注释（C4/C5/C6）：compute_offtarget=true 时含按需脱靶与优先指数
+  const annotateMutation = useMutation<
+    AnnotateResult,
+    Error,
+    { computeOfftarget: boolean }
+  >({
+    mutationFn: ({ computeOfftarget }) => {
+      const seq = mutation.data?.seq30
+      if (!seq) throw new Error('无可用序列')
+      return requestAnnotate({
+        seq30: seq,
+        bundle_id: bundleId,
+        efficiency_score: mutation.data?.efficiency_score ?? undefined,
+        compute_offtarget: computeOfftarget,
+      })
+    },
+    onSuccess: (data) => setAnnotateRes(data),
+  })
+
+  React.useEffect(() => {
+    if (mutation.data) {
+      setAnnotateRes(null)
+      annotateMutation.mutate({ computeOfftarget: false })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mutation.data?.seq30, bundleId])
 
   const handleFillExample = (exampleSeq: string, title: string) => {
     setSeqInput(exampleSeq)
@@ -97,6 +197,9 @@ export const SingleScoringCard: React.FC = () => {
               <p className="text-xs text-slate-500">
                 规范：4nt 5'侧翼 + 20nt 间隔识别序列 + 3nt NGG PAM + 3nt 3'侧翼 · 严格校验并持久化入库
               </p>
+              <p className="text-[11px] text-emerald-700">
+                支持任意物种 30bp 靶位点（橡胶草 / 莴苣等）：v2.1 生产模型以橡胶草 Hi-TOM 实测金标准训练，橡胶草序列属同物种对口预测 · 效率分为同一基因内候选的相对排序参考，非绝对 indel% 承诺
+              </p>
             </div>
           </div>
 
@@ -121,6 +224,16 @@ export const SingleScoringCard: React.FC = () => {
             >
               <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
               填入示例 2
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleFillExample('ATATGAAAATGTCAGGATGCCTGAAGGACA', '橡胶草 LG07.3296 实测靶点 (Hi-TOM)')
+              }
+              className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+            >
+              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+              橡胶草示例
             </button>
           </div>
         </div>
@@ -176,6 +289,37 @@ export const SingleScoringCard: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-500">回贴参考包:</span>
+              <div className="inline-flex flex-wrap rounded-lg border border-slate-200 bg-white p-0.5">
+                {(bundles.length > 0
+                  ? bundles
+                  : [{ id: 'lettuce', display_name: '莴苣 (LsT2T)', kind: 'preset' } as BundleSummary]
+                ).map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setBundleId(b.id)}
+                    className={`px-2.5 py-1.5 text-xs rounded-md transition-colors ${
+                      bundleId === b.id ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {b.display_name}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowImporter(!showImporter)}
+                className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+              >
+                <FolderPlus className="mr-1 h-3.5 w-3.5" />
+                导入参考包
+              </button>
+              {currentBundle && !currentBundle.fasta_available && (
+                <span className="text-[11px] text-amber-600">该参考包基因组文件缺失，回贴不可用</span>
+              )}
+            </div>
             <div className="flex-1 max-w-sm">
               <input
                 type="text"
@@ -211,6 +355,18 @@ export const SingleScoringCard: React.FC = () => {
             <strong>预测执行失败：</strong> {mutation.error.message}
           </div>
         )}
+
+        {showImporter && (
+          <div className="mt-4">
+            <ReferenceBundleImporter
+              onRegistered={(id) => {
+                setBundleId(id)
+                setShowImporter(false)
+                bundlesQuery.refetch()
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* 预测产物与分子解构展示卡片 */}
@@ -229,9 +385,25 @@ export const SingleScoringCard: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 text-xs text-slate-500">
-              <Clock className="h-3.5 w-3.5" />
-              <span>计算耗时: {result.duration_seconds} 秒</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center space-x-2 text-xs text-slate-500">
+                <Clock className="h-3.5 w-3.5" />
+                <span>计算耗时: {result.duration_seconds} 秒</span>
+              </div>
+
+              <DownloadButton
+                url={`/api/v1/scoring/jobs/${result.job_id}/export?format=xlsx&bundle_id=${encodeURIComponent(bundleId)}`}
+                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-60"
+                title="导出打分结果与多组学注释（缺啥写啥：缺失原因/所需数据/所用参考包/百分位口径）"
+              >
+                导出结果 (xlsx)
+              </DownloadButton>
+              <DownloadButton
+                url={`/api/v1/scoring/jobs/${result.job_id}/export?format=csv&bundle_id=${encodeURIComponent(bundleId)}`}
+                title="CSV 格式导出（仅数据表）"
+              >
+                CSV
+              </DownloadButton>
             </div>
           </div>
 
@@ -270,8 +442,13 @@ export const SingleScoringCard: React.FC = () => {
 
             {/* 模型来源与降级状态 */}
             <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-4">
-              <div className="text-xs font-semibold text-slate-600">CRISPRon 模型来源</div>
-              <div className="mt-2">
+              <div className="text-xs font-semibold text-slate-600">CRISPRon 预测分与来源</div>
+              <div className="mt-2 flex items-center space-x-2">
+                <span className="text-3xl font-extrabold font-mono text-slate-800">
+                  {result.crispron_score !== undefined && result.crispron_score !== null
+                    ? result.crispron_score.toFixed(1)
+                    : '-'}
+                </span>
                 <span
                   className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold ${
                     result.crispron_source === 'wsl_real'
@@ -357,6 +534,327 @@ export const SingleScoringCard: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* 表达适配度（U6 表达）小面板：Poly-T / 5'G / MFE 三指标 */}
+          <div>
+            <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+              <Dna className="h-4 w-4 text-emerald-600" />
+              <span>表达适配度（U6 表达）</span>
+            </h5>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+              {result.expression_fitness ? (
+                <>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 text-xs">
+                    {/* ① Poly-T：U6 转录终止信号 */}
+                    <div
+                      className={`rounded-lg border px-3 py-2 ${
+                        result.expression_fitness.poly_t
+                          ? 'border-rose-200 bg-rose-50'
+                          : 'border-emerald-200 bg-emerald-50'
+                      }`}
+                    >
+                      <div className="text-[11px] font-semibold text-slate-500">Poly-T（U6 终止信号）</div>
+                      {result.expression_fitness.poly_t ? (
+                        <p className="mt-1 flex items-start space-x-1.5 font-semibold text-rose-700">
+                          <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                          <span>含 TTTT（U6 转录终止，应避免）</span>
+                        </p>
+                      ) : (
+                        <p className="mt-1 font-semibold text-emerald-700">无 TTTT ✓</p>
+                      )}
+                      {result.expression_fitness.poly_t_filtered && (
+                        <p className="mt-0.5 text-[10px] text-slate-400">（poly-T 经侧翼过滤判定）</p>
+                      )}
+                    </div>
+
+                    {/* ② 5'G：U6 转录起始偏好 */}
+                    <div
+                      className={`rounded-lg border px-3 py-2 ${
+                        result.expression_fitness.five_prime_g
+                          ? 'border-emerald-200 bg-emerald-50'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="text-[11px] font-semibold text-slate-500">5' 端碱基（U6 起始偏好）</div>
+                      {result.expression_fitness.five_prime_g ? (
+                        <p className="mt-1 font-semibold text-emerald-700">G-start ✓（U6 起始偏好）</p>
+                      ) : (
+                        <p className="mt-1 font-semibold text-slate-500">5' 非 G</p>
+                      )}
+                    </div>
+
+                    {/* ③ MFE：spacer 自折叠自由能 */}
+                    <div
+                      className={`rounded-lg border px-3 py-2 ${
+                        result.expression_fitness.mfe_risk
+                          ? 'border-rose-200 bg-rose-50'
+                          : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="text-[11px] font-semibold text-slate-500">MFE（spacer 自折叠）</div>
+                      {result.expression_fitness.mfe_kcal === null ||
+                      result.expression_fitness.mfe_kcal === undefined ? (
+                        <p className="mt-1 font-semibold text-slate-500">ViennaRNA 不可用</p>
+                      ) : (
+                        <>
+                          <p
+                            className={`mt-1 font-mono text-lg font-bold ${
+                              result.expression_fitness.mfe_risk ? 'text-rose-700' : 'text-emerald-700'
+                            }`}
+                          >
+                            {result.expression_fitness.mfe_kcal.toFixed(2)}{' '}
+                            <span className="font-sans text-[11px] font-medium text-slate-500">kcal/mol</span>
+                          </p>
+                          {result.expression_fitness.mfe_risk ? (
+                            <p className="mt-0.5 flex items-start space-x-1 font-semibold text-rose-600">
+                              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                              <span>&Delta;G &lt; -5 kcal/mol 自折叠风险</span>
+                            </p>
+                          ) : (
+                            <p className="mt-0.5 text-emerald-600">自折叠风险可接受</p>
+                          )}
+                        </>
+                      )}
+                      <p className="mt-1 text-[10px] text-slate-400">
+                        -5 kcal/mol 为风险警示线（参考阈值，非绝对判据）
+                      </p>
+                    </div>
+                  </div>
+
+                  {result.expression_fitness.note && (
+                    <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+                      {result.expression_fitness.note}
+                    </p>
+                  )}
+                </>
+              ) : (
+                /* 旧响应未返回 expression_fitness：降级显示占位 */
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 text-xs">
+                  {['Poly-T（U6 终止信号）', "5' 端碱基（U6 起始偏好）", 'MFE（spacer 自折叠）'].map(
+                    (label) => (
+                      <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <div className="text-[11px] font-semibold text-slate-500">{label}</div>
+                        <p className="mt-1 font-mono text-lg font-bold text-slate-400">—</p>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 10 维模型特征向量（定义单一来源：features_common.seq_features，与训练/推理同口径） */}
+          {result.features && (
+            <div>
+              <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+                <Info className="h-4 w-4 text-emerald-600" />
+                <span>10 维模型特征向量（单一来源：features_common.seq_features）</span>
+              </h5>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                {[
+                  ['gc_total', 'GC 总量'],
+                  ['gc_seed', 'GC 种子区'],
+                  ['tm', 'Tm (NN, °C)'],
+                  ['poly_t', 'poly-T (0/1)'],
+                  ['pam_n_A', 'PAM N=A'],
+                  ['pam_n_C', 'PAM N=C'],
+                  ['pam_n_G', 'PAM N=G'],
+                  ['pam_n_T', 'PAM N=T'],
+                ].map(([k, label]) => (
+                  <div key={k} className="rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5">
+                    <span className="text-slate-500">{label}:</span>{' '}
+                    <strong className="text-slate-800 font-mono">
+                      {result.features && result.features[k] !== undefined
+                        ? Number(result.features[k]).toFixed(3)
+                        : '-'}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 基因组回贴三态注释（C4 命中复用内嵌 / C5 按需脱靶 / C6 按需多组学） */}
+          {(annotateRes || annotateMutation.isPending) && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  基因组回贴注释（{annotateRes?.bundle_name ?? currentBundle?.display_name ?? '参考包'}）
+                </h5>
+                {annotateRes && (annotateRes.state === 'annotated' || annotateRes.state === 'custom') && (
+                  <button
+                    type="button"
+                    onClick={() => annotateMutation.mutate({ computeOfftarget: true })}
+                    disabled={annotateMutation.isPending}
+                    className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                  >
+                    {annotateMutation.isPending ? '脱靶扫描中…' : '计算脱靶 + 优先指数'}
+                  </button>
+                )}
+              </div>
+
+              {annotateMutation.isPending && (
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+                  <span>正在运行基因组回贴与按需脱靶扫描（全基因组比对，约 1 分钟）…</span>
+                </div>
+              )}
+
+              {annotateRes && !annotateMutation.isPending && (
+                <>
+                  <div className="flex items-start gap-2">
+                    <span
+                      className={`inline-flex shrink-0 items-center rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                        annotateRes.state === 'precomputed'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : annotateRes.state === 'annotated'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {annotateRes.state === 'precomputed'
+                        ? '命中预计算候选'
+                        : annotateRes.state === 'annotated'
+                        ? '基因组回贴命中'
+                        : '自定义序列（未锚定）'}
+                    </span>
+                    <span className="text-xs text-slate-600">{annotateRes.annotation_note}</span>
+                  </div>
+
+                  {annotateRes.state === 'precomputed' && annotateRes.candidate && (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                      {[
+                        ['脱靶 mis≤3', annotateRes.candidate.offtarget_count_mis3],
+                        ['优先指数(叶)', annotateRes.candidate.priority_score_leaf],
+                        ['危害指数(叶)', annotateRes.candidate.hazard_leaf],
+                        ['表达证据', annotateRes.candidate.expression_status],
+                        ['面板内位点', annotateRes.candidate.n_intra_panel_sites],
+                      ].map(([label, val]) => (
+                        <div key={String(label)} className="rounded-lg bg-white border border-slate-200 px-2.5 py-1.5">
+                          <span className="text-slate-500">{label}:</span>{' '}
+                          <strong className="text-slate-800 font-mono">{val === null || val === undefined ? '—' : String(val)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {(annotateRes.state === 'annotated' || annotateRes.state === 'custom') && (
+                    <>
+                      {annotateRes.offtarget && (
+                        <div>
+                          <div className="text-[11px] font-semibold text-slate-500 mb-1">
+                            按需脱靶分档（口径同 Cas-OFFinder 聚合）
+                          </div>
+                          <div className="grid grid-cols-4 gap-2 text-xs">
+                            {[
+                              ['exact', annotateRes.offtarget.exact],
+                              ['mis≤1', annotateRes.offtarget.mis1],
+                              ['mis≤2', annotateRes.offtarget.mis2],
+                              ['mis≤3', annotateRes.offtarget.mis3],
+                            ].map(([label, val]) => (
+                              <div key={String(label)} className="rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-center">
+                                <span className="text-slate-500">{label}</span>
+                                <p className="font-mono font-bold text-slate-800">{String(val)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {annotateRes.priority_scores && (
+                        <div>
+                          <div className="text-[11px] font-semibold text-slate-500 mb-1">
+                            按需组织优先指数（方案3 公式与 Tab 1 同源；组织键随参考包表达口径）
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                            {Object.entries(annotateRes.priority_scores).map(([t, v]) => (
+                              <div key={t} className="rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-center">
+                                <span className="text-slate-500">{t}</span>
+                                <p className="font-mono font-bold text-emerald-700">
+                                  {typeof v === 'number' ? v.toFixed(3) : '—'}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {annotateRes.priority_note && (
+                        <p className="text-[11px] text-slate-500">{annotateRes.priority_note}</p>
+                      )}
+                      {annotateRes.percentile !== null && annotateRes.percentile !== undefined && (
+                        <div className="rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-xs">
+                          <span className="text-slate-500">效率百分位:</span>{' '}
+                          <strong className="text-slate-800 font-mono">
+                            {(annotateRes.percentile * 100).toFixed(1)}%
+                          </strong>
+                          {annotateRes.percentile_basis && (
+                            <span className="ml-2 text-[11px] text-slate-500">{annotateRes.percentile_basis}</span>
+                          )}
+                        </div>
+                      )}
+                      {annotateRes.missing_requirements && annotateRes.missing_requirements.length > 0 && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800">
+                          <strong>缺数据说明：</strong>补齐以下数据后可计算对应指标：
+                          {annotateRes.missing_requirements.join('；')}
+                        </div>
+                      )}
+                      {annotateRes.tks_expression && (
+                        <div>
+                          <div className="text-[11px] font-semibold text-slate-500 mb-1">
+                            橡胶草 S1–S9 时相表达（{annotateRes.tks_expression.matched_id} · 方案6）
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-[11px] mb-1.5">
+                            <span className="rounded-lg bg-blue-50 border border-blue-200 px-2 py-0.5 text-blue-700">
+                              胶乳峰值 {annotateRes.tks_expression.peak_stage_latex || '—'}
+                            </span>
+                            <span className="rounded-lg bg-blue-50 border border-blue-200 px-2 py-0.5 text-blue-700">
+                              根峰值 {annotateRes.tks_expression.peak_stage_root || '—'}
+                            </span>
+                            <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-emerald-700 font-semibold">
+                              推荐转化窗口 {annotateRes.tks_expression.recommended_window}
+                            </span>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="text-[11px] w-full">
+                              <thead>
+                                <tr className="text-slate-500">
+                                  <th className="px-1.5 py-0.5 text-left font-medium">阶段</th>
+                                  {['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9'].map((s) => (
+                                    <th key={s} className="px-1.5 py-0.5 text-right font-medium">{s}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {[
+                                  ['gen', '根'],
+                                  ['jiaoru', '胶乳'],
+                                  ['ye', '叶'],
+                                  ['hua', '花'],
+                                  ['huating', '花葶'],
+                                ].map(([k, label]) => (
+                                  <tr key={k} className="border-t border-slate-100">
+                                    <td className="px-1.5 py-0.5 text-slate-600">{label}</td>
+                                    {['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9'].map((s) => {
+                                      const v = annotateRes.tks_expression!.stage_means[s]?.[k]
+                                      return (
+                                        <td key={s} className="px-1.5 py-0.5 text-right font-mono text-slate-800">
+                                          {v !== undefined ? v.toFixed(1) : '—'}
+                                        </td>
+                                      )
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          <p className="mt-1 text-[11px] text-slate-500">{annotateRes.tks_expression.evidence_note}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {result.warning_message && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800 flex items-start space-x-2">

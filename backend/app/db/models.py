@@ -113,6 +113,25 @@ class TargetCandidate(Base):
     )
 
 
+class ReferenceBundle(Base):
+    """用户注册的参考包：参考基因组 FASTA + 可选 GFF + 可选表达矩阵 + 组织列映射。
+
+    预置包（lettuce 莴苣 / tks 橡胶草）由代码定义不落库；本表仅存用户路径注册的导入包。
+    """
+    __tablename__ = "reference_bundles"
+
+    id = Column(String(64), primary_key=True, doc="参考包 ID（slug），如 rubber_dandelion_v2")
+    display_name = Column(String(128), nullable=False, doc="展示名，如 橡胶草自定义参考")
+    fasta_path = Column(Text, nullable=False, doc="参考基因组 FASTA 服务端路径（.fai 缺失时自动构建）")
+    gff_path = Column(Text, nullable=True, doc="基因注释 GFF3 路径（可选，提供后可做基因定位）")
+    expression_path = Column(Text, nullable=True, doc="表达矩阵路径 csv/xlsx（可选）")
+    expression_layout = Column(String(32), default="tissue_tpm", doc="表达矩阵布局: tissue_tpm | none")
+    expression_id_rule = Column(String(32), default="same", doc="基因 ID 匹配规则: same | evm_tu_to_model")
+    tissue_columns = Column(Text, nullable=True, doc='JSON 组织列映射 {"叶": "Leaf_tpm", ...}')
+    notes = Column(Text, nullable=True, doc="备注（口径/来源说明）")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class ScoringJob(Base):
     """打分任务实体。"""
     __tablename__ = "scoring_jobs"
