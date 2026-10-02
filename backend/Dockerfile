@@ -54,7 +54,7 @@ ENV CRISPR_PYTHON=/opt/venv-score/bin/python \
 
 # 10. 构建期 smoke：锚点序列真值全链路断言（已知真值 DeepSpCas9=71.2494 / CRISPRon=59.61），断则 build 失败
 #     锁死：TF2.9×genet×本地权重、TF2.14×keras SavedModel、RNAfold 2.6.4、GLMM joblib、native 分支 PATH 解析
-RUN /opt/venv-score/bin/python -c "import subprocess,sys;p=subprocess.run([sys.executable,'/app/cs_pipeline/app/score_deepspcas9_cli.py'],input='ATCGGCTAAGCTAGGCTAGCATCGTGGATC\n',capture_output=True,text=True);assert p.returncode==0,p.stderr[-2000:];line=p.stdout.strip().splitlines()[-1];f=line.split(',');assert abs(float(f[1])-71.2494)<=0.05,line;assert f[2]=='wsl_real',line;print('CLI smoke OK:',line)"
+RUN /opt/venv-score/bin/python -c "import subprocess,sys;p=subprocess.run([sys.executable,'/app/cs_pipeline/app/score_deepspcas9_cli.py'],input='ATCGGCTAAGCTAGGCTAGCATCGTGGATC\n',capture_output=True,text=True);assert p.returncode==0,p.stderr[-2000:];line=p.stdout.strip().splitlines()[-1];f=line.split(',');assert abs(float(f[1])-71.2494)<=0.05,line;assert abs(float(f[2])-59.61)<=0.05,line;assert f[3]=='wsl_real',line;print('CLI smoke OK:',line)"
 RUN /opt/venv-score/bin/python -c "import sys;sys.path.insert(0,'/app/cs_pipeline');from scripts.predict import predict_details;r=predict_details(['ATCGGCTAAGCTAGGCTAGCATCGTGGATC']).iloc[0];assert r['crispron_source']=='wsl_real',dict(r);assert abs(float(r['crispron_score'])-59.61)<=0.5,dict(r);print('CRISPRon smoke OK:',dict(r))"
 
 EXPOSE 8000
