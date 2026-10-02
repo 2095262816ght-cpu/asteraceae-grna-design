@@ -1,9 +1,14 @@
 import '@testing-library/jest-dom/vitest'
 import React from 'react'
-import { vi } from 'vitest'
+import { beforeEach, vi } from 'vitest'
 
-// 全局 Mock echarts-for-react 以支持 jsdom 测试环境
-vi.mock('echarts-for-react', () => ({
+// URL 状态持久化：每个用例恢复干净 URL，避免用例间参数泄漏
+beforeEach(() => {
+  window.history.replaceState(null, '', window.location.pathname)
+})
+
+// 全局 Mock echarts-for-react 核心绑定以支持 jsdom 测试环境
+vi.mock('echarts-for-react/lib/core', () => ({
   default: ({ onEvents }: { onEvents?: Record<string, (e: unknown) => void> }) =>
     React.createElement(
       'div',

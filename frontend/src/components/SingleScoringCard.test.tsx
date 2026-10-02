@@ -21,6 +21,12 @@ describe('SingleScoringCard', () => {
       const json = (body: unknown) =>
         ({ ok: true, json: async () => body }) as Response
       if (url.includes('/sequence/bundles')) return json([])
+      if (url.includes('/export?'))
+        return {
+          ok: true,
+          headers: new Headers({ 'Content-Disposition': 'attachment; filename="export.xlsx"' }),
+          blob: async () => new Blob(['x']),
+        } as unknown as Response
       if (url.includes('/sequence/annotate'))
         return json({
           state: 'custom',
@@ -85,15 +91,23 @@ describe('SingleScoringCard', () => {
       expect(screen.getByText(/wsl_real/i)).toBeInTheDocument()
     })
 
-    // 结果卡片提供 xlsx / CSV 导出入口，指向该任务的导出接口
-    expect(screen.getByRole('link', { name: /导出结果 \(xlsx\)/i })).toHaveAttribute(
-      'href',
-      '/api/v1/scoring/jobs/job-123456/export?format=xlsx&bundle_id=lettuce'
-    )
-    expect(screen.getByRole('link', { name: /CSV/i })).toHaveAttribute(
-      'href',
-      '/api/v1/scoring/jobs/job-123456/export?format=csv&bundle_id=lettuce'
-    )
+    // 结果卡片提供 xlsx / CSV 导出入口：点击后请求对应导出接口并触发浏览器下载
+    URL.createObjectURL = vi.fn(() => 'blob:mock')
+    URL.revokeObjectURL = vi.fn()
+    await userEvent.click(screen.getByRole('button', { name: /导出结果 \(xlsx\)/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^CSV$/i }))
+    await waitFor(() => {
+      const urls = (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) =>
+        String(c[0])
+      )
+      expect(
+        urls.some((u) => u.includes('/api/v1/scoring/jobs/job-123456/export?format=xlsx&bundle_id=lettuce'))
+      ).toBe(true)
+      expect(
+        urls.some((u) => u.includes('/api/v1/scoring/jobs/job-123456/export?format=csv&bundle_id=lettuce'))
+      ).toBe(true)
+    })
+    expect(screen.queryByText(/服务未连接/)).not.toBeInTheDocument()
   })
 
   it('shows placeholder dashes when expression_fitness is missing (legacy response)', async () => {
@@ -118,6 +132,12 @@ describe('SingleScoringCard', () => {
       const url = String(typeof input === 'string' ? input : (input as Request).url)
       const json = (body: unknown) => ({ ok: true, json: async () => body }) as Response
       if (url.includes('/sequence/bundles')) return json([])
+      if (url.includes('/export?'))
+        return {
+          ok: true,
+          headers: new Headers({ 'Content-Disposition': 'attachment; filename="export.xlsx"' }),
+          blob: async () => new Blob(['x']),
+        } as unknown as Response
       if (url.includes('/sequence/annotate'))
         return json({
           state: 'custom',
@@ -182,6 +202,12 @@ describe('SingleScoringCard', () => {
       const url = String(typeof input === 'string' ? input : (input as Request).url)
       const json = (body: unknown) => ({ ok: true, json: async () => body }) as Response
       if (url.includes('/sequence/bundles')) return json([])
+      if (url.includes('/export?'))
+        return {
+          ok: true,
+          headers: new Headers({ 'Content-Disposition': 'attachment; filename="export.xlsx"' }),
+          blob: async () => new Blob(['x']),
+        } as unknown as Response
       if (url.includes('/sequence/annotate'))
         return json({
           state: 'custom',
@@ -235,6 +261,12 @@ describe('SingleScoringCard', () => {
       const url = String(typeof input === 'string' ? input : (input as Request).url)
       const json = (body: unknown) => ({ ok: true, json: async () => body }) as Response
       if (url.includes('/sequence/bundles')) return json([])
+      if (url.includes('/export?'))
+        return {
+          ok: true,
+          headers: new Headers({ 'Content-Disposition': 'attachment; filename="export.xlsx"' }),
+          blob: async () => new Blob(['x']),
+        } as unknown as Response
       if (url.includes('/sequence/annotate'))
         return json({
           state: 'annotated',

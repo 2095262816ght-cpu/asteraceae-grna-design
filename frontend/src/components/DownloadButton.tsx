@@ -54,13 +54,13 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({ url, title, clas
         onClick={handleDownload}
         disabled={busy}
         title={title}
-        className={className ?? 'inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-60'}
+        className={className ?? 'inline-flex items-center gap-1 rounded-control border border-line px-2.5 py-1.5 text-xs text-ink-muted transition-colors hover:bg-surface-sunken disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40'}
       >
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
         <span>{busy ? '生成中…' : children}</span>
       </button>
       {errMsg && (
-        <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-rose-600">
+        <span className="mt-1 inline-flex items-center gap-1 text-2xs text-rose-600">
           <AlertTriangle className="h-3 w-3" />
           {errMsg}
         </span>

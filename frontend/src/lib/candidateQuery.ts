@@ -6,7 +6,8 @@
 //   3. 导出前的逐条脱靶预计算循环（后端工作流编排，UI 只观察进度）。
 // 排序帮助条目取自 /api/v1/meta/sort-help（公式文案单点定义在 cs_pipeline.core.ranking_semantics）。
 
-export type TargetTissue = 'Leaf' | 'Root' | 'Stem' | 'Flower' | 'Seed'
+import type { TargetTissue } from './tissues'
+export type { TargetTissue }
 
 export interface CandidateItem {
   id: number
@@ -157,5 +158,5 @@ export async function fetchSortHelp(tissueName: string): Promise<SortHelpItem[]>
   const res = await fetch(`/api/v1/meta/sort-help?${sp.toString()}`)
   if (!res.ok) throw new Error('获取排序帮助失败')
   const data = await res.json()
-  return data.items
+  return data.items ?? []
 }
