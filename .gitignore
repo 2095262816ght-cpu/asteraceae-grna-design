@@ -15,6 +15,8 @@ Thumbs.db
 论文/
 *.pdf
 *.docx
+*.doc
+*.pptx
 *.xlsx
 *.xls
 *.fastq
@@ -26,9 +28,37 @@ Thumbs.db
 
 # 会话一次性排查脚本与转储（留痕不入库）
 _scratch/
+_scratchprobe_*.txt
+
+# 测试/工具缓存与临时工作区（图片生成、PPT 中间件等）
+.pytest_cache/
+.scratch/
+.impeccable/
+output/
+tmp/
+vibe_images/
+
+# 根目录 results/ 为大表冗余副本（正本在 cs_pipeline/results/）
+/results/
+
+# 离线交付包产物（体积超 GitHub 限制，仅本地/网盘分发）
+deploy_offline/
+deploy_offline.zip
+
+# 一次性排查/审计脚本（数据治理历史留痕，不随代码交付）
+_check_*.py
+_fix_*.py
+_verify_*.py
+_inspect_*.py
+_pam_*.py
+_list_*.py
+_diff_*.py
+_genome_verify.py
+_gff_peek.py
 
 # Database & Frontend builds
 *.db
+*.db-journal
 *.sqlite
 node_modules/
 frontend/node_modules/
