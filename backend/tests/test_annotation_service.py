@@ -2,9 +2,9 @@
 from pathlib import Path
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
-from backend.app.db.models import Base, Gene, GeneExpression, TargetCandidate
+from backend.app.db.models import Base, Gene, GeneExpression, OfftargetProfileCache, TargetCandidate
 from backend.app.db.session import AsyncSessionLocal, engine
 from backend.app.services import gene_candidate_service as gc_service
 from backend.app.services import reference_bundle_service as rb_service
@@ -24,6 +24,7 @@ async def setup_db():
         await session.execute(delete(TargetCandidate))
         await session.execute(delete(GeneExpression))
         await session.execute(delete(Gene))
+        await session.execute(delete(OfftargetProfileCache))
         await session.commit()
     yield
 
@@ -131,6 +132,19 @@ async def test_state_annotated_with_on_demand_profile(tmp_path, monkeypatch):
     assert res["priority_scores"] is not None
     assert all(0.0 <= v <= 1.0 for v in res["priority_scores"].values())
     assert "rank(pct=True) 同口径" in (res["priority_note"] or "")
+
+    # 按需计算结果落库（幂等）：进程重启后任意入口导出仍可复用
+    async with AsyncSessionLocal() as session:
+        row = (
+            await session.execute(
+                select(OfftargetProfileCache).where(
+                    OfftargetProfileCache.genome_key == str(fasta),
+                    OfftargetProfileCache.seq20 == SEQ_GENOME[4:24],
+                )
+            )
+        ).scalar_one()
+    assert row.mis3 == res["offtarget"]["mis3"]
+    assert row.bundle_id == "mini"
 
 
 @pytest.mark.anyio

@@ -22,7 +22,7 @@
 4. **多组学时空表达看板与转化窗口决策**：
    - 整合莴苣 5 组织（根、茎、叶、花、种子）均值表达与 16 批生物学重复，提供组织特异性敲除适宜性诊断；
    - 整合橡胶草 S1–S9 发育时相多组织表达谱，量化产胶关键通路（CPT、REF、SRPP）的推荐转化窗口。
-5. **交互式 Web 系统（Streamlit）**：
+5. **交互式 Web 系统（React 19 + FastAPI 全栈）**：
    - 交付开箱即用的 Web 系统：全基因组靶基因输入端（莴苣 45,981 个 `LsT2T1G*` 基因 + 49 个 NLR 代表基因 `LsaT2T01G*` 双注释命名空间，即输即搜），支持候选推荐表过滤下载与自定义 30bp 序列实时打分（WSL CRISPRon 真实调用与降级溯源）。
 
 ---
@@ -33,28 +33,32 @@
 
 | 方式 | 操作说明 |
 |---|---|
-| **一键启动 Demo** | 直接双击根目录下的 [`一键启动Demo.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AE%E5%90%AF%E5%8A%A8Demo.bat)（自动检测 Conda 与 Python 环境并拉起浏览器） |
-| **一键部署环境（国内源）** | 直接双击根目录下的 [`一键部署_国内源.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2_%E5%9B%BD%E5%86%85%E6%BA%90.bat)（自动通过清华开源镜像安装依赖与权重） |
-| **命令行启动** | 在终端激活 `grna-demo` 环境后运行：<br>`cd cs_pipeline && streamlit run app/app.py` |
+| **一键启动全栈系统** | 直接双击根目录下的 [`一键启动全栈系统.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AE%E5%90%AF%E5%8A%A8%E5%85%A8%E6%A0%88%E7%B3%BB%E7%BB%9F.bat)（自动灌库并拉起 FastAPI :8000 与 React 前端 :5173） |
+| **Docker 一键启动** | 直接双击 [`一键启动Docker.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AE%E5%90%AF%E5%8A%A8Docker.bat)（构建镜像并拉起数据库、后端与前端，访问 http://localhost） |
+| **一键部署打分引擎（国内源）** | 直接双击 [`一键部署_国内源.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2_%E5%9B%BD%E5%86%85%E6%BA%90.bat)（自动通过清华开源镜像安装 crispr 打分环境与模型权重） |
 
 ---
 
 ## 📂 项目结构总览
 
-全部核心代码、数据、模型与文档集中于 [`cs_pipeline/`](file:///d:/lifesciencechallenge/cs_pipeline/)：
+算法管线代码、数据、模型与文档集中于 [`cs_pipeline/`](file:///d:/lifesciencechallenge/cs_pipeline/)，全栈系统位于 `backend/`（FastAPI）与 `frontend/`（React 19）：
 
 ```text
 d:\lifesciencechallenge\
-├── 一键启动Demo.bat             # 根目录极速启动入口
-├── 一键部署_国内源.bat          # 根目录极速部署入口（清华镜像）
+├── 一键启动全栈系统.bat         # 根目录全栈启动入口（FastAPI + React）
+├── 一键启动Docker.bat           # Docker 一键启动入口
+├── 一键部署_国内源.bat          # 打分引擎环境极速部署入口（清华镜像）
 ├── README.md                   # 本文件（项目导航总门户）
 ├── _check_*.py / _fix_*.py     # Hi-TOM 原始测序数据 7 类问题核对与审计脚本（38 个）
+├── backend/                    # FastAPI 后端（API、服务层、数据库灌库与自动化测试）
+├── frontend/                   # React 19 + TypeScript + Vite + Tailwind CSS 前端
 └── cs_pipeline/                # 主流水线工程目录
-    ├── app/                    # Streamlit Web 应用与打分子进程
-    │   ├── app.py              # Web 界面交互主程序
-    │   ├── score_deepspcas9_cli.py # 子进程打分通信接口
-    │   ├── expression_visualizer.py# 多组织表达看板组件
-    │   └── tks_window_visualizer.py# 橡胶草产胶时相决策组件
+    ├── app/                    # 打分子进程与深度模块
+    │   ├── inference_client.py # 跨环境模型推理客户端接缝
+    │   ├── batch_importer.py   # 批量表格导入 IO 适配器
+    │   ├── batch_session.py    # 批量打分生命周期深度模块
+    │   ├── recommendation_engine.py # 候选推荐与多组学决策引擎
+    │   └── score_deepspcas9_cli.py # 子进程打分通信接口
     ├── scripts/                # 完整流程执行脚本（00–25）
     │   ├── 15_train_hierarchical_bb_nob879.py # 生产模型训练主脚本
     │   ├── 24_model_comparison_nob879.py      # 同口径模型横向对比总表
@@ -81,7 +85,7 @@ d:\lifesciencechallenge\
 
 ## 📑 关键文档导航
 
-- [流水线技术与复现手册](file:///d:/lifesciencechallenge/cs_pipeline/README.md)：环境搭建、依赖安装、从原始测序到 Web Demo 的全流程复现步骤；
+- [流水线技术与复现手册](file:///d:/lifesciencechallenge/cs_pipeline/README.md)：环境搭建、依赖安装、从原始测序到 Web 系统的全流程复现步骤；
 - [项目资料库索引](file:///d:/lifesciencechallenge/cs_pipeline/docs/README.md)：分工详案、工作报告、理论笔记、文献调研与赛事材料总目录；
 - [项目全景审计进展报告](file:///d:/lifesciencechallenge/cs_pipeline/docs/project_progress_report.md)：数据治理闭环、模型突破历程、工程阻断闭环与多组学实施方案；
 - [生产模型卡（v2.1）](file:///d:/lifesciencechallenge/cs_pipeline/results/model_card_hier_bb_nob879_0921.md)：数据来源、特征定义、评估指标、双 guide 错配说明与已知标签口径局限分析。

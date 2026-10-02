@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -45,6 +45,10 @@ class SingleScoringRequest(BaseModel):
         None,
         description="任务自定义备注名称",
         json_schema_extra={"example": "测试靶点"},
+    )
+    bundle_id: Optional[str] = Field(
+        None,
+        description="注释/导出所用参考包 ID（预置 lettuce/tks 或导入包；缺省 lettuce）",
     )
 
 
@@ -128,6 +132,7 @@ async def score_single(
     res = await execute_single_scoring(
         seq30=payload.seq30,
         title=payload.title,
+        bundle_id=payload.bundle_id,
         db=db,
     )
     from backend.app.services.expression_fitness_service import expression_fitness
@@ -324,6 +329,23 @@ async def get_scoring_job_detail(
     )
 
 
+@router.delete(
+    "/scoring/jobs/{job_id}",
+    summary="删除打分任务（连带逐条序列明细；已算好的脱靶/多组学数据保留）",
+)
+async def delete_scoring_job(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    job = await db.get(ScoringJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"未找到 ID 为 '{job_id}' 的打分任务")
+    await db.execute(delete(ScoringJobItem).where(ScoringJobItem.job_id == job_id))
+    await db.execute(delete(ScoringJob).where(ScoringJob.id == job_id))
+    await db.commit()
+    return {"deleted": True, "id": job_id}
+
+
 @router.get(
     "/scoring/jobs/{job_id}/export",
     summary="导出打分任务结果（三态多组学注释 + 缺失原因/所需数据/所用参考包/百分位口径）",
@@ -331,7 +353,10 @@ async def get_scoring_job_detail(
 async def download_scoring_job_export(
     job_id: str,
     format: str = Query("xlsx", pattern="^(csv|xlsx)$", description="导出格式"),
-    bundle_id: str = Query("lettuce", description="多组学注释所用参考包 ID（预置 lettuce/tks 或导入包）"),
+    bundle_id: Optional[str] = Query(
+        None,
+        description="多组学注释所用参考包 ID（预置 lettuce/tks 或导入包）；缺省沿用任务记录的参考包，再缺省 lettuce",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     from backend.app.services.export_service import generate_scoring_job_export_bytes

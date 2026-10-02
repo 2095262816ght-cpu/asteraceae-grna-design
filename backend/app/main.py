@@ -6,14 +6,15 @@ from backend.app.api.v1.router import api_router
 from backend.app.core.config import settings
 from backend.app.db.models import Base
 from backend.app.db.seed import seed_candidates_if_empty
-from backend.app.db.session import engine
+from backend.app.db.session import engine, sync_missing_columns
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动时确保数据库表存在并自动完成 Seed 数据灌入
+    # 启动时确保数据库表存在并自动完成 Seed 数据灌入（旧库缺列自动补齐）
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(sync_missing_columns)
     await seed_candidates_if_empty()
     yield
 

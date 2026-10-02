@@ -1,13 +1,18 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "CRISPR/Cas9 基因编辑设计与多组学决策系统"
     VERSION: str = "2.1.0"
     API_V1_STR: str = "/api/v1"
-    
-    # 默认使用本地 SQLite 异步模式，当指定环境变量 DATABASE_URL 时切换为 PostgreSQL
-    DATABASE_URL: str = "sqlite+aiosqlite:///./lifescience.db"
+
+    # 默认使用本地 SQLite 异步模式，当指定环境变量 DATABASE_URL 时切换为 PostgreSQL；
+    # 落盘锚定项目根（非启动时工作目录），避免在哪儿启动就在哪儿生库
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{(_PROJECT_ROOT / 'lifescience.db').as_posix()}"
     
     # 允许的跨域来源
     CORS_ORIGINS: list[str] = [

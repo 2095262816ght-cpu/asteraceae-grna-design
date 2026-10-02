@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from sqlalchemy import delete
 
-from backend.app.db.models import Base, Gene, ScoringJob, ScoringJobItem, TargetCandidate
+from backend.app.db.models import Base, Gene, OfftargetProfileCache, ScoringJob, ScoringJobItem, TargetCandidate
 from backend.app.db.session import AsyncSessionLocal, engine
 from backend.app.services import export_service
 from backend.app.services import offtarget_service
@@ -28,6 +28,7 @@ async def setup_db():
         await session.execute(delete(ScoringJob))
         await session.execute(delete(TargetCandidate))
         await session.execute(delete(Gene))
+        await session.execute(delete(OfftargetProfileCache))
         await session.commit()
     yield
 
@@ -136,3 +137,61 @@ async def test_scoring_job_export_xlsx_has_template_sheet(monkeypatch):
     assert "数据表" in wb.sheetnames
     assert "数据需求模板" in wb.sheetnames
     assert "指标方法说明" in wb.sheetnames
+
+
+@pytest.mark.anyio
+async def test_scoring_job_export_reuses_persisted_profile(monkeypatch):
+    # 进程内缓存为空（模拟后端重启）：应复用持久化表里的按需计算结果
+    job_id = await _make_job()
+
+    bundle = ResolvedBundle(id="mini", display_name="测试参考包", kind="imported", fasta=Path("fake.fa"),
+                            gene_source="db", expression_layout="db")
+
+    async def _fake_resolve(db, bundle_id):
+        return bundle
+
+    monkeypatch.setattr(rb_service, "resolve_bundle", _fake_resolve)
+    monkeypatch.setattr(export_service.offtarget_service, "peek_profiles", lambda seq20s, fasta: {})
+
+    async with AsyncSessionLocal() as session:
+        session.add(OfftargetProfileCache(
+            genome_key=str(Path("fake.fa")), seq20=SEQ_HIT[4:24],
+            exact=1, mis1=1, mis2=2, mis3=7, bundle_id="mini",
+        ))
+        await session.commit()
+
+    async with AsyncSessionLocal() as session:
+        content, media_type, filename = await export_service.generate_scoring_job_export_bytes(
+            job_id, session, bundle_id="mini", fmt="csv"
+        )
+    df = pd.read_csv(io.BytesIO(content))
+    by_id = {row["样本编号"]: row for _, row in df.iterrows()}
+
+    assert "脱靶已按需计算" in by_id["s2"]["多组学证据状态"]
+    assert by_id["s2"]["潜在脱靶位点数(<=3)"] in (7, "7", 7.0, "7.0")
+    # 未算过的行照旧如实标注，不以 0 冒充
+    assert "未命中预计算候选库" in by_id["s3"]["多组学证据状态"]
+    assert by_id["s3"]["潜在脱靶位点数(<=3)"] in ("未计算",)
+
+
+@pytest.mark.anyio
+async def test_scoring_job_export_falls_back_to_job_bundle(monkeypatch):
+    # 历史导出不带 bundle_id 时沿用任务记录的参考包，不再固定 lettuce
+    job_id = await _make_job()
+    seen = {}
+
+    async def _fake_resolve(db, bundle_id):
+        seen["bundle_id"] = bundle_id
+        return ResolvedBundle(id=bundle_id, display_name="测试参考包", kind="imported", fasta=None,
+                              gene_source="none", expression_layout="none")
+
+    monkeypatch.setattr(rb_service, "resolve_bundle", _fake_resolve)
+
+    async with AsyncSessionLocal() as session:
+        job = await session.get(ScoringJob, job_id)
+        job.bundle_id = "tks"
+        await session.commit()
+
+    async with AsyncSessionLocal() as session:
+        await export_service.generate_scoring_job_export_bytes(job_id, session, bundle_id=None, fmt="csv")
+    assert seen["bundle_id"] == "tks"

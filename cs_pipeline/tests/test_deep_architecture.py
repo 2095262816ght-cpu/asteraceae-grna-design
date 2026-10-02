@@ -6,7 +6,7 @@
 2. app.recommendation_engine.CandidateRankingEngine 推荐与多组学决策引擎；
 3. app.inference_client.InferenceClient 跨环境推理接缝模块。
 
-运行方式（grna-demo 或 crispr 环境）：
+运行方式（crispr 环境）：
     python tests/test_deep_architecture.py
 """
 import sys

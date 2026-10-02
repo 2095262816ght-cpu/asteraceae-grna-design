@@ -1,10 +1,15 @@
-import io
 import pytest
 from httpx import ASGITransport, AsyncClient
 from backend.app.main import app
 from backend.app.db.session import engine, AsyncSessionLocal
 from backend.app.db.models import Base, ScoringJob, ScoringJobItem
 from backend.app.services.batch_service import run_batch_scoring_task
+from backend.tests.stub_inference import StubInferenceClient
+
+
+# 上传端点的后台任务在响应周期内就会执行；先屏蔽，改为显式注入替身模型驱动生命周期
+async def _noop(*args, **kwargs):
+    return None
 
 
 @pytest.fixture(autouse=True)
@@ -60,7 +65,8 @@ async def test_batch_upload_validation_errors():
 
 
 @pytest.mark.anyio
-async def test_batch_upload_and_async_lifecycle():
+async def test_batch_upload_and_async_lifecycle(monkeypatch):
+    monkeypatch.setattr("backend.app.api.v1.endpoints.scoring.run_batch_scoring_task", _noop)
     csv_content = (
         "靶点编号,30bp靶位点序列,说明\n"
         "G01,TTTGTGGATTCCGGTAGAATCTGATGGAAT,测试合法序列1\n"
@@ -83,8 +89,12 @@ async def test_batch_upload_and_async_lifecycle():
         assert data["invalid_count"] == 1
         assert data["status"] == "pending"
 
-        # 执行后台工作任务
-        await run_batch_scoring_task(job_id=job_id)
+        # 执行后台工作任务（注入测试替身模型：确定性覆盖「有模型分」路径）
+        stub = StubInferenceClient([
+            {"deepspcas9_score": 66.6, "crispron_score": 70.1, "crispron_source": "wsl_real", "stacking_score": 71.5},
+            {"deepspcas9_score": 55.5, "crispron_score": 60.2, "crispron_source": "approximated", "stacking_score": 62.25},
+        ])
+        await run_batch_scoring_task(job_id=job_id, client=stub)
 
         # 轮询获取任务状态与结果明细
         job_res = await ac.get(f"/api/v1/scoring/jobs/{job_id}")
@@ -102,7 +112,8 @@ async def test_batch_upload_and_async_lifecycle():
         assert item1["is_valid"] is True
         assert item1["guide_seq"] == "TGGATTCCGGTAGAATCTGA"
         assert item1["pam"] == "TGG"
-        assert item1["efficiency_score"] is not None
+        assert item1["efficiency_score"] == pytest.approx(71.5)
+        assert item1["crispron_source"] == "wsl_real"
         assert item1["gc_pct"] == 45.0
 
         # 验证非法项错误信息记录
@@ -110,6 +121,43 @@ async def test_batch_upload_and_async_lifecycle():
         assert item3["is_valid"] is False
         assert item3["efficiency_score"] is None
         assert item3["error_message"] is not None
+
+
+@pytest.mark.anyio
+async def test_batch_scoring_without_model_marks_missing(monkeypatch):
+    """模型不可用：效率分如实留空并任务级标注未计算，不以启发式公式编造。"""
+    monkeypatch.setattr("backend.app.api.v1.endpoints.scoring.run_batch_scoring_task", _noop)
+    monkeypatch.setattr("backend.app.services.batch_service._HAS_INFERENCE_CLIENT", False)
+    csv_content = (
+        "靶点编号,30bp靶位点序列\n"
+        "G01,TTTGTGGATTCCGGTAGAATCTGATGGAAT\n"
+    ).encode("utf-8")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        upload_res = await ac.post(
+            "/api/v1/scoring/upload",
+            files={"file": ("candidates.csv", csv_content, "text/csv")},
+        )
+        assert upload_res.status_code == 202
+        job_id = upload_res.json()["job_id"]
+
+    await run_batch_scoring_task(job_id=job_id)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        job_res = await ac.get(f"/api/v1/scoring/jobs/{job_id}")
+    assert job_res.status_code == 200
+    job_data = job_res.json()
+
+    assert job_data["status"] == "completed"
+    item = job_data["items"][0]
+    assert item["is_valid"] is True
+    assert item["efficiency_score"] is None
+    assert item["crispron_source"] is None
+    assert "未计算" in (job_data["warning_message"] or "")
 
 
 @pytest.mark.anyio

@@ -3,7 +3,7 @@
 
 将 ATAC-seq peak 表（LettuceGDB 口径：Peak/Chr/Start/End/FoldChange/-log10(q-value)/gene/Effect type）
 与候选 gRNA 坐标做区间匹配，产出可展示的表观注释列与 0–1 可及性分，
-供推荐引擎（方案3 延伸）与批量导入注释使用。不依赖 Streamlit。
+供推荐引擎（方案3 延伸）与批量导入注释使用。
 """
 from __future__ import annotations
 

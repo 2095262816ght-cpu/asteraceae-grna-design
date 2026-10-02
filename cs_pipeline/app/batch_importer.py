@@ -2,7 +2,7 @@
 """batch_importer.py — Excel / CSV 表格批量导入检测深度模块。
 
 提供批量 gRNA 序列表格的读取、工作表选择、列智能探测、格式预检校验、打分结果拼装与模板生成导出。
-设计遵循深度模块原则：逻辑高内聚、零 Streamlit 依赖，可独立进行单元测试。
+设计遵循深度模块原则：逻辑高内聚、零 UI 依赖，可独立进行单元测试。
 """
 from __future__ import annotations
 
