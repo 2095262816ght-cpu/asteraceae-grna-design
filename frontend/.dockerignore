@@ -1,0 +1,4 @@
+# 前端构建上下文（builder 阶段只需源码与构建配置；node_modules 275MB 由 npm install 现装）
+node_modules
+dist
+*.log
