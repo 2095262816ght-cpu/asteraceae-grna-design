@@ -2,9 +2,9 @@
 """BatchScoringSession（批量打分生命周期深度模块）单元测试。
 
 只穿过模块接口验证：防碰撞缓存键、动态超时策略、结果拼装、ATAC 展示转换。
-推理客户端用桩替代，零 Streamlit 依赖。
+推理客户端用桩替代，零 UI 依赖。
 
-在 cs_pipeline/ 目录下运行（crispr 或 grna-demo 环境）：
+在 cs_pipeline/ 目录下运行（crispr 环境）：
     python tests/test_batch_session.py
 """
 import sys

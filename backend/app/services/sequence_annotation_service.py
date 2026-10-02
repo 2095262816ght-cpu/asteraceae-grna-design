@@ -222,6 +222,13 @@ async def annotate_seq30(
             logger.warning("按需脱靶计算失败: %s", exc)
             offtarget_block = None
 
+    # 落库（幂等）：进程内缓存重启即丢，持久化后任意入口导出可复用已算结果
+    if profile is not None:
+        try:
+            await offtarget_service.persist_profile(db, fasta, seq20, profile, bundle_id=bundle.id)
+        except Exception as exc:
+            logger.warning("按需脱靶结果持久化失败: %s", exc)
+
     if hit is None:
         return _custom_state(base, bundle, profile, offtarget_block, efficiency_score, peer_efficiency_scores)
 

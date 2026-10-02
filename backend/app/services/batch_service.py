@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import AsyncSessionLocal
 from backend.app.db.models import ScoringJob, ScoringJobItem
+from backend.app.services.scoring_service import append_warning, extract_model_scores
 from cs_pipeline.core.sequence_spec import validate_seq30, calc_gc, calc_tm
 from cs_pipeline.app.batch_importer import (
     read_uploaded_table,
@@ -200,40 +201,28 @@ async def run_batch_scoring_task(
                             timeout_s=180,
                         )
                     except Exception as exc:
-                        job.warning_message = f"批处理模型推理外部调用异常，触发降级计算: {str(exc)}"
+                        job.warning_message = f"批处理模型推理失败，该块模型分未计算: {exc}"
 
+                raw_df = chunk_result.raw_df if chunk_result is not None else None
                 for idx, item in enumerate(chunk_items):
-                    deepspcas9_score = None
-                    crispron_source = "approximated"
-                    efficiency_score = None
-
-                    raw_df = chunk_result.raw_df if chunk_result is not None else None
-                    if raw_df is not None and not raw_df.empty and idx < len(raw_df):
-                        row = raw_df.iloc[idx]
-                        if "deepspcas9_score" in row and row["deepspcas9_score"] is not None:
-                            deepspcas9_score = round(float(row["deepspcas9_score"]), 2)
-                        crispron_source = str(row.get("crispron_source", "approximated"))
-
-                        for score_key in ("stacking_score", "efficiency_score", "efficiency_score_v21_nob879"):
-                            if score_key in row and row[score_key] is not None:
-                                efficiency_score = round(float(row[score_key]), 2)
-                                break
-
-                    # 兜底启发式评分
-                    if efficiency_score is None:
-                        gc = item.gc_pct if item.gc_pct is not None else 50.0
-                        efficiency_score = round(max(10.0, min(95.0, 50.0 + (gc - 50.0) * 0.5)), 2)
-                        crispron_source = "approximated"
-
-                    item.deepspcas9_score = deepspcas9_score
-                    item.crispron_source = crispron_source
-                    item.efficiency_score = efficiency_score
+                    row = raw_df.iloc[idx] if raw_df is not None and idx < len(raw_df) else None
+                    scores = extract_model_scores(row)
+                    item.deepspcas9_score = scores.deepspcas9_score
+                    item.crispron_source = scores.crispron_source
+                    item.efficiency_score = scores.efficiency_score
 
                 job.processed_sequences = base_processed + start + len(chunk_items)
                 await session.commit()
 
             # 所有条目（含无效条目）均算入 processed
             job.processed_sequences = job.total_sequences
+            # 口径纪律：模型分不可用的行如实留空，不以启发式公式编造；任务级统一标注缺失
+            unscored = sum(1 for it in valid_items if it.efficiency_score is None)
+            if unscored:
+                job.warning_message = append_warning(
+                    job.warning_message,
+                    f"{unscored} 条序列模型推理未产出 efficiency_score，已如实留空（未计算，不编造数值）",
+                )
             job.status = "completed"
             job.completed_at = datetime.now(timezone.utc)
             job.duration_seconds = round(time.time() - t0, 3)

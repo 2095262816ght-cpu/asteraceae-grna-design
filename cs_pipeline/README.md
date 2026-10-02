@@ -1,6 +1,6 @@
 # 菊科菊苣族 CRISPR/Cas9 gRNA 设计工具（CS 管线）
 
-一句话简介：以 DeepSpCas9 + CRISPRon 双模型打分经分层选择性 Beta-Binomial GLMM 排序集成（形态二模型，基于自有植物 Hi-TOM noB879 纯A级金标准训练）预测 gRNA 效率，扫描莴苣 T2T 完整基因组产生候选，结合多组织转录表达看板与 Cas-OFFinder 脱靶过滤，最终经 Streamlit demo 交付「按基因检索 / 按序列打分」两种交互用法。
+一句话简介：以 DeepSpCas9 + CRISPRon 双模型打分经分层选择性 Beta-Binomial GLMM 排序集成（形态二模型，基于自有植物 Hi-TOM noB879 纯A级金标准训练）预测 gRNA 效率，扫描莴苣 T2T 完整基因组产生候选，结合多组织转录表达看板与 Cas-OFFinder 脱靶过滤，最终经 React + FastAPI 全栈系统交付「按基因检索 / 按序列打分」两种交互用法。
 
 ## 项目概述
 
@@ -12,7 +12,7 @@
 2. **模型（v2.1 终版生产模型）**：双模型打分 + 8 维生物物理特征，采用**形态二（分层选择性 Beta-Binomial GLMM）**架构（`results/model_card_hier_bb_nob879_0921.md`）。通过选择性经验贝叶斯（Selective EB）批次效应收缩机制剥离批次随机扰动，推断纯序列生物学活性；独立测试集实现显著正相关 **$\rho = \mathbf{+0.342}$（$p = 7.89 \times 10^{-7}$，AUC = 0.7857）**，低混杂核心折突破至 **$\rho = \mathbf{+0.464}$**；
 3. **科学结论**：定量回答"人源模型迁移植物是否可行"——三体系对照显示预训练模型在植物体系直接迁移存在严重失效（单模型 AUC 仅约 0.52，与随机无异），人源/植物公开数据简单混合训练无法带来增量；而结合分层贝叶斯建模与真实数据校正能显著提升序列活性判别能力（`results/model_comparison_nob879_report_0924.md`）；
 4. **多组学时空决策**：整合莴苣 5 组织（根、茎、叶、花、种子）均值表达与 16 批生物学重复（方案 1/3/5），提供组织特异性敲除表型适宜性诊断与面板内功能性脱靶危害评估；结合橡胶草 S1–S9 发育时相数据（方案 6），量化产胶通路推荐转化窗口；
-5. **工具（排序推荐定位）**：莴苣 T2T 基因组基因区扫描（1,387 万候选）→ Cas-OFFinder 脱靶过滤（错配≤3）→ Streamlit demo：按基因输出**排序推荐表**（融合效率分、组织优先指数、功能性脱靶危害与着丝粒标注；用于同一基因内取 top 3–5 送实验终筛），或按 30nt 序列实时打分（WSL CRISPRon 真实调用与降级溯源）。
+5. **工具（排序推荐定位）**：莴苣 T2T 基因组基因区扫描（1,387 万候选）→ Cas-OFFinder 脱靶过滤（错配≤3）→ Web 系统（React + FastAPI 全栈，见根目录 `backend/`、`frontend/`）：按基因输出**排序推荐表**（融合效率分、组织优先指数、功能性脱靶危害与着丝粒标注；用于同一基因内取 top 3–5 送实验终筛），或按 30nt 序列实时打分（WSL CRISPRon 真实调用与降级溯源）。
 
 **当前版本**：`v2.1`（2026-09-25 冻结）；指标与变更的权威记录见 `results/CHANGELOG_0927.md` 与 `results/model_comparison_nob879_0921.csv`。
 
@@ -22,7 +22,6 @@
 cs_pipeline/
 ├── env/
 │   ├── environment.yml          # 主管线 conda 环境（crispr：py3.10 + R4.3 + genet）
-│   ├── environment_demo.yml     # Streamlit demo 专用环境（grna-demo）
 │   ├── environment_export_0909.yml  # crispr 环境完整导出（精确复现备查）
 │   └── *.R / *.sh               # 备用安装与环境组装脚本（见「环境搭建」）
 ├── data/
@@ -41,8 +40,11 @@ cs_pipeline/
 ├── scripts/                     # 流水线脚本，按编号顺序执行（见「复现流程」）
 ├── results/                     # 产出表、图、冻结文档（CHANGELOG_0927.md 为指标冻结记录）
 ├── app/
-│   ├── app.py                   # Streamlit demo（两个 tab）
-│   └── score_deepspcas9_cli.py  # Tab2 打分子进程入口（stdin 进、CSV 出）
+│   ├── inference_client.py      # 跨环境模型推理客户端接缝（子进程调用打分引擎）
+│   ├── batch_importer.py        # 批量表格导入 IO 适配器
+│   ├── batch_session.py         # 批量打分生命周期深度模块
+│   ├── recommendation_engine.py # 候选推荐与多组学决策引擎
+│   └── score_deepspcas9_cli.py  # 打分子进程入口（stdin 进、CSV 出）
 ├── demo/                        # demo 运行时数据（app_data.csv 等，由 prepare_demo_data.py 生成）
 ├── docs/                        # 项目资料库（索引见 docs/README.md）：plans/ 方案分工、
 │                                #   reports/ 工作报告、knowledge/ 笔记、paper/ 文献、
@@ -60,10 +62,7 @@ cd /d <本仓库所在目录>/cs_pipeline
 conda env create -f env/environment.yml        # 环境名 crispr，py3.10 + R4.3 + genet 0.17.2
 conda activate crispr
 
-# 2) demo 专用环境（与 crispr 隔离：genet 锁 protobuf<3.20，与 streamlit 冲突）
-conda env create -f env/environment_demo.yml   # 环境名 grna-demo，py3.10 + streamlit
-
-# 3) CRISPRon 打分环境（WSL Ubuntu-22.04 内一次性组装，官方 TF2 仓库）
+# 2) CRISPRon 打分环境（WSL Ubuntu-22.04 内一次性组装，官方 TF2 仓库）
 wsl -d Ubuntu-22.04 -- bash env/setup_crispron_wsl.sh
 ```
 
@@ -93,12 +92,12 @@ python scripts/21_build_tissue_priority_recommendations.py # 方案3 组织优�
 python scripts/22_calc_tissue_offtarget_hazard.py          # 方案5 功能性脱靶危害表
 python scripts/23_tks_developmental_window.py              # 方案6 橡胶草产胶发育时相曲线与推荐窗口
 
-# D. 启动 Web 演示系统
-python demo/prepare_demo_data.py                   # 合并 demo 数据 → demo/app_data.csv
-conda run -n grna-demo streamlit run app/app.py    # 启动 demo（自动打开浏览器）
+# D. 启动 Web 系统（React + FastAPI 全栈）
+python demo/prepare_demo_data.py                   # 合并 demo 数据 → demo/app_data.csv（灌库输入）
+cd .. && powershell -NoProfile -File run_fullstack.ps1   # 或双击根目录 一键启动全栈系统.bat
 ```
 
-- 模型训练完成后，由 `scripts/predict.py` 的 `predict_efficiency(seq30_list)` 接口统一向 Demo 供分（支持 WSL 原生 CRISPRon 真实调用及降级来源回溯）。
+- 模型训练完成后，由 `scripts/predict.py` 的 `predict_efficiency(seq30_list)` 接口统一向 Web 系统供分（支持 WSL 原生 CRISPRon 真实调用及降级来源回溯）。
 
 ### 2. 历史阶段复现路径备查（v1.x / v2.0）
 - `scripts/01–06`：v1.x 早期 487 行岭回归 Stacking 原型链路；
@@ -114,7 +113,7 @@ conda run -n grna-demo streamlit run app/app.py    # 启动 demo（自动打开�
   - **指标实测**：独立测试集（20% 留出）$\rho = \mathbf{+0.3424}$（$p = 7.89 \times 10^{-7}$，AUC = 0.7857）；低混杂多批次核心折（Class A）突破至中位数 $\rho = \mathbf{+0.4636}$；
   - **单模型对比**：在同口径植物实测集上，DeepSpCas9 与 CRISPRon 单用时 AUC 仅为 0.5242 / 0.5246（与随机无异），证明人源模型直接迁移植物失效，必须结合分层贝叶斯校正。
 - 当前可复现的实测锚点：
-  - DeepSpCas9 链路：示例序列 `ATCGGCTAAGCTAGGCTAGCATCGTGGATC` 打分 71.2494（demo Tab2 可直接复现）；
+  - DeepSpCas9 链路：示例序列 `ATCGGCTAAGCTAGGCTAGCATCGTGGATC` 打分 71.2494（Web 系统「按序列打分」可直接复现）；
   - 基因组扫描：45,770 基因、13,867,270 条候选、320 秒（`results/scan_stats_0923.md`）；
   - 脱靶：demo 范围 19,839 条 guide、6,088,827 个命中位点、mis3 脱靶中位数 16（`results/offtarget_runlog_0924.md`）；
   - 推理接口：`python scripts/predict.py` 经 WSL 原生调用 CRISPRon 得到真实打分 59.61，集成预测分 22.04。

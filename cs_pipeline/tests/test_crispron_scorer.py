@@ -4,7 +4,7 @@
 只穿过模块接口验证，全部用桩 runner，不触碰 WSL/TF 栈：
 真实模型优先、逐条降级标注、近似式单一定义、批量口径全标注、线格式标签不变量。
 
-在 cs_pipeline/ 目录下运行（crispr 或 grna-demo 环境）：
+在 cs_pipeline/ 目录下运行（crispr 环境）：
     python tests/test_crispron_scorer.py
 """
 import sys

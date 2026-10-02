@@ -326,3 +326,28 @@ async def test_export_reuses_computed_offtarget_without_download_rescan(monkeypa
         assert row[0] == 7
         assert abs(row[1] - 0.42625) < 1e-6
         assert row[2] == 0
+
+
+@pytest.mark.anyio
+async def test_delete_export_batch_keeps_computed_candidates():
+    # 删归档记录：只删 export_batches 行，算好的候选数据不受影响
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        create_res = await ac.post(
+            "/api/v1/exports",
+            json={"name": "待删批次", "format": "csv", "candidate_ids": [101, 102], "gene_id": "TEST_GENE_01"},
+        )
+        assert create_res.status_code == 201
+        batch_id = create_res.json()["id"]
+
+        del_res = await ac.delete(f"/api/v1/exports/{batch_id}")
+        assert del_res.status_code == 200
+
+    async with AsyncSessionLocal() as session:
+        assert (await session.get(ExportBatch, batch_id)) is None
+        c1 = await session.get(TargetCandidate, 101)
+        assert c1 is not None and c1.efficiency_score == pytest.approx(85.2)
+
+    # 再删返回 404
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res_404 = await ac.delete(f"/api/v1/exports/{batch_id}")
+        assert res_404.status_code == 404

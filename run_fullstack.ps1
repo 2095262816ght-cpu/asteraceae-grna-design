@@ -16,7 +16,7 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "  菊科 CRISPR/Cas9 基因编辑全栈系统 (生产级双轨交付)" -ForegroundColor Green
+Write-Host "  菊科 CRISPR/Cas9 基因编辑全栈系统 (生产级交付)" -ForegroundColor Green
 Write-Host "  FastAPI + SQLAlchemy 2.0 + React 19 + TanStack Query" -ForegroundColor White
 Write-Host "==========================================================" -ForegroundColor Cyan
 
@@ -27,15 +27,24 @@ if (-not $ProjectRoot) {
 Set-Location $ProjectRoot
 $env:PYTHONPATH = $ProjectRoot
 
-# 1. 探测 Python 解释器
+# 1. 探测 Python 解释器（须能承载后端依赖 fastapi + uvicorn）
+# 经 cmd 吞掉探测子进程的 stderr：PowerShell 5.1 会把 python 的 ImportError 回溯
+# 转成 NativeCommandError，在 ErrorActionPreference=Stop 下直接终止脚本
+function Test-BackendDeps([string]$Exe) {
+    if (-not $Exe -or -not (Test-Path $Exe)) { return $false }
+    & cmd /c "`"$Exe`" -c `"import fastapi, uvicorn`" >NUL 2>&1" | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
 $PythonCandidates = @(
-    "D:\Miniconda\envs\grna-demo\python.exe",
-    "$env:CONDA_PREFIX\python.exe"
+    "$env:CONDA_PREFIX\python.exe",
+    "D:\Miniconda\envs\crispr\python.exe",
+    "D:\Miniconda\envs\grna-demo\python.exe"
 )
 
 $PythonExe = $null
 foreach ($cand in $PythonCandidates) {
-    if ($cand -and (Test-Path $cand)) {
+    if (Test-BackendDeps $cand) {
         $PythonExe = $cand
         break
     }
@@ -43,13 +52,13 @@ foreach ($cand in $PythonCandidates) {
 
 if (-not $PythonExe) {
     $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
-    if ($pythonCmd -and $pythonCmd.Source) {
+    if ($pythonCmd -and $pythonCmd.Source -and (Test-BackendDeps $pythonCmd.Source)) {
         $PythonExe = $pythonCmd.Source
     }
 }
 
 if (-not $PythonExe) {
-    Write-Error "未找到可用的 Python 解释器，请先激活 grna-demo Conda 环境。"
+    Write-Error "未找到承载后端依赖（fastapi + uvicorn）的 Python 解释器，请先在目标 Conda 环境执行: pip install -r backend/requirements.txt"
 }
 Write-Host "[1/4] 使用 Python 解释器: $PythonExe" -ForegroundColor Gray
 

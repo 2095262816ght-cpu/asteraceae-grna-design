@@ -139,6 +139,7 @@ class ScoringJob(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(128), nullable=False, default="单序列打分任务")
     job_type = Column(String(32), default="single")  # "single" | "batch"
+    bundle_id = Column(String(64), nullable=True, doc="打分/注释所用参考包 ID（历史导出缺省沿用）")
     status = Column(String(32), default="completed", index=True)  # "pending", "running", "completed", "failed"
     total_sequences = Column(Integer, default=1)
     processed_sequences = Column(Integer, default=1)
@@ -186,4 +187,27 @@ class ExportBatch(Base):
     candidate_count = Column(Integer, default=0, doc="包含候选靶点数")
     candidate_ids = Column(Text, nullable=False, doc="包含的候选靶点主键列表 (逗号分隔或JSON)")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+
+class OfftargetProfileCache(Base):
+    """按需脱靶计算结果持久化（同 FASTA 同 seq20 口径）。
+
+    进程内缓存重启即丢；落库后任意入口/任意时间导出均可复用已算结果，
+    快照导出仍绝不现场扫描（口径：未算过的行照旧标"未计算"）。
+    """
+    __tablename__ = "offtarget_profiles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    genome_key = Column(String(512), nullable=False, doc="参考基因组 FASTA 路径（口径键，同进程内缓存）")
+    seq20 = Column(String(24), nullable=False, doc="20nt 间隔识别序列")
+    exact = Column(Integer, nullable=False, default=0, doc="完全匹配行数")
+    mis1 = Column(Integer, nullable=False, default=0, doc="≤1 错配累计行数")
+    mis2 = Column(Integer, nullable=False, default=0, doc="≤2 错配累计行数")
+    mis3 = Column(Integer, nullable=False, default=0, doc="≤3 错配累计行数（潜在脱靶位点数）")
+    bundle_id = Column(String(64), nullable=True, doc="计算时所用参考包 ID（追溯用）")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        Index("ix_offtarget_profiles_genome_seq20", "genome_key", "seq20", unique=True),
+    )
 

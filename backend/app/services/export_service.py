@@ -369,13 +369,13 @@ def _write_sheets(buf: io.BytesIO, df: pd.DataFrame, fmt: str, extra_sheets: Opt
 async def generate_scoring_job_export_bytes(
     job_id: str,
     db: AsyncSession,
-    bundle_id: str = "lettuce",
+    bundle_id: Optional[str] = None,
     fmt: str = "xlsx",
 ) -> Tuple[bytes, str, str]:
     """打分任务结果导出（D4 缺啥写啥）：三态多组学注释 + 缺失原因/所需数据/所用参考包/百分位口径。
 
     口径纪律：未计算/不适用逐行如实标注，绝不以 0 冒充；百分位口径逐行标注
-    （库内基因分布 / 贴入集合批内排名 / 不适用）。
+    （库内基因分布 / 贴入集合批内排名 / 不适用）。bundle_id 缺省沿用任务记录的参考包。
     """
     job = (
         await db.execute(
@@ -384,6 +384,7 @@ async def generate_scoring_job_export_bytes(
     ).scalar_one_or_none()
     if job is None:
         raise HTTPException(status_code=404, detail=f"未找到 ID 为 '{job_id}' 的打分任务")
+    bundle_id = bundle_id or job.bundle_id or "lettuce"
 
     items = sorted(job.items, key=lambda x: x.id) if job.items else []
     valid = [it for it in items if it.is_valid and it.efficiency_score is not None]
@@ -413,12 +414,16 @@ async def generate_scoring_job_export_bytes(
     bundle_label = f"{bundle.display_name}（{bundle.id}）"
 
     # 快导出：不做现场全基因组扫描（回贴一次 ~1 分钟、脱靶 ~100 秒/条，无法即时返回）。
-    # 仅零成本复用本进程已按需算过的脱靶缓存（如交互页回贴注释/按需脱靶计算的产物），
+    # 复用已按需算过的结果：先读本进程缓存，再读持久化表（"计算脱靶+优先指数"落库产物，重启不丢），
     # 未算的行按"缺啥写啥"如实标注缺失原因/所需数据，计算留在显式"按需计算"流程
     to_peek = [s for s in dict.fromkeys(seqs) if s not in cand_map]
-    profiles = offtarget_service.peek_profiles([s[4:24] for s in to_peek], bundle.fasta) if (
-        bundle.fasta is not None and to_peek
-    ) else {}
+    profiles = {}
+    if bundle.fasta is not None and to_peek:
+        seq20s = [s[4:24] for s in to_peek]
+        profiles = offtarget_service.peek_profiles(seq20s, bundle.fasta)
+        missed = [s for s in seq20s if s not in profiles]
+        if missed:
+            profiles.update(await offtarget_service.load_persisted_profiles(db, bundle.fasta, missed))
 
     # 表达证据（库内基因）
     gene_ids = {c.gene_id for c in cand_map.values()}
@@ -455,7 +460,7 @@ async def generate_scoring_job_export_bytes(
         else:
             rank += 1
             if prof is not None:
-                state_display = "脱靶已按需计算（复用缓存结果，未现场基因组回贴）"
+                state_display = "脱靶已按需计算（复用已算结果，未现场基因组回贴）"
                 missing = "—"
             else:
                 state_display = "未命中预计算候选库（未计算：快照导出不做现场全基因组扫描）"

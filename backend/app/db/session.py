@@ -34,3 +34,20 @@ async def check_database_health() -> bool:
             return result.scalar() == 1
     except Exception:
         return False
+
+
+def sync_missing_columns(sync_conn) -> None:
+    """增量补列：create_all 不修改已存在的表，对比 metadata 为旧库追加新增列（仅可空列）。"""
+    from sqlalchemy import inspect as sa_inspect
+
+    from backend.app.db.models import Base
+
+    insp = sa_inspect(sync_conn)
+    for table in Base.metadata.sorted_tables:
+        if not insp.has_table(table.name):
+            continue
+        existing = {c["name"] for c in insp.get_columns(table.name)}
+        for col in table.columns:
+            if col.name not in existing:
+                ddl_type = col.type.compile(sync_conn.dialect)
+                sync_conn.exec_driver_sql(f'ALTER TABLE {table.name} ADD COLUMN "{col.name}" {ddl_type}')

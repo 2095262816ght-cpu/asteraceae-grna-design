@@ -1,7 +1,7 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.session import get_db
@@ -101,6 +101,22 @@ async def list_export_batches(
         )
         for b in batches
     ]
+
+
+@router.delete(
+    "/exports/{batch_id}",
+    summary="删除导出批次归档（仅删记录，算好的候选多组学数据保留）",
+)
+async def delete_export_batch(
+    batch_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    batch = await db.get(ExportBatch, batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail=f"未找到 ID 为 '{batch_id}' 的导出批次")
+    await db.execute(delete(ExportBatch).where(ExportBatch.id == batch_id))
+    await db.commit()
+    return {"deleted": True, "id": batch_id}
 
 
 @router.get(

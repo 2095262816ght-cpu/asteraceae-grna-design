@@ -7,7 +7,7 @@
 3. 多组学转录表达矩阵与 LSA↔T2T crosswalk 数据完整性；
 4. 橡胶草产胶通路时相曲线与 S4 推荐窗口一致性。
 
-在 cs_pipeline/ 目录下运行（crispr 或 grna-demo 环境）：
+在 cs_pipeline/ 目录下运行（crispr 环境）：
     python tests/test_pipeline_engine.py
 """
 import sys

@@ -29,9 +29,9 @@ async def setup_parity_db():
 
 @pytest.mark.anyio
 async def test_gene_catalog_parity_with_demo_csv():
-    """验收 1: 验证 49 个 NLR 基因元数据与 Streamlit app_genes.csv 严格一致（并存方案下 API 为全基因组 + 49 NLR 超集）。"""
+    """验收 1: 验证 49 个 NLR 基因元数据与基准数据 app_genes.csv 严格一致（并存方案下 API 为全基因组 + 49 NLR 超集）。"""
     csv_path = Path("cs_pipeline/demo/app_genes.csv")
-    assert csv_path.exists(), "Streamlit 基准数据源 app_genes.csv 必须存在"
+    assert csv_path.exists(), "基准数据源 app_genes.csv 必须存在"
     df_genes_gt = pd.read_csv(csv_path)
 
     async with AsyncClient(
@@ -67,10 +67,10 @@ async def test_gene_catalog_parity_with_demo_csv():
 
 @pytest.mark.anyio
 async def test_candidate_scoring_and_ranking_parity():
-    """验收 2: 验证代表性 NLR 基因靶点检索、终选效率分排序及所有生化指标与 Streamlit 原型 100% 吻合。"""
+    """验收 2: 验证代表性 NLR 基因靶点检索、终选效率分排序及所有生化指标与基准数据 100% 吻合。"""
     target_gene = "LsaT2T01G023690"
     csv_path = Path("cs_pipeline/demo/app_data.csv")
-    assert csv_path.exists(), "Streamlit 基准数据源 app_data.csv 必须存在"
+    assert csv_path.exists(), "基准数据源 app_data.csv 必须存在"
 
     df_cand_gt = pd.read_csv(csv_path)
     gene_gt = df_cand_gt[df_cand_gt["gene_id"] == target_gene].copy()
@@ -122,8 +122,10 @@ async def test_candidate_scoring_and_ranking_parity():
 
 
 @pytest.mark.anyio
-async def test_single_sequence_decomposition_parity():
+async def test_single_sequence_decomposition_parity(monkeypatch):
     """验收 3: 验证单序列打分 API 的解构区段 (5'Flank, Guide, PAM, 3'Flank) 与 GC%/Tm 计算和 core.sequence_spec 基准完全一致。"""
+    # 模型不可用：效率分如实标缺失（本测试聚焦解构一致性，不依赖真实模型环境）
+    monkeypatch.setattr("backend.app.services.scoring_service._HAS_INFERENCE_CLIENT", False)
     test_seq = "TTTGTGGATTCCGGTAGAATCTGATGGAAT"
 
     # 基准计算
@@ -152,4 +154,5 @@ async def test_single_sequence_decomposition_parity():
     assert data["flank_3p"] == gt_flank3
     assert abs(data["gc_pct"] - gt_gc) < 0.01
     assert abs(data["tm_c"] - gt_tm) < 0.01
-    assert data["efficiency_score"] is not None
+    assert data["efficiency_score"] is None
+    assert "未计算" in (data["warning_message"] or "")

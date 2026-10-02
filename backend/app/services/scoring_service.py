@@ -2,7 +2,7 @@ import asyncio
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import NamedTuple, Optional
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,10 +26,58 @@ try:
 except ImportError:
     _HAS_INFERENCE_CLIENT = False
 
+# 效率分取值优先级：集成 stacking_score > efficiency_score > v2.1 noB879
+_EFFICIENCY_SCORE_KEYS = ("stacking_score", "efficiency_score", "efficiency_score_v21_nob879")
+
+
+class ModelScores(NamedTuple):
+    """推理结果单行的模型分提取产物；缺失一律 None（不硬猜）。"""
+
+    deepspcas9_score: Optional[float]
+    crispron_score: Optional[float]
+    crispron_source: Optional[str]
+    efficiency_score: Optional[float]
+
+
+_NO_MODEL_SCORES = ModelScores(None, None, None, None)
+
+
+def _round2(value) -> Optional[float]:
+    return round(float(value), 2) if value is not None else None
+
+
+def extract_model_scores(row) -> ModelScores:
+    """从推理结果单行提取模型分（单条与批处理共用同一口径）。
+
+    crispron_source 是 CrispronScorer 不变量的纯透传：调用方不裁决不补标签，
+    缺失即 None。row 为 None（如批处理本块未产出结果）时整体返回缺失。
+    """
+    if row is None:
+        return _NO_MODEL_SCORES
+    src = row.get("crispron_source")
+    efficiency_score = None
+    for key in _EFFICIENCY_SCORE_KEYS:
+        value = row.get(key)
+        if value is not None:
+            efficiency_score = round(float(value), 2)
+            break
+    return ModelScores(
+        deepspcas9_score=_round2(row.get("deepspcas9_score")),
+        crispron_score=_round2(row.get("crispron_score")),
+        crispron_source=str(src) if src else None,
+        efficiency_score=efficiency_score,
+    )
+
+
+def append_warning(existing: Optional[str], note: str) -> str:
+    """警示文案只追加不吞掉：缺失标注（「未计算」）永不被覆盖或跳过。"""
+    return f"{existing}；{note}" if existing else note
+
 
 async def execute_single_scoring(
     seq30: str,
     title: Optional[str] = None,
+    bundle_id: Optional[str] = None,
     db: AsyncSession = None,
     client: Optional[object] = None,
 ) -> dict:
@@ -50,7 +98,7 @@ async def execute_single_scoring(
     t0 = time.time()
     deepspcas9_score = None
     crispron_score = None
-    crispron_source = "approximated"
+    crispron_source = None
     efficiency_score = None
     warning_msg = None
 
@@ -66,33 +114,21 @@ async def execute_single_scoring(
             # 推理为同步阻塞调用：放入线程池，避免卡死事件循环导致其他请求无响应
             inference_res = await asyncio.to_thread(client.score_sequences, [s], timeout_s=60)
             if not inference_res.raw_df.empty:
-                row = inference_res.raw_df.iloc[0]
-                deepspcas9_score = (
-                    round(float(row["deepspcas9_score"]), 2)
-                    if "deepspcas9_score" in row and row["deepspcas9_score"] is not None
-                    else None
+                deepspcas9_score, crispron_score, crispron_source, efficiency_score = extract_model_scores(
+                    inference_res.raw_df.iloc[0]
                 )
-                crispron_score = (
-                    round(float(row["crispron_score"]), 2)
-                    if "crispron_score" in row and row["crispron_score"] is not None
-                    else None
-                )
-                crispron_source = str(row.get("crispron_source", "approximated"))
-                # 优先获取 stacking_score 或 efficiency_score
-                for score_key in ("stacking_score", "efficiency_score", "efficiency_score_v21_nob879"):
-                    if score_key in row and row[score_key] is not None:
-                        efficiency_score = round(float(row[score_key]), 2)
-                        break
 
             if inference_res.has_approximated:
                 warning_msg = inference_res.warning_message
         except Exception as exc:
-            warning_msg = f"模型推理子进程触发兜底降级: {str(exc)}"
+            warning_msg = f"模型推理失败，模型分未计算: {exc}"
 
-    # 若未能从外部模型获取分数，根据序列 GC/Tm 经验公式生成基准分
+    # 口径纪律：模型分不可用时如实标缺失，不以 GC 启发式公式编造数值
+    # （对齐 gene_candidate_service「不硬猜」与 CrispronScorer「绝不冒充」不变量）
     if efficiency_score is None:
-        efficiency_score = round(max(10.0, min(95.0, 50.0 + (gc_pct - 50.0) * 0.5)), 2)
-        crispron_source = "approximated"
+        warning_msg = append_warning(
+            warning_msg, "模型推理未产出 efficiency_score，该指标未计算（如实标注缺失，不编造数值）"
+        )
 
     latency = round(time.time() - t0, 3)
     job_id = str(uuid.uuid4())
@@ -112,6 +148,7 @@ async def execute_single_scoring(
         id=job_id,
         title=job_title,
         job_type="single",
+        bundle_id=bundle_id,
         status="completed",
         total_sequences=1,
         processed_sequences=1,

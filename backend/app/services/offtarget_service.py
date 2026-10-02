@@ -15,9 +15,10 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
+from sqlalchemy import select
 
 from backend.app.core.config import settings
 
@@ -338,3 +339,53 @@ def peek_profiles(seq20s: Iterable[str], genome_fasta: Path) -> Dict[str, Offtar
         if p is not None:
             out[s.upper()] = p
     return out
+
+
+async def persist_profile(db, fasta: Path, seq20: str, profile: OfftargetProfile, bundle_id: Optional[str] = None) -> None:
+    """把按需计算结果落库（幂等 upsert）：进程重启后导出仍可复用。"""
+    from backend.app.db.models import OfftargetProfileCache
+
+    seq20 = seq20.upper()
+    row = (
+        await db.execute(
+            select(OfftargetProfileCache).where(
+                OfftargetProfileCache.genome_key == _cache_key(fasta),
+                OfftargetProfileCache.seq20 == seq20,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        db.add(
+            OfftargetProfileCache(
+                genome_key=_cache_key(fasta),
+                seq20=seq20,
+                exact=profile.exact,
+                mis1=profile.mis1,
+                mis2=profile.mis2,
+                mis3=profile.mis3,
+                bundle_id=bundle_id,
+            )
+        )
+    else:
+        row.exact, row.mis1, row.mis2, row.mis3 = profile.exact, profile.mis1, profile.mis2, profile.mis3
+    await db.commit()
+
+
+async def load_persisted_profiles(db, fasta: Path, seq20s: Iterable[str]) -> Dict[str, OfftargetProfile]:
+    """读已持久化的按需计算结果（绝不触发扫描）；键为大写 seq20。"""
+    from backend.app.db.models import OfftargetProfileCache
+
+    uniq = [s.upper() for s in dict.fromkeys(seq20s)]
+    if not uniq:
+        return {}
+    rows = (
+        await db.execute(
+            select(OfftargetProfileCache).where(
+                OfftargetProfileCache.genome_key == _cache_key(fasta),
+                OfftargetProfileCache.seq20.in_(uniq),
+            )
+        )
+    ).scalars().all()
+    return {
+        r.seq20: OfftargetProfile(exact=r.exact, mis1=r.mis1, mis2=r.mis2, mis3=r.mis3) for r in rows
+    }

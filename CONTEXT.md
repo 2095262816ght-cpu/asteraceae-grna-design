@@ -21,8 +21,9 @@
 - **形态二生产模型 (`v2.1 Hierarchical Beta-Binomial GLMM`)**: 融合 DeepSpCas9、CRISPRon 及 8 维生物物理特征，采用分层贝叶斯选择性经验贝叶斯（Selective EB）收缩机制剥离批次随机扰动，推断纯序列生物学活性 $\eta = \beta_0 + Z\beta$。
 - **相对排序效率分 (`efficiency_score`)**: 模型输出的相对活性量度（0.0–100.0），用于同一基因内候选 guide 的择优排序推荐（非绝对 indel% 承诺）。
 - **CRISPRon 来源标注 (`crispron_source`)**: 该维特征的来源标识：`wsl_real` 为 WSL 原生容器实跑模型；`approximated` 为管线不可用时的物理经验近似式降级值，前端必须如实提示用户。（Docker 容器部署时经镜像内原生管线实跑，同样标 `wsl_real`，语义=真实模型实跑、与训练集同管线。）
-- **推理客户端接缝 (`InferenceClient`)**: 跨进程环境适配器，隔离 Streamlit 环境与 TensorFlow/Genet 环境，负责 Python 解释器自愈探测、Windows DLL 注入、IPC 序列化及降级状态结构化返回。
+- **推理客户端接缝 (`InferenceClient`)**: 跨进程环境适配器，隔离宿主服务环境与 TensorFlow/Genet 环境，负责 Python 解释器自愈探测、Windows DLL 注入、IPC 序列化及降级状态结构化返回。
 - **CRISPRon 来源裁决 (`CrispronScorer`)**: `crispron_source` 不变量的唯一执行点——真实模型优先，逐条降级为经验近似式并如实标注 `approximated`，绝不冒充 `wsl_real`；降级决策与标注不再由调用方各自承担。
+- **模型分缺失标注 (`未计算`)**: 模型推理不可用或未产出分数时，`efficiency_score` 如实留空并标注「未计算」，绝不以 GC 等启发式公式编造数值（对齐「不硬猜」纪律）；`crispron_source` 仅在有 CRISPRon 分时标注来源，无分不标注。
 
 ---
 

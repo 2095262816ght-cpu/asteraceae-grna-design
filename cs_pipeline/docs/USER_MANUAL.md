@@ -1,4 +1,4 @@
-# 菊科 CRISPR/Cas9 基因编辑与多组学决策系统 —— 用户操作手册
+# AI 驱动的 gRNA 编辑效率预测与脱靶评估平台——面向橡胶草与莴苣（用户操作手册）
 
 > **版本**：`v4.0`（2026-09-29 全量对齐多组学决策体系 · 真实 CRISPRon 打分 · 基因组回贴与参考包体系 · 教师反馈五项闭环）
 > **适用对象**：湿实验科研人员、植物育种研究员、课题评审老师、全栈工程审阅者
@@ -32,7 +32,7 @@
   - [1.3 设计意图（五条核心立场）](#13-设计意图五条核心立场)
   - [1.4 名词约定](#14-名词约定)
 - [第 2 章 系统架构与数据底座](#第-2-章-系统架构与数据底座)
-  - [2.1 双轨架构矩阵](#21-双轨架构矩阵)
+  - [2.1 系统架构矩阵](#21-系统架构矩阵)
   - [2.2 数据流全景](#22-数据流全景)
   - [2.3 数据资产清单](#23-数据资产清单)
   - [2.4 数据库表结构](#24-数据库表结构)
@@ -78,8 +78,8 @@
 
 1. **真实的模型训练与验证**：以橡胶草 **Hi-TOM 实测 indel 金标准**（879 行纯 A 级数据）训练自研 **Stacking 元模型 v2.1（形态二分层选择性 Beta-Binomial GLMM）**，验证指标如实公开（见 4.2），不夸大；
 2. **真实的全基因组计算**：45,981 个莴苣基因区全量 NGG 枚举（千万级候选）、全基因组脱靶扫描（Cas-OFFinder 口径）、真实 CRISPRon 模型批量打分回填；
-3. **多组学决策层**：把"切得动"扩展为"切了有表型、切了不误伤"——表达证据（5 组织 / S1–S9 时相）、组织优先指数、功能性脱靶危害指数、ATAC 染色质可及性（对照轨）、NLR 抗病基因结构域注释；
-4. **可审计的工程交付**：双轨对照（现代全栈 + 经典基准）、算法透明性接口、导出逐行口径标注、18 个后端测试文件 + 前端测试套件固化行为。
+3. **多组学决策层**：把"切得动"扩展为"切了有表型、切了不误伤"——表达证据（5 组织 / S1–S9 时相）、组织优先指数、功能性脱靶危害指数、ATAC 染色质可及性（算法侧模块）、NLR 抗病基因结构域注释；
+4. **可审计的工程交付**：基准数据对账（`cs_pipeline/demo/` 冻结基准）、算法透明性接口、导出逐行口径标注、18 个后端测试文件 + 前端测试套件固化行为。
 
 **数据纪律背景**（驱动上述设计的历史教训）：Hi-TOM 实测表曾暴露"indel 数字是真的，但数字绑定的序列可能是错的"（seq 前导空格、strand 整列填错、guide 窗口移位、批次张冠李戴等记录事故）。因此本项目把**"如实标注、不编造、可追溯"**作为高于一切的产品纪律（见 1.3 与第 6 章）。
 
@@ -94,7 +94,7 @@
 | ③ | **单序列实时打分与分子解构** | 30nt 序列即时校验 → 效率分/双模型分/GC/Tm/区段解构/特征向量，<100ms | 3.3.1 |
 | ④ | **基因组回贴注释与按需多组学** | 自定义序列回贴参考基因组三态注释；按需计算脱靶 + 优先指数；参考包可导入 | 3.3.2 / 3.3.3 |
 | ⑤ | **高通量批量打分流水线** | 百至千条序列异步并发打分、进度轮询、择优视图、三图可视化、逐行口径导出 | 3.3.4 |
-| ⑥ | **多组学决策指标** | 表达证据（crosswalk 四级置信度）、组织优先指数（方案3）、功能脱靶危害（方案5）、产胶时相（方案6）、ATAC 可及性（对照轨） | 4.6 |
+| ⑥ | **多组学决策指标** | 表达证据（crosswalk 四级置信度）、组织优先指数（方案3）、功能脱靶危害（方案5）、产胶时相（方案6）、ATAC 可及性（算法侧模块） | 4.6 |
 | ⑦ | **脱靶评估体系** | 全基因组 ≤3 错配扫描 + CFD/MIT 位点评分 + CRISPOR guide 级特异性 + 位点明细抽屉 | 3.2.10 / 4.3–4.4 |
 | ⑧ | **湿实验交付与归档** | 勾选即导出 CSV/Excel（29 列标准清单 + 指标方法说明 + 数据需求模板），历史批次可重下载 | 3.2.9 / 3.4 |
 
@@ -114,8 +114,8 @@
 - CRISPRon 是近似式 → 逐条标注 `approximated`（近似值实测偏高 +8.66 分/14.5%，必须提示）；
 - 基因映射不了（crosswalk tier4）→ 如实标注不可映射及原因，不硬猜基因 ID。
 
-**立场四：双轨可审计。**
-生产级全栈（React 19 + FastAPI + PostgreSQL/SQLite）负责高并发交互；经典 Streamlit 轨保留为**黄金基准**，算法与数据的对账以基准轨为准，自动化一致性测试固化在测试套件（误差容限 Δ<10⁻⁶）。
+**立场四：可审计。**
+生产级全栈（React 19 + FastAPI + PostgreSQL/SQLite）负责高并发交互；算法与数据的对账以**冻结基准数据**（`cs_pipeline/demo/` 基准 CSV）为准，自动化一致性测试固化在测试套件（误差容限 Δ<10⁻⁶）。
 
 **立场五：交付导向——输出直接可下单。**
 导出不是"把表格下载下来"，而是**湿实验交付清单**：29 列标准字段（含合成用 20bp guide、PAM 方向说明、推荐序号）、《指标方法说明》sheet（逐列口径、全部公式常数）、《数据需求模板》sheet（缺什么数据、补什么数据、缺失时的如实行为）。老师/合作者拿到 Excel 即可独立复核每一条推荐的依据。
@@ -137,37 +137,29 @@
 
 # 第 2 章 系统架构与数据底座
 
-## 2.1 双轨架构矩阵
+## 2.1 系统架构矩阵
 
-系统遵循 [ADR 0004: 生产级全栈架构升级](file:///d:/lifesciencechallenge/cs_pipeline/docs/adr/0004-fullstack-postgres-fastapi-react.md)，采用清晰的**双轨（Dual-Track）体系**：
+系统遵循 [ADR 0004: 生产级全栈架构升级](file:///d:/lifesciencechallenge/cs_pipeline/docs/adr/0004-fullstack-postgres-fastapi-react.md)，采用生产级现代化全栈体系：
 
 ```mermaid
 flowchart TD
-    subgraph Track1 [主推荐：生产级现代化全栈平台]
-        UI[React 19 + TypeScript + Tailwind + ECharts] -->|REST / JSON| API[FastAPI 异步应用 + Pydantic v2]
-        API --> DB[(SQLite / PostgreSQL 16 + SQLAlchemy 2.0)]
-        API --> Engine[核心推断引擎: 效率分 / 脱靶 / 多组学 / 回贴注释]
-        Engine --> Models[DeepSpCas9 · CRISPRon · Stacking GLMM v2.1]
-    end
-
-    subgraph Track2 [对照轨：经典算法复现基准 Ground Truth]
-        ST[Streamlit 单体应用 :8501] --> FileDB[Parquet / CSV 文件只读索引]
-        ST --> ATAC[ATAC-seq 可及性注释与加权排序]
-        ST --> Native[原生 DeepSpCas9 / CRISPRon 推理]
-    end
+    UI[React 19 + TypeScript + Tailwind + ECharts] -->|REST / JSON| API[FastAPI 异步应用 + Pydantic v2]
+    API --> DB[(SQLite / PostgreSQL 16 + SQLAlchemy 2.0)]
+    API --> Engine[核心推断引擎: 效率分 / 脱靶 / 多组学 / 回贴注释]
+    Engine --> Models[DeepSpCas9 · CRISPRon · Stacking GLMM v2.1]
 ```
 
-| 系统维度 | 生产级全栈主轨（本手册重点） | 经典基准对照轨 |
-| :--- | :--- | :--- |
-| 前端 | **React 19 + TypeScript + Vite + Tailwind CSS** | Streamlit 1.32+ Python 单体 |
-| 后端 | **FastAPI (ASGI) + Pydantic v2 + 异步并发** | 无独立后端 |
-| 持久化 | **SQLite（默认）/ PostgreSQL 16 + SQLAlchemy 2.0** | Parquet / CSV 只读 |
-| 可视化 | **ECharts 基因组正负链双轨 + 基因结构/功能域轨道** | Altair / Plotly 静态图表 |
-| 计算模式 | **异步任务队列 + 1.5s 智能轮询** | 阻塞式同步 |
-| 特色能力 | 参考包导入、基因组回贴三态、按需脱靶、导出口径标注 | **ATAC-seq 可及性注释与 ATAC 加权排序**、原始数据对账 |
-| 适用场景 | 实验设计、批量处理、历史追溯 | 算法单点复现、基准验证 |
+| 系统维度 | 技术选型 |
+| :--- | :--- |
+| 前端 | **React 19 + TypeScript + Vite + Tailwind CSS** |
+| 后端 | **FastAPI (ASGI) + Pydantic v2 + 异步并发** |
+| 持久化 | **SQLite（默认）/ PostgreSQL 16 + SQLAlchemy 2.0** |
+| 可视化 | **ECharts 基因组正负链双轨 + 基因结构/功能域轨道** |
+| 计算模式 | **异步任务队列 + 1.5s 智能轮询** |
+| 特色能力 | 参考包导入、基因组回贴三态、按需脱靶、导出口径标注 |
+| 适用场景 | 实验设计、批量处理、历史追溯 |
 
-> **ATAC-seq 染色质开放峰注释**（`cs_pipeline/core/atac_annotator.py`）目前提供在基准轨：候选表可追加「ATAC状态 / 峰ID / 距峰中心 / 峰强度FC / 可及性分」列，并支持「组织优先指数+ATAC加权」排序（见 4.6 方案 5/ATAC 延伸）。全栈轨的多组学列为表达证据 / 优先指数 / 危害指数。
+> **ATAC-seq 染色质开放峰注释**（`cs_pipeline/core/atac_annotator.py`）为算法侧领域模块：候选表可追加「ATAC状态 / 峰ID / 距峰中心 / 峰强度FC / 可及性分」列，并支持「组织优先指数+ATAC加权」排序（见 4.6 方案 5/ATAC 延伸）。界面多组学列为表达证据 / 优先指数 / 危害指数。
 
 ## 2.2 数据流全景
 
@@ -199,7 +191,7 @@ flowchart LR
     EXP --> XW --> SEED
     GFF --> SEED
     FA -.按需脱靶扫描.-> API2
-    ATAC2 -.对照轨注释.-> ST2[Streamlit]
+    ATAC2 -.可及性注释（core/atac_annotator）.-> TOP100
 ```
 
 **设计意图**：把"亿级碱基 + 千万级候选"的重计算留在**离线流水线**（一次性产物固化为 CSV/Parquet），把"毫秒级检索 + 按需计算"留给**在线服务**。全基因组脱靶这类分钟级计算不预先全量铺开，而是在用户真正需要时**按需计算**（如导出前对勾选的靶点逐条扫描），既诚实（算过的才标数）又实用（不阻塞日常浏览）。
@@ -211,18 +203,18 @@ flowchart LR
 | 莴苣 T2T 基因组 | `cs_pipeline/data/reference_genomes/3-1_LsT2T.genome.fa` | 2.6GB；预置参考包 `lettuce` |
 | 莴苣基因注释 | `3-1_LsT2T.annotation.gff3` | 55MB；基因结构/TSS/外显子 |
 | 橡胶草基因组 + 注释 | `2-1_TKS.genome.fasta` + `2-2_TKS.genome.gff3` | 预置参考包 `tks` |
-| 莴苣 5 组织表达矩阵 | `cs_pipeline/data/expression/1-3_lettuce_5tissue_expression_matrix.csv` | 40,267 基因 × Root/Stem/Leaf/Flower/Seed TPM |
-| 橡胶草时相表达矩阵 | `2-3_TKS_Tiss-Dev-Expression(1).xlsx` | 36,239 基因 × 79 样本列（根/叶 S1–S9、胶乳 S4–S9、花/花葶 S6） |
+| 莴苣 5 组织表达矩阵 | `cs_pipeline/data/expression/1-3_lettuce_5tissue_expression_matrix.csv` | 40,266 基因 × Root/Stem/Leaf/Flower/Seed TPM |
+| 橡胶草时相表达矩阵 | `cs_pipeline/data/expression/2-3_TKS_Tiss-Dev-Expression(1).xlsx` | 36,239 基因 × 79 样本列（根/叶 S1–S9、胶乳 S4–S9、花/花葶 S6） |
 | Hi-TOM 训练集 | `cs_pipeline/data/1_Hi-results-16.1-efficiency-20260921.xlsx` | 1,368 行交付版；建模用 879 行纯 A 级（noB879） |
 | 基因目录 | `cs_pipeline/results/lettuce_all_genes_catalog.csv` | 45,981 基因坐标与注释 |
 | 全基因组 Top100 候选 | `cs_pipeline/results/lettuce_all_genes_top100_candidates.csv` | 4,529,490 行（每基因效率分 Top100） |
 | 真实 CRISPRon 真值 | `results/real_crispron_top100_0927.csv` | 0927 对 Top100 补跑真实 CRISPRon 后回填 |
-| 全量候选（未截断） | `results/grna_candidates_lettuce_0923.csv` 等 | 13,867,270 条（0923 冻结口径；0927 重跑 10,928,676 条并存，两版均有记录） |
-| crosswalk | `results/crosswalk_lsa_t2t_genome.csv` | 45,982 行；可映射 78.0%（详见 4.9） |
+| 全量候选（未截断） | `results/grna_candidates_lettuce_0923.csv` 等 | 磁盘现文件 10,928,676 条（0927 重跑产物，45,970 个基因有候选）；0923 冻结口径为 13,867,270 条 / 45,770 基因（记录于 `scan_stats_0923.md`），两版数字均有记录 |
+| crosswalk | `results/crosswalk_lsa_t2t_genome.csv` | 45,981 行（基因级）；可映射 78.0%（详见 4.9） |
 | crosswalk 投票缓存 | `results/_votes_genome.parquet`（48MB） | 每条 guide 对 v1.1c 基因座的投票缓存，tier 规则调参秒级重跑 |
-| NLR 结构域注释 | `data/reference_genomes/domain_annotations.csv` | 96 个结构域区块（LRR 29/NBS 26/TIR 15/CC 5/LINKER 21），覆盖 20 个 NLR 基因 |
-| NLR 坐标重定位表 | `data/reference_genomes/nlr_gene_loci.csv` | 49 个 demo 基因 → LsT2T 坐标重定位（48/49 成功） |
-| ATAC 峰表 | `data/reference_genomes/1-3_Stem_lettuce_ATAC_peaks.xlsx` | LettuceGDB 口径；对照轨可及性注释 |
+| NLR 结构域注释 | `data/reference_genomes/domain_annotations.csv` | 96 个结构域区块（LRR 29/NBS 26/TIR 15/CC 5/Other 21），覆盖 20 个 NLR 基因 |
+| NLR 坐标重定位表 | `data/reference_genomes/nlr_gene_loci.csv` | 49 个 demo 基因 → LsT2T 坐标重定位（48/49 成功，表内 48 行为成功映射） |
+| ATAC 峰表 | `data/reference_genomes/1-3_Stem_lettuce_ATAC_peaks.xlsx` | LettuceGDB 口径；可及性注释输入 |
 | 效率分模型 | `results/meta_model_hier_bb_nob879_0921.joblib` | Stacking GLMM v2.1 序列化模型 |
 | 模型卡 | `results/model_card_hier_bb_nob879_0921.md` | 训练口径、验证指标、局限声明 |
 
@@ -238,8 +230,9 @@ flowchart LR
 | `gene_expressions` | lsa_id、tier、tpm_root/stem/leaf/flower/seed、top_tissue、tau、is_mappable、unmappable_reason | crosswalk + 5 组织表达证据 |
 | `target_candidates` | seq30/seq20/pam、region_type、is_centromere、is_exon、gc_pct、tm_c、efficiency_score、deepspcas9_score、crispron_score、offtarget_count_mis3、priority_score_{组织}、hazard_{组织}、expression_status、n_intra_panel_sites | 候选库（多组学列齐全；`offtarget_count_mis3=NULL` 表示**未计算**） |
 | `reference_bundles` | id、display_name、fasta/gff/expression_path、expression_layout、expression_id_rule、tissue_columns | 预置 + 导入的参考包注册表 |
-| `scoring_jobs` / `scoring_job_items` | status(pending→running→completed/failed)、crispron_source、各项打分列 | 打分任务与逐条结果 |
+| `scoring_jobs` / `scoring_job_items` | status(pending→running→completed/failed)、bundle_id、crispron_source、各项打分列 | 打分任务与逐条结果 |
 | `export_batches` | name、format、gene_id、candidate_count、candidate_ids | 导出批次归档 |
+| `offtarget_profiles` | genome_key、seq20、exact/mis1/mis2/mis3、bundle_id | 按需脱靶计算持久化（重启后导出复用） |
 
 ## 2.5 极速启动指南
 
@@ -247,7 +240,7 @@ flowchart LR
 
 1. 打开项目根目录 `D:\lifesciencechallenge\`；
 2. 双击 [`一键启动全栈系统.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AF%E5%8A%A8%E5%85%A8%E6%A0%88%E7%B3%BB%E7%BB%9F.bat)；
-3. 系统自动：探测 `D:\Miniconda\envs\grna-demo\python.exe` 科学计算环境 → **秒级缓存探测**（`lifescience.db` 已完整存在则跳过重复灌库，冷启动约 1 秒）→ 启动 FastAPI（:8000）→ 启动 Vite 前端并在就绪瞬间自动打开浏览器（`http://localhost:5173`）。
+3. 系统自动：探测科学计算环境（优先 `D:\Miniconda\envs\crispr\python.exe`，回退 `D:\Miniconda\envs\grna-demo\python.exe`）→ **秒级缓存探测**（`lifescience.db` 已完整存在则跳过重复灌库，冷启动约 1 秒）→ 启动 FastAPI（:8000）→ 启动 Vite 前端并在就绪瞬间自动打开浏览器（`http://localhost:5173`）。
 
 ### 方式 B：PowerShell 终端启动
 
@@ -269,10 +262,6 @@ docker-compose up --build -d
 
 一键拉起 `db`（PostgreSQL 16）、`backend`（FastAPI Uvicorn）、`frontend`（Nginx + React 静态编译）三容器。另有 `一键启动Docker.bat` / `一键停止Docker.bat` / `一键部署_国内源.bat` / `制作离线交付包.bat`（离线交付打包，双 venv 镜像）。
 
-### 基准对照轨启动
-
-双击 [`一键启动Demo.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AF%E5%90%AF%E5%8A%A8Demo.bat) 启动 Streamlit 基准轨（:8501），用于算法对照与 ATAC 注释（见 2.1）。
-
 ## 2.6 服务访问端点速查
 
 | 服务 | 地址 | 说明 |
@@ -281,7 +270,6 @@ docker-compose up --build -d
 | **API 文档** | [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI 交互式接口文档 |
 | **健康诊断** | [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health) | 数据库连通性与服务版本 |
 | **算法透明性** | `GET /api/v1/meta/methods` | 效率分模型/脱靶口径/表达适配度/参考基因组声明（界面「方法与版本」弹窗的数据源） |
-| **基准轨 (Streamlit)** | [http://localhost:8501](http://localhost:8501) | 双轨对照 |
 
 ---
 
@@ -291,16 +279,18 @@ docker-compose up --build -d
 
 ## 3.0 页面布局总览
 
-**顶部吸顶导航栏**：
-- 主标题：**"菊科 CRISPR/Cas9 基因编辑与多组学决策系统"**；
+**左侧浅松绿毛玻璃侧边导航栏**（窄屏窗口下自动转为顶部导航栏）：
+- 品牌区主标题：**"AI 驱动的 gRNA 编辑效率预测与脱靶评估平台——面向橡胶草与莴苣"**；
 - 副标题：**"莴苣 / 橡胶草 · 分层选择性 Beta-Binomial GLMM (v2.1 / noB879) · 生产级全栈工作台"**；
-- 一级导航三个选项卡：**"候选靶点检索"**、**"实时与批量打分"**、**"历史与导出批次"**。
+- 一级导航三个工作台：**"候选靶点检索"**、**"实时与批量打分"**、**"历史与导出批次"**。
+
+右侧工作区自上而下：系统健康状态条（见 3.1）→ 当前工作台内容。
 
 ## 3.1 系统健康卡片
 
 **【作用】** 让用户确认前后端与数据库处于可用状态，避免在服务异常时误判"数据丢了"。
 
-**【操作】** 页面顶部常驻卡片（所有 Tab 之上）：
+**【操作】** 工作区顶部常驻状态条（所有工作台之上）：
 - 正常时：**"服务运行正常"** + 版本徽标 **`v{version}`**，副行 **"全栈服务就绪 · 检查时间: {本地时间}"**；
 - 两个状态灯块：**"FastAPI 后端引擎"** → **"在线活跃 (Active)"**；**"数据库持久层"** → 绿点 **"数据库连接正常"**；
 - 异常时（红卡）：**"服务连接异常"** + **"无法连通后端 API 或数据库服务"**，点击 **"重试"**；
@@ -372,9 +362,9 @@ docker-compose up --build -d
 
 **【操作】**
 - **"最低效率分过滤:"** 滑块：`0 ~ 90 分`，步长 5，**默认 0 分**（不拦截）；拖至如 60 分即实时剔除低于 60 的候选；
-- **"排除着丝粒不稳定区靶点 (Centromere Filter)"** 复选框：**默认不勾选**；勾选后剔除着丝粒区候选（表内"着丝粒"列显示红色 **"着丝粒区"** 警示徽标，否则 **"否"**）。
+- **"排除着丝粒不稳定区靶点 (Centromere Filter)"** 复选框：**默认不勾选**；勾选后剔除着丝粒区候选（表内"着丝粒"列显示红色 **"着丝粒"** 警示徽标，否则 **"否"**）。
 
-**【原理】** 着丝粒标记来自 `data/lettuce/centromere_regions.bed` 坐标集（已固化进库表 `is_centromere` 列）；0927 已修复 Chr1/Chr01 染色体命名归一问题，并验证 49 个 demo 基因与着丝粒区间零交集。
+**【原理】** 着丝粒标记源自 `cs_pipeline/data/lettuce/centromere_regions.bed` 坐标集，由离线脚本 `cs_pipeline/demo/prepare_demo_data.py` 按坐标标注候选 `in_centromere` 后随灌库写入 `is_centromere` 列；0927 已修复 Chr1/Chr01 染色体命名归一问题，并验证 49 个 demo 基因与着丝粒区间零交集。**如实标注**：着丝粒标注目前仅覆盖 49 个 NLR demo 候选，全基因组 Top100 候选入库时未做着丝粒标注（恒为"否"），该过滤对全基因组候选暂不构成区分。
 
 ### 3.2.6 多组织表达看板与靶向适宜性诊断（方案1 + crosswalk）
 
@@ -420,6 +410,8 @@ docker-compose up --build -d
 **【操作】** 标题 **"候选 gRNA 靶位点推荐清单"**；右侧 **"共匹配到 {N} 条符合条件的靶点"**；若启用 poly-T 硬过滤另有琥珀徽标 **"另有 {N} 条含 TTTT poly-T 终止信号已过滤"**（title：**"U6 启动子（RNA Pol III）转录遇 TTTT 提前终止，含 poly-T 信号的候选已在枚举阶段硬过滤，不参与列表与排序"**）；标题右侧 **"方法与版本"** 按钮（见 3.2.11）。每页 20 条，分页条 **"显示第 X - Y 条，共 N 条"** + **"上一页" / "下一页"**。
 
 **18 列逐列说明**（列名逐字校对）：
+
+> 表头为两层：上层为分组行 **"识别 / 定位 / 序列 / 活性 / 脱靶 / 多组学 / 评分"**（纯视觉分组，不替代下列列名行）；表格横向滚动时左侧 `[ ]`、`#`、**靶点 ID** 三列固定（sticky）显示。
 
 | 列名 | 内容与语义 | 背后口径 |
 | :--- | :--- | :--- |
@@ -514,7 +506,7 @@ docker-compose up --build -d
   2. 非法字符：**"含非法字符，仅支持 A / C / G / T 碱基"**；
   3. PAM 合规：第 25–27 位须为 NGG，否则 **"第 25-27 位须为 NGG PAM 基序（即第 26、27 位须为 GG）"**；
   4. 合规时绿字 **"序列规格合规：20nt 引导区 + {实际 PAM 三碱基} PAM 基序"**；
-- **示例按钮**（点击填入序列 + 标题）：**"填入示例 1"**（`TTTGTGGATTCCGGTAGAATCTGATGGAAT`，Lsat_675191 代表靶位点）、**"填入示例 2"**（`TGACAGCGTCTCGTTTCACGCTCAAGGTGG`，外显子高活性靶点）、**"橡胶草示例"**（`ATATGAAAATGTCAGGATGCCTGAAGGACA`，橡胶草 LG07.3296 Hi-TOM 实测靶点）；
+- **示例按钮**（点击填入序列 + 标题）：**"填入示例 1"**（`TTTGTGGATTCCGGTAGAATCTGATGGAAT`，Lsat_675191 代表靶位点）、**"填入示例 2"**（`TGACAGCGTCTCGTTTCACGCTCAAGGTGG`，外显子高活性靶点）、**"橡胶草示例"**（`ATATGAAAATGTCAGGATGCCTGAAGGACA`，橡胶草 LG07.3296 实测靶点 (Hi-TOM)）；
 - **"回贴参考包:"** 分段按钮（预置 **莴苣 (LsT2T)** / **橡胶草 TKS** + 导入的自定义包）；**"导入参考包"** 按钮展开导入面板（见 3.3.3）；参考包基因组缺失时琥珀提示 **"该参考包基因组文件缺失，回贴不可用"**；
 - 可选任务备注（placeholder **"自定义任务备注名称（可选）"**）→ 点击 **"开始实时打分"**（推理 <100ms；等待时 **"正在调用模型推理..."**）。
 
@@ -589,7 +581,7 @@ docker-compose up --build -d
    - **行级展开**（title **"点击展开/收起 10 维特征向量"**）：展示该序列特征向量（标题 **"10 维模型特征向量（单一来源：features_common.seq_features，与训练/推理同口径）"**）；
    - **过滤与择优**：搜索框 **"搜索 ID 或序列..."**；合规性下拉 **"全部条目 / 仅合规条目 / 仅异常条目"**；**"最低效率分"** 数字过滤；排序下拉 **"按效率分排序 / 按 DeepSpCas9 排序 / 按 GC 含量排序 / 按编号排序"**；Top-N 下拉 **"全部显示 / Top 5 / Top 10 / Top 20"**（title **"仅显示排序最优先的 N 条（Top-N 择优）"**）；
 5. **三张可视化图**（有效条目 >0 时）：**"预测效率分分布"** 直方图（X 轴 0-10…90-100 十档）、**"DeepSpCas9 vs 集成效率分"** 散点、**"GC 含量 vs 集成效率分"** 散点——三图联动判读序列质量与模型一致性；
-6. **导出**：**"导出结果 (xlsx)"**（title **"导出打分结果与多组学注释（缺啥写啥：缺失原因/所需数据/所用参考包/百分位口径）"**）/ **"CSV"**（仅数据表）。xlsx 三个 sheet：**`数据表`、`指标方法说明`、`数据需求模板`**；数据表逐行携带：**效率百分位 + 百分位口径**（同批多条自动按贴入集合排名；单条不排名）、**多组学证据状态**（四态：`序列不合法（未计算）` / `命中预计算候选（与 Tab 1 同源复用）` / `基因组回贴命中（{chrom}:{start}-{end} {strand}链，按需计算）` / `未锚定（未命中参考包基因组，多组学不适用）`）、**缺失原因 / 所需数据 / 所用参考包**。
+6. **导出**：**"导出结果 (xlsx)"**（title **"导出打分结果与多组学注释（缺啥写啥：缺失原因/所需数据/所用参考包/百分位口径）"**）/ **"CSV"**（仅数据表）。xlsx 三个 sheet：**`数据表`、`指标方法说明`、`数据需求模板`**；数据表逐行携带：**效率百分位 + 百分位口径**（同批多条自动按贴入集合排名；单条不排名）、**多组学证据状态**（四态：`序列不合法（未计算）` / `命中预计算候选（与 Tab 1 同源复用）` / `脱靶已按需计算（复用已算结果，未现场基因组回贴）` / `未命中预计算候选库（未计算：快照导出不做现场全基因组扫描）`）、**缺失原因 / 所需数据 / 所用参考包**。
 
 **【原理】** 上传后 `POST /api/v1/scoring/upload` 建 Job（pending）+ Items，`BackgroundTasks` 异步并发跑模型；每条独立标注 `crispron_source`。批量导出的贴入集合优先指数 = `0.50×pct − 0.25×Penalty`（表达项 0，因无基因锚定）。
 
@@ -599,7 +591,9 @@ docker-compose up --build -d
 
 **【操作】** 页标题 **"实验设计成果导出批次与任务历史"**，说明 **"集中追踪所有筛选并固化的湿实验靶点方案、历史计算作业以及即时下载下单规格清单。"**；按钮 **"刷新记录"**：
 - **概览四卡**：**"累计导出批次"、"累计打分任务"、"计算成功率"**（无任务显示 100%）、**"平均计算耗时"**；
-- **二级 Tab**：**"实验方案导出批次 (N)"**（列：**"批次自定义名称"、"关联基因"、"文件格式"、"包含靶点数"、"创建时间"、"下载操作"**，操作按钮 **"下载文件"**）与 **"算法计算作业履历 (N)"**（列：**"任务标题 / 序列标识"、"作业类型"**（**"批量表格"/"单序列"**）、**"状态"**（**"已完成"/"运行中"/"排队中"/"失败"**）、**"序列条数"、"执行耗时"、"创建时间"**）；
+- **二级 Tab**：**"实验方案导出批次 (N)"**（列：**"批次自定义名称"、"关联基因"、"文件格式"、"包含靶点数"、"创建时间"、"操作"**，操作按钮 **"下载文件"** / **"删除"**）与 **"算法计算作业履历 (N)"**（列：**"任务标题 / 序列标识"、"作业类型"**（**"批量表格"/"单序列"**）、**"状态"**（**"已完成"/"运行中"/"排队中"/"失败"**）、**"序列条数"、"执行耗时"、"创建时间"、"操作"**）；
+- **删除记录**（硬删除 + 确认弹窗）：Tab1 删导出归档记录；Tab2 删作业并连带逐条序列明细；**已算好的脱靶与多组学结果均保留**，删历史不回滚计算；
+- **作业导出**：Tab2 每条作业可 **"导出 (xlsx)"** / **"CSV"**；多组学注释沿用**任务记录的参考包**（未记录时缺省 lettuce），已按需计算过的脱靶从**持久化表**复用（"计算脱靶 + 优先指数"落库产物，重启不丢），未算过的行照旧如实标注 **"未计算"**；
 - **"历史打分抽屉"**（Tab2 右侧按钮打开）：标题 **"模型打分历史任务抽屉"**，集中浏览过往打分任务（序列数、耗时、状态），空态 **"暂无历史打分任务记录，可先在工作台提交单序列或批量序列打分。"**。
 
 ---
@@ -659,7 +653,7 @@ $$\text{效率分} = \frac{100}{1 + \exp\left(-\left(\beta_0 + \sum_j \beta_j \c
 **【CRISPRon 真实打分与降级近似】**：
 - `crispron_source = "wsl_real"`：WSL/原生 CRISPRon 管线真实运行（0927 已对 Top100 候选补跑真实 CRISPRon 回填，唯一 seq30 3,998,591 条）；
 - `crispron_source = "approximated"`：管线不可用或该条无精确 30mer 匹配时，降级经验近似式 `deepspcas9×0.95 + (Tm−50)×0.25`——实测近似值偏高 **+8.66 分（14.5%）**，故**逐条标注来源**，绝不以近似冒充真值；
-- 整体推理不可用时的效率分兜底：`round(max(10, min(95, 50+(GC−50)×0.5)), 2)` 并标注 `approximated`。
+- 整体推理不可用时效率分**不输出兜底值**：如实留空并标"未计算"（附警告"模型推理未产出 efficiency_score，该指标未计算（如实标注缺失，不编造数值）"）——`scoring_service.py` 明确"不以 GC 启发式公式编造数值"，宁缺毋假。
 
 **【量程与用法】** 0–100 模型相对分；**同一基因内候选的相对排序参考**，非绝对 indel% 承诺（见 FAQ Q3）。
 
@@ -671,7 +665,7 @@ $$\text{效率分} = \frac{100}{1 + \exp\left(-\left(\beta_0 + \sum_j \beta_j \c
 1. **鸽笼原理种子筛（pigeonhole）**：≤3 错配的 20-mer 比对中，把 20nt 切成 4 个不重叠 5-mer 块，必有一块**完全匹配**——先用 3bit×5 编码块过滤掉绝大多数不可能的窗口；
 2. **PAM 预筛**：正链窗口后 2bp=GG、负链窗口前 2bp=CC；
 3. **向量化 Hamming 精确验证**；分块 8,000,000 窗口/批，验证批 500,000；
-4. 真实基因组单 guide 全扫描实测约 **66 秒**（教师反馈验收数据）；结果**进程内按 (基因组, seq20) 缓存，计数与位点明细共享同一次扫描**——"未计算"格计算、导出前预计算、位点明细抽屉三条入口互相复用，同一 guide 全程只扫一次全基因组（缓存返回副本，各处就地补注释互不污染）。
+4. 真实基因组单 guide 全扫描实测约 **66 秒**（教师反馈验收数据）；结果**进程内按 (基因组, seq20) 缓存，计数与位点明细共享同一次扫描**——"未计算"格计算、导出前预计算、位点明细抽屉三条入口互相复用，同一 guide 全程只扫一次全基因组（缓存返回副本，各处就地补注释互不污染）。按需计算结果同时**落库持久化**（`offtarget_profiles` 表）：进程重启后任意入口导出仍复用已算结果。
 
 **【计数分档】**（界面"脱靶数 (≤3)"= mis3 档）：
 
@@ -762,18 +756,18 @@ $$\text{Hazard}_t(g) = \sum_{k \in \text{面板内命中}} \omega(\text{mis}_k) 
 ### 方案 6：产胶时相表达（已交付 · 橡胶草）
 SRPP / REF / CPT 三个产胶通路基因家族（橡胶树参考蛋白 9 条，5-mer 词筛 + Smith-Waterman identity≥0.30、coverage≥0.50 鉴定；成员 SRPP 8 / REF 2 / CPT 4）；对 S1–S9 时相表达做三次样条 + 一阶导数定爆发期。**结论：三家族统一推荐 S4 期（胶乳初生）启动诱导**，根爆发期 S4–S7。界面呈现见 3.3.2（"推荐转化窗口 S4"）。
 
-### ATAC-seq 染色质开放延伸（对照轨已交付）
+### ATAC-seq 染色质开放延伸（算法侧模块已交付）
 `cs_pipeline/core/atac_annotator.py`（LettuceGDB 峰表口径）为候选追加可及性注释：
 
 $$\text{atac\_score} = \begin{cases} 0.6 + 0.4 \cdot \min(1, \text{FC}/10) & \text{峰内} \\ 0.3 \cdot (1 - d/5000) & \text{峰近端} \le 5000\text{bp} \\ 0 & \text{其余} \end{cases}$$
 
-状态标签：`ATAC开放峰内 / ATAC峰近端 / 远离ATAC峰 / 无ATAC证据`；对照轨支持「组织优先指数+ATAC加权」排序：`0.45·EffPct − 0.25·OffPen + 0.20·Expr + 0.10·Atac`。**生物学动机**：异染色质区 Cas9 切割可及性差——与着丝粒过滤、MFE 同属"切不切得到"维度。
+状态标签：`ATAC开放峰内 / ATAC峰近端 / 远离ATAC峰 / 无ATAC证据`；算法侧（`core/atac_annotator.py`）支持「组织优先指数+ATAC加权」排序：`0.45·EffPct − 0.25·OffPen + 0.20·Expr + 0.10·Atac`。**生物学动机**：异染色质区 Cas9 切割可及性差——与着丝粒过滤、MFE 同属"切不切得到"维度。
 
 ## 4.7 基因结构与 NLR 蛋白功能域注释
 
 **基因结构**（`gene_structure_service.py`）：解析 GFF3 `gene → mRNA/transcript → exon/CDS` 层级（兼容 GFF2 属性）；外显子/CDS 按基因并集去重排序（1-based 闭区间）；**TSS 链感知**（+ 链取基因 start，− 链取 end）；位点区域判定优先级 `exon > intron > promoter > intergenic`，**启动子 = TSS 上游 2000bp 链感知窗口**。区域中文标签：外显子/内含子/启动子/TSS 上游/基因间区。
 
-**NLR 蛋白功能域**（教师反馈 P0/P1 项）：对 49 个 NLR 代表基因（±2kb 侧翼）运行 **NLR-Annotator v2.1b**（Steuernagel et al., Plant Physiology 2020；`cs_pipeline/tools/nlr-annotator/`），把 CC/TIR/NBS/LRR 结构域命中映射回基因组坐标，产出 `domain_annotations.csv`——**96 个结构域区块（LRR 29 / NBS 26 / TIR 15 / CC 5 / LINKER 21），覆盖 20 个 NLR 基因**。缺表/未覆盖时如实返回 **"暂无蛋白功能域注释"**。
+**NLR 蛋白功能域**（教师反馈 P0/P1 项）：对 49 个 NLR 代表基因（±2kb 侧翼）运行 **NLR-Annotator v2.1b**（Steuernagel et al., Plant Physiology 2020；`cs_pipeline/tools/nlr-annotator/`），把 CC/TIR/NBS/LRR 结构域命中映射回基因组坐标，产出 `domain_annotations.csv`——**96 个结构域区块（LRR 29 / NBS 26 / TIR 15 / CC 5 / Other 21，Other 为 NLR-Annotator motif 区块未归入上述四类者），覆盖 20 个 NLR 基因**。缺表/未覆盖时如实返回 **"暂无蛋白功能域注释"**。
 
 **坐标重定位**：49 个 demo 基因坐标与 LsT2T 参考存在 **270–339kb 系统性偏移**，用 seq30 全基因组重定位（**48/49 成功**，`nlr_gene_loci.csv` 映射表 + `coordinate_note` 说明外部组装版本偏移）——这是"数据纪律"立场的又一体现：坐标对不上就承认对不上、给出重定位证据，而不是悄悄用错坐标。
 
@@ -783,12 +777,12 @@ $$\text{atac\_score} = \begin{cases} 0.6 + 0.4 \cdot \min(1, \text{FC}/10) & \te
 - **只扫基因功能区**：全部外显子 + **TSS 上游 2000bp** 启动子窗口——不做全基因组暴力扫描（设计意图：候选的价值密度集中在功能区，且扫描成本可控）；
 - 双链 NGG：正链找 NGG 取上游 20nt，负链找 CCN 取下游 20nt 反向互补；seq30 去重；
 - **poly-T 硬过滤**：含 TTTT 的 spacer 在枚举阶段剔除（计数 `poly_t_filtered_count` 供界面提示）；
-- 扫描规模：45,981 基因 / **13,867,270 候选**（0923 冻结口径）；0927 重跑 10,928,676 条（启动子占 54.1%，均值 237.7 条/基因），两版数字均有记录（见附录 B）。
+- 扫描规模：**0923 冻结口径** 45,770 基因 / **13,867,270 候选**（`scan_stats_0923.md`：启动子 44.9%、均值 303.0 条/基因）；**0927 重跑** 45,981 基因 / 10,928,676 条（`scan_stats.md`：启动子占 54.1%，均值 237.7 条/基因），两版数字均有记录（见附录 B）。
 
 **Top100 截断与 NLR 全量**：
 - 全基因组基因（`LsT2T*`）：全量打分后按 `gene_id + efficiency_score 降序` 每基因截 **Top100** 入库（4,529,490 条）——库内检索毫秒级响应的前提；0927 用真实 CRISPRon 重算效率分后**只重排、成员不变**；
 - 49 个 NLR 代表基因（`LsaT2T*`）：**全量 19,839 条候选入库**（demo 重点靶标，不截断）；
-- **着丝粒标记**：`is_centromere`（源自 centromere regions BED，已固化入库；Chr1/chr1 命名归一修复于 0927）。
+- **着丝粒标记**：`is_centromere`（源自 centromere regions BED，Chr1/chr1 命名归一修复于 0927；当前仅 49 NLR demo 候选带标注，全基因组 Top100 入库恒为"否"，见 3.2.5 原理注）。
 
 **现场枚举**（自定义序列回贴后按需算百分位时）：同口径枚举基因体+TSS 2kb 双链全部 NGG 30-mer，poly-T 硬过滤，上限 2,000 条去重保序，批量打分（超时 600s）后排名，同基因缓存。
 
@@ -867,8 +861,8 @@ $$\text{atac\_score} = \begin{cases} 0.6 + 0.4 \cdot \min(1, \text{FC}/10) & \te
 | 脱靶罚分 | $\min(1, (1.0\,\text{exact} + 0.5\,\text{mis1} + 0.2\,\text{mis2} + 0.05\,\text{mis3})/10)$ | 封顶 10 |
 | 功能危害 | $\sum \omega(\text{mis})\cdot w_t$，$\omega=\{0{:}10,1{:}3,2{:}1,3{:}0.2\}$，$w_t = 1+0.5\log_2(\text{TPM}_t+1)$ | 49 NLR 面板 ±20kb；越小越安全；不可映射命中取 0.1 |
 | τ 组织特异性 | $\sum(1-\text{TPM}_i/\max)/(n-1)$ | Yanai 2005；τ→1 特异 |
-| ATAC 可及性分 | 峰内 $0.6+0.4\min(1,\text{FC}/10)$；近端 $0.3(1-d/5000)$；其余 0 | 对照轨 |
-| ATAC 加权排序 | $0.45\,\text{EffPct} - 0.25\,\text{OffPen} + 0.20\,\text{Expr} + 0.10\,\text{Atac}$ | 对照轨 |
+| ATAC 可及性分 | 峰内 $0.6+0.4\min(1,\text{FC}/10)$；近端 $0.3(1-d/5000)$；其余 0 | 算法侧模块 |
+| ATAC 加权排序 | $0.45\,\text{EffPct} - 0.25\,\text{OffPen} + 0.20\,\text{Expr} + 0.10\,\text{Atac}$ | 算法侧模块 |
 
 ### 5.6 综合判断原则（湿实验取舍）
 
@@ -891,7 +885,7 @@ $$\text{atac\_score} = \begin{cases} 0.6 + 0.4 \cdot \min(1, \text{FC}/10) & \te
 | 表达证据不可映射（tier4） | 不展示假定 TPM | **"⚠️ 表达证据缺失：{原因}"**（≠ 转录静默） |
 | crosswalk 未找到记录 | 不编造映射 | **"未评估：未找到该基因的 crosswalk 映射或表达图谱记录。"** |
 | CRISPRon 真实模型不可用 | 降级近似式并逐条标注 | `crispron_source=approximated`（琥珀徽标 + 偏高提示） |
-| 效率分推理不可用 | GC 线性兜底并标注 | `approximated` |
+| 效率分推理不可用 | 不输出假值，留空标"未计算"并附警告 | **"该指标未计算（如实标注缺失，不编造数值）"** |
 | ViennaRNA 缺失 | MFE 返回空 | **"— ViennaRNA 不可用"** |
 | 参考包无 GFF | 基因结构不可用 | **"参考包 {id} 无基因注释 GFF，基因结构不可用（如实标注，不编造）"** |
 | 序列未锚定基因组 | 多组学不适用 | **"未锚定（未命中参考包基因组，多组学不适用）"** + 缺失原因/所需数据 |
@@ -948,20 +942,20 @@ $$\text{atac\_score} = \begin{cases} 0.6 + 0.4 \cdot \min(1, \text{FC}/10) & \te
 | 历史 | 打分历史抽屉 + 导出批次页（概览四卡/双 Tab） | ✅ | 前端测试 |
 | 多组学 | 方案1 表达看板 / 方案3 优先指数 / 方案5 危害指数 / 方案6 时相 | ✅ | `test_multiomics_service.py` |
 | | 方案2 消融（阴性结论）/ 方案4 重训（正式降级不实施） | ✅ 如实声明 | `results/ablation_expression_report_0923.md` |
-| | ATAC 可及性注释 + 加权排序 | ✅ 对照轨 | `core/atac_annotator.py` |
+| | ATAC 可及性注释 + 加权排序 | ✅ 算法侧模块 | `core/atac_annotator.py` |
 | 透明性 | meta/methods + 方法与版本弹窗 + 《指标方法说明》 | ✅ | `test_export_api.py` |
 
 ## 7.3 测试与基准对账
 
-**后端 18 个测试文件**（`backend/tests/`）：健康检查、单序列/批量 API、候选 API、CFD 官方一致性、脱靶服务（鸽笼=暴力枚举、分档、负链错配方向、截断不截计数）、脱靶 API、表达适配度、多组学公式、基因结构、现场枚举 poly-T、注释三态、参考包注册、导出 API、任务导出、种子灌库、**基准一致性**。
+**后端 18 个测试文件**（`backend/tests/`）：健康检查、单序列/批量 API、候选 API、CFD 官方一致性、脱靶服务（鸽笼=暴力枚举、分档、负链错配方向、截断不截计数）、脱靶 API、表达适配度、多组学公式、基因结构、现场枚举 poly-T、注释三态、参考包注册、排序语义、导出 API、任务导出、种子灌库、**基准一致性**。
 
-**双轨对账**：`test_parity_verification.py` 校验全栈接口输出与 Streamlit 基准（49 基因目录、候选打分排序、单序列解构）数值一致，误差容限 Δ<10⁻⁶：
+**基准数据对账**：`test_parity_verification.py` 校验全栈接口输出与冻结基准数据（`cs_pipeline/demo/` 的 49 基因目录、候选打分排序、单序列解构）数值一致，误差容限 Δ<10⁻⁶：
 
 ```powershell
-& "D:\Miniconda\envs\grna-demo\python.exe" -m pytest backend/tests/test_parity_verification.py
+python -m pytest backend/tests/test_parity_verification.py
 ```
 
-**前端测试**：`frontend/src/components/*.test.tsx`（CandidateSearchPanel、GenomicTargetMap、SingleScoringCard 等 25 项）覆盖交互与文案。
+**前端测试**：`frontend/src` 下 12 个测试文件共 52 项（`components/*.test.tsx` 8 个文件 33 项：CandidateSearchPanel、GenomicTargetMap、SingleScoringCard、BatchUploadCard、ExportHistoryPanel、HistoryDrawer、DownloadButton、SystemHealthCard；另有 `components/ui/ui.test.tsx`、`App.test.tsx`、`lib/candidateQuery.test.ts`、`lib/urlState.test.ts`），覆盖交互与文案，`npm test` 全部通过。
 
 ## 7.4 已知边界与如实声明的未实施项
 
@@ -970,7 +964,7 @@ $$\text{atac\_score} = \begin{cases} 0.6 + 0.4 \cdot \min(1, \text{FC}/10) & \te
 3. **深度活性分系数为负**属共线性 artifact，如实呈现（4.2）；
 4. **扫描候选数两个版本并存**（0923 冻结 13,867,270 / 0927 重跑 10,928,676）——引用时注明版本（附录 B）；
 5. **N 基因密集区脱靶可能漏计**（鸽笼筛对含 N 块的近似约定）——代码内标注；
-6. **ATAC 注释目前在对照轨**，全栈轨多组学列为表达/优先指数/危害指数；
+6. **ATAC 注释为算法侧模块**（`core/atac_annotator.py`），当前界面多组学列为表达/优先指数/危害指数；
 7. **tier4 基因（22.0%）无表达证据**——属于数据现实（v1.1c 注释缺口），系统如实标注而非填充假值。
 
 ---
@@ -1052,7 +1046,6 @@ $$\text{atac\_score} = \begin{cases} 0.6 + 0.4 \cdot \min(1, \text{FC}/10) & \te
 | 用途 | 位置 |
 | :--- | :--- |
 | 一键启动（全栈） | [`一键启动全栈系统.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AF%E5%8A%A8%E5%85%A8%E6%A0%88%E7%B3%BB%E7%BB%9F.bat) / [`run_fullstack.ps1`](file:///d:/lifesciencechallenge/run_fullstack.ps1) |
-| 一键启动（基准轨） | [`一键启动Demo.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AF%E5%8A%A8Demo.bat) |
 | 前端工程 | [`frontend/`](file:///d:/lifesciencechallenge/frontend/) |
 | 后端工程 | [`backend/`](file:///d:/lifesciencechallenge/backend/) |
 | 离线流水线与核心模块 | [`cs_pipeline/`](file:///d:/lifesciencechallenge/cs_pipeline/)（`core/`、`scripts/`、`results/`、`data/`） |
