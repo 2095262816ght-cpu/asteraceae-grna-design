@@ -55,7 +55,8 @@ describe('App 页面切换状态保持', () => {
     render(<App />)
 
     await userEvent.click(screen.getByText('实时与批量打分'))
-    await userEvent.click(screen.getByText(/填入示例 1/i))
+    // 打分面板按需加载（代码分割）：首次进入需等懒加载 chunk 转换完成
+    await userEvent.click(await screen.findByText(/填入示例 1/i, {}, { timeout: 5000 }))
     await userEvent.click(screen.getByRole('button', { name: /开始实时打分/i }))
 
     await waitFor(() => {

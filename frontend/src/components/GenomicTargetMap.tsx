@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import ReactECharts from 'echarts-for-react'
+import { echarts, ReactEChartsCore } from '../lib/echarts'
 import type { GeneInfo } from './CandidateSearchPanel'
 import type { CandidateItem } from '../lib/candidateQuery'
 import { MapPin, ZoomIn, Info, AlertTriangle } from 'lucide-react'
@@ -158,7 +158,8 @@ interface RenderItemApi {
   return (cds ?? []).some(([s, e]) => exon[0] <= e && exon[1] >= s)
 }
 
-export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
+// memo：父面板高频状态（导出进度/计算中）更新时不重建图表 option、不重渲染图谱
+const GenomicTargetMapInner: React.FC<GenomicTargetMapProps> = ({
   gene,
   candidates,
   selectedGuideId,
@@ -243,7 +244,7 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
       const isSelected = selectedGuideId === cand.guide_id
 
       let pointColor = '#94a3b8' // < 40 slate
-      if (eff >= 70) pointColor = '#10b981' // >= 70 emerald
+      if (eff >= 70) pointColor = '#22c55e' // >= 70 品牌绿
       else if (eff >= 40) pointColor = '#f59e0b' // 40-70 amber
 
       const pointData = {
@@ -279,8 +280,9 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
   const yStruct = -1
   const yDomain = -2
   const yRev = hasTracks ? -3 : -1
-  const yMin = hasTracks ? -3.6 : -1.8
-  const yMax = 1.8
+  // 整数上下界：interval=1 的刻度必须落在轨道行位，否则 y 轴标签匹配不到刻度、整列不渲染
+  const yMin = hasTracks ? -4 : -2
+  const yMax = 2
 
   // 轨道数据（与基因条带共用同一横轴比例尺）
   const { structureTrackData, domainTrackData, tssTrackData } = useMemo(() => {
@@ -372,6 +374,10 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
       tooltip: {
         trigger: 'item',
         formatter: (params: { data?: MapTooltipItem }) => formatMapTooltip(params.data),
+        backgroundColor: '#ffffff',
+        borderColor: '#e2e8f0',
+        textStyle: { color: '#0f172a' },
+        extraCssText: 'box-shadow: 0 8px 24px rgb(15 23 42 / 0.18); border-radius: 8px;',
       },
       xAxis: {
         type: 'value',
@@ -385,7 +391,7 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
         splitLine: {
           show: true,
           lineStyle: {
-            color: '#f1f5f9',
+            color: 'rgba(148, 163, 184, 0.32)',
             type: 'dashed',
           },
         },
@@ -400,7 +406,7 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
         splitLine: {
           show: true,
           lineStyle: {
-            color: '#f8fafc',
+            color: 'rgba(148, 163, 184, 0.22)',
           },
         },
         axisLabel: {
@@ -424,10 +430,10 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
           xAxisIndex: [0],
           bottom: 12,
           height: 22,
-          borderColor: '#e2e8f0',
-          fillerColor: 'rgba(16, 185, 129, 0.15)',
+          borderColor: 'rgba(148, 163, 184, 0.3)',
+          fillerColor: 'rgba(34, 197, 94, 0.15)',
           handleStyle: {
-            color: '#10b981',
+            color: '#22c55e',
           },
           textStyle: {
             color: '#64748b',
@@ -449,7 +455,7 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
             silent: true,
             symbol: ['none', gene.strand === '+' ? 'arrow' : 'none'],
             lineStyle: {
-              color: '#3b82f6',
+              color: '#60a5fa',
               width: 5,
               type: 'solid',
             },
@@ -463,7 +469,7 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
               show: true,
               position: 'insideMiddleTop',
               formatter: `${gene.gene_id} (${gene.strand}) [${(gene.end - gene.start).toLocaleString()} bp]`,
-              color: '#1e3a8a',
+              color: '#1d4ed8',
               fontSize: 11,
               fontWeight: 'bold',
             },
@@ -569,17 +575,17 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-4">
+    <div className="glass-panel rounded-card p-6">
+      <div className="flex flex-wrap items-center justify-between border-b border-line pb-4">
         <div className="flex items-center space-x-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/60 text-brand-600">
             <MapPin className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">
+            <h3 className="text-sm font-bold text-ink">
               染色体物理分布交互图谱 ({gene.chrom} : {gene.start.toLocaleString()} - {gene.end.toLocaleString()})
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ink-muted">
               正反链双轨渲染 · 基因骨架长度: {(gene.end - gene.start).toLocaleString()} bp · 当前匹配靶点: {candidates.length} 条
             </p>
           </div>
@@ -588,18 +594,18 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
         {/* 图例与操作提示 */}
         <div className="flex items-center space-x-4 text-xs">
           <div className="flex items-center space-x-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-            <span className="text-slate-600">高活性 (&ge;70)</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-brand-500"></span>
+            <span className="text-ink-muted">高活性 (&ge;70)</span>
           </div>
           <div className="flex items-center space-x-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-amber-500"></span>
-            <span className="text-slate-600">中等 (40-70)</span>
+            <span className="text-ink-muted">中等 (40-70)</span>
           </div>
           <div className="flex items-center space-x-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-slate-400"></span>
-            <span className="text-slate-600">较低 (&lt;40)</span>
+            <span className="text-ink-muted">较低 (&lt;40)</span>
           </div>
-          <div className="flex items-center space-x-1 text-slate-400 pl-2 border-l border-slate-200">
+          <div className="flex items-center space-x-1 border-l border-line pl-2 text-ink-faint">
             <ZoomIn className="h-3.5 w-3.5" />
             <span>滚轮/下方滑块缩放</span>
           </div>
@@ -608,7 +614,8 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
 
       {/* ECharts 图表容器（基因条带 + 基因结构轨道 + 功能域轨道 + gRNA 散点共用同一比例尺） */}
       <div className="mt-2">
-        <ReactECharts
+        <ReactEChartsCore
+          echarts={echarts}
           option={option}
           onEvents={onChartEvents}
           style={{ height: hasTracks ? '360px' : '240px', width: '100%' }}
@@ -618,21 +625,21 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
 
       {/* 基因结构 / 蛋白功能域轨道图例与明细 */}
       {structureLoading && (
-        <div className="mt-2 flex items-center space-x-2 text-xs text-slate-500">
-          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent"></div>
+        <div className="mt-2 flex items-center space-x-2 text-xs text-ink-muted">
+          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent"></div>
           <span>正在加载基因结构与蛋白功能域注释…</span>
         </div>
       )}
 
       {structureError && (
-        <div className="mt-2 flex items-start space-x-1.5 text-xs text-amber-600">
+        <div className="mt-2 flex items-start space-x-1.5 text-xs text-amber-400">
           <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
           <span>{structureError}</span>
         </div>
       )}
 
       {structure && !structure.available && (
-        <div className="mt-2 text-xs text-slate-500">
+        <div className="mt-2 text-xs text-ink-muted">
           基因结构注释暂不可用
           {structure.missing_requirements && structure.missing_requirements.length > 0
             ? `：补齐 ${structure.missing_requirements.join('、')} 后可显示外显子/功能域轨道`
@@ -641,19 +648,19 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
       )}
 
       {hasTracks && (
-        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+        <div className="mt-3 space-y-2 border-t border-line pt-3">
           {/* 轨道图例 */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
             <div className="flex items-center space-x-1.5">
               <span
                 className="h-2.5 w-4 rounded-sm"
-                style={{ backgroundColor: EXON_COLOR, border: '1px solid #0284c7' }}
+                style={{ backgroundColor: EXON_COLOR, border: '1px solid #7dd3fc' }}
               ></span>
-              <span className="text-slate-600">外显子</span>
+              <span className="text-ink-muted">外显子</span>
             </div>
             <div className="flex items-center space-x-1.5">
               <span className="h-[3px] w-4" style={{ backgroundColor: INTRON_COLOR }}></span>
-              <span className="text-slate-600">内含子</span>
+              <span className="text-ink-muted">内含子</span>
             </div>
             <div className="flex items-center space-x-1.5">
               <span
@@ -664,10 +671,10 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
                   borderBottom: `8px solid ${TSS_COLOR}`,
                 }}
               ></span>
-              <span className="text-slate-600">TSS（转录起始位点）</span>
+              <span className="text-ink-muted">TSS（转录起始位点）</span>
             </div>
             <div className="flex items-center space-x-1.5">
-              <span className="text-slate-600">结构域:</span>
+              <span className="text-ink-muted">结构域:</span>
               {domains.length > 0 ? (
                 (['CC', 'TIR', 'NBS', 'LRR', 'Other'] as const).map((t) => (
                   <span key={t} className="flex items-center space-x-1">
@@ -675,23 +682,23 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
                       className="h-2.5 w-2.5 rounded-sm"
                       style={{ backgroundColor: DOMAIN_COLORS[t] }}
                     ></span>
-                    <span className="text-slate-500">{t}</span>
+                    <span className="text-ink-muted">{t}</span>
                   </span>
                 ))
               ) : (
-                <span className="text-slate-400">该基因无功能域注释（图中无域色块）</span>
+                <span className="text-ink-faint">该基因无功能域注释（图中无域色块）</span>
               )}
             </div>
           </div>
 
           {/* 外显子 / TSS 明细（hover 显示区间） */}
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="text-slate-500">基因结构：</span>
+            <span className="text-ink-muted">基因结构：</span>
             {exons.map((ex, i) => (
               <span
                 key={`exon-${i}`}
                 title={`外显子 ${ex[0]}-${ex[1]}`}
-                className="cursor-help rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 font-mono text-sky-800"
+                className="cursor-help rounded border border-sky-400/30 bg-sky-400/10 px-1.5 py-0.5 font-mono text-sky-300"
               >
                 外显子 {ex[0]}-{ex[1]}
               </span>
@@ -699,19 +706,19 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
             {typeof structure?.tss === 'number' && (
               <span
                 title={`TSS 转录起始位点 ${structure.tss}`}
-                className="cursor-help rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 font-mono text-amber-800"
+                className="cursor-help rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-mono text-amber-300"
               >
                 TSS {structure.tss} ({structure.strand ?? gene.strand} 链)
               </span>
             )}
             {typeof structure?.transcripts !== 'undefined' && structure.transcripts.length > 0 && (
-              <span className="text-slate-400">转录本: {structure.transcripts.join('、')}</span>
+              <span className="text-ink-faint">转录本: {structure.transcripts.join('、')}</span>
             )}
           </div>
 
           {/* 蛋白功能域轨道明细 */}
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="text-slate-500">蛋白功能域：</span>
+            <span className="text-ink-muted">蛋白功能域：</span>
             {domains.length > 0 ? (
               domains.map((d, i) => (
                 <span
@@ -720,8 +727,8 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
                   className="cursor-help rounded border px-1.5 py-0.5 font-mono"
                   style={{
                     color: domainColor(d.domain_type),
-                    borderColor: domainColor(d.domain_type),
-                    backgroundColor: `${domainColor(d.domain_type)}14`,
+                    borderColor: `${domainColor(d.domain_type)}66`,
+                    backgroundColor: `${domainColor(d.domain_type)}1a`,
                   }}
                 >
                   {d.domain_type}
@@ -729,9 +736,12 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
                 </span>
               ))
             ) : (
-              <span className="text-slate-400">
-                暂无蛋白功能域注释
-                {structure?.domain_note ? `（${structure.domain_note}）` : ''}
+              <span className="text-ink-faint">
+                {structure?.domain_note
+                  ? structure.domain_note.includes('暂无蛋白功能域注释')
+                    ? structure.domain_note
+                    : `暂无蛋白功能域注释（${structure.domain_note}）`
+                  : '暂无蛋白功能域注释'}
               </span>
             )}
           </div>
@@ -739,14 +749,14 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
       )}
 
       {selectedGuideId && (
-        <div className="mt-2 flex items-center justify-between rounded-lg bg-sky-50 px-3.5 py-2 text-xs text-sky-800">
+        <div className="mt-2 flex items-center justify-between rounded-control border border-sky-400/20 bg-sky-400/10 px-3.5 py-2 text-xs text-sky-200">
           <div className="flex items-center space-x-2">
-            <Info className="h-4 w-4 text-sky-600" />
+            <Info className="h-4 w-4 text-sky-300" />
             <span>已聚焦靶点：<strong>{selectedGuideId}</strong></span>
           </div>
           <button
             onClick={() => onSelectCandidate('')}
-            className="text-sky-600 hover:text-sky-900 font-medium"
+            className="font-medium text-sky-300 hover:text-sky-100"
           >
             取消聚焦
           </button>
@@ -755,3 +765,5 @@ export const GenomicTargetMap: React.FC<GenomicTargetMapProps> = ({
     </div>
   )
 }
+
+export const GenomicTargetMap = React.memo(GenomicTargetMapInner)
