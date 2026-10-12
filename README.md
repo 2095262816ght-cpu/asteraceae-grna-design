@@ -10,3 +10,5 @@
 | [cs_pipeline/docs/README.md](cs_pipeline/docs/README.md) | 项目资料库索引：现行方案与分工、参考笔记、文献、赛事通知、各阶段报告 |
 
 > git 仅收录代码与 Markdown 文档；PDF / docx / xlsx 等大文件被 .gitignore 忽略，团队网盘为权威源。
+> 如需获取数据请访问网盘：https://pan.quark.cn/s/ca03e23f73f6
+> 联系邮箱获取提取码：dRp6
