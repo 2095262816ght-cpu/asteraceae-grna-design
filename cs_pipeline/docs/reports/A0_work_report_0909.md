@@ -1,7 +1,7 @@
 # 计A 组 9.9 日工作报告（A0：建环境、跑通示例打分、seq30 表）—— 最终版 v3
 
 > 执行时间：2026-09-10 晚 – 2026-09-11 午 · 对应《分工详案_计算机系》（docs/plans/division_plan_cs.md）A0 节
-> 项目目录：`D:\lifesciencechallenge\cs_pipeline\`
+> 项目目录：`<项目根>\cs_pipeline\`
 > v3 更新（9.11 14:48 起）：**CRISPRon 已跑通**（Windows 原生路线），9.9 任务全部完成 ✅
 
 ---

@@ -63,8 +63,6 @@ backend/tests/
 cs_pipeline/env/
 cs_pipeline/docs/
 cs_pipeline/tests/
-cs_pipeline/deploy_demo_cn.ps1
-cs_pipeline/deploy_demo_cn.bat
 cs_pipeline/tools/win-shims
 
 # ---------- cs_pipeline/data：原始测序与离线分析数据不进包 ----------

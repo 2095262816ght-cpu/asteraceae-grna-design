@@ -66,3 +66,6 @@ frontend/dist/
 *.tar
 deploy_offline/*.tar
 
+
+# Oversized derived result dumps (keep out of git, >100MB GitHub limit)
+cs_pipeline/results/results.csv

@@ -9,7 +9,7 @@
 | 项目 | 状态 | 说明 |
 |---|---|---|
 | WSL Ubuntu-22.04 安装 | ❌ 未完成（阻塞） | 见下方错误 |
-| CRISPRon 仓库克隆 | ✅ 完成 | `D:\lifesciencechallenge\cs_pipeline\tools\CRISPRon`（经 Clash 代理） |
+| CRISPRon 仓库克隆 | ✅ 完成 | `<项目根>\cs_pipeline\tools\CRISPRon`（经 Clash 代理） |
 | CRISPRoff 组件下载 | ✅ 完成（预下载到 Windows 侧） | `env\crisproff_dl\`，两个 tar 包均校验通过 |
 | Miniconda / crispron conda 环境 | ❌ 未开始 | 依赖 WSL |
 | `bin/test.sh` 验证 | ❌ 未跑 | 依赖 WSL |
@@ -32,10 +32,10 @@
 
 ## 已完成的准备工作（重启后直接用）
 
-- CRISPRon 仓库：`D:\lifesciencechallenge\cs_pipeline\tools\CRISPRon`
+- CRISPRon 仓库：`<项目根>\cs_pipeline\tools\CRISPRon`
   - 结构已核对：`bin/test.sh`、`bin/CRISPRon.sh` 存在；`data/model/` 不存在（setup 脚本会 `mkdir -p`，无需改脚本路径）。
   - 注意：官方 `environment.yml` 是全量注释环境（含 bedtools/blat/repeatmasker 等），setup 脚本的精简依赖列表（python=3.10 tensorflow=2.14 viennarna=2.6.4 biopython pandas numpy scikit-learn）对 test.sh 足够，无需变更。
-- CRISPRoff 组件：`D:\lifesciencechallenge\cs_pipeline\env\crisproff_dl\`
+- CRISPRoff 组件：`<项目根>\cs_pipeline\env\crisproff_dl\`
   - `crisproff-1.1.2.tar.gz`（24.0 MB）、`CRISPRspec_CRISPRoff_pipeline.v1.1.1.tar.gz`（12.8 MB），`tar -tzf` 校验通过，关键文件 `CRISPRspec_CRISPRoff_pipeline.py`、`energy_dics.pkl` 均在 v1.1.1 包内。
   - rth.dk 直连超时，实际经 Clash 代理（127.0.0.1:7897）下载成功。
 
@@ -47,10 +47,10 @@
 3. WSL 内装 Miniconda（清华镜像直连）：
    `wget -q https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/mc.sh && bash /tmp/mc.sh -b -p /root/miniconda3`，并写 `/root/.condarc` 指向 tuna 镜像。
 4. 把预下载的组件放进 WSL 预期位置，跳过脚本里的下载步骤：
-   `mkdir -p /root/crisproff_dl && cp /mnt/d/lifesciencechallenge/cs_pipeline/env/crisproff_dl/*.tar.gz /root/crisproff_dl/`
+   `mkdir -p /root/crisproff_dl && cp <项目根>/cs_pipeline/env/crisproff_dl/*.tar.gz /root/crisproff_dl/`
    （setup 脚本 `[ -f ... ] || wget` 逻辑会自动跳过下载。）
 5. 以 root 跑 setup（`~` 即 `/root`，脚本里 `~/miniconda3` 与 `~/crisproff_dl` 无需改动）：
-   `MSYS_NO_PATHCONV=1 wsl -d Ubuntu-22.04 -u root -- bash /mnt/d/lifesciencechallenge/cs_pipeline/env/setup_crispron_wsl.sh`
+   `MSYS_NO_PATHCONV=1 wsl -d Ubuntu-22.04 -u root -- bash <项目根>/cs_pipeline/env/setup_crispron_wsl.sh`
 6. 跑通 `bin/test.sh`（341 条序列出分）后，按 `scripts/03_score_crispron.py` / `env/run_crispron_wsl.sh` 的方式对示例序列
    `ATCGGCTAAGCTAGGCTAGCATCGTGGATC` 打分验证。
 

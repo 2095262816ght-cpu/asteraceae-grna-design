@@ -14,7 +14,7 @@
      测试集评估纯序列效应 eta = x_test^T beta，不受批次偏移干扰。
 
 输出: results/b_hierarchical_selective_bb_0921.csv
-运行: D:\Miniconda\envs\crispr\python.exe scripts/dev/b_hierarchical_selective_bb_0921.py
+运行: python scripts/dev/b_hierarchical_selective_bb_0921.py
 """
 import os
 import sys

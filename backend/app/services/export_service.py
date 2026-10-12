@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.db.models import ExportBatch, GeneExpression, ScoringJob, TargetCandidate
 from backend.app.services.expression_evidence import derive_expression_evidence
+from backend.app.services.expression_fitness_service import expression_fitness
 from backend.app.services.multiomics_service import penalty_from_profile
 from backend.app.services import offtarget_service, reference_bundle_service as rb_service
 from cs_pipeline.core.ranking_semantics import (
@@ -135,9 +136,12 @@ def build_methodology_frame() -> pd.DataFrame:
         ("CRISPRon活性分", "CRISPRon 预训练模型预测活性（0–100）",
          f"经 WSL 原生 CRISPRon 实跑（与训练集同一取值约定）；个别无法实跑的序列"
          f"降级为经验近似式 {approx_formula_text()}",
-         "进库候选已批量实跑回填（cs_pipeline/scripts/28–29），失败序列保留近似值并在源数据 "
-         "crispron_source 列逐条标注（wsl_real=实跑 / approximated=近似式），本导出表未携带该标记；"
-         "同为综合排序效率分的输入特征之一"),
+         "进库候选已批量实跑回填（cs_pipeline/scripts/28–29），失败序列保留近似值并在"
+         "「CRISPRon模型来源」列逐条标注（wsl_real=实跑 / approximated=近似式）；"
+         "同为综合排序效率分的输入特征之一；历史任务若在本列引入前打分，则该分未随条目落库，如实标注「未计算」"),
+        ("CRISPRon模型来源", "CRISPRon 分数的取值方式",
+         "wsl_real = WSL/容器内原生 CRISPRon 实跑；approximated = 无法实跑时降级为经验近似式",
+         "与「CRISPRon活性分」配套阅读：先看本列判断可信度，再看分数；未计算 = 该条目打分时未产生分数"),
         ("潜在脱靶位点数(<=3)", "全基因组潜在脱靶位点计数",
          "自建 Cas-OFFinder 口径全基因组扫描：20nt guide 对 LsT2T 参考基因组正负链逐窗口比对，"
          "要求 PAM=NGG、允许 1–3 错配；本列 = 错配 1–3 的位点累计数；完全匹配行单独计数不计入本列；"
@@ -159,6 +163,10 @@ def build_methodology_frame() -> pd.DataFrame:
          "命中 = 49NLR 面板 ±20kb 内 PAM=NGG 且 ≤3 错配的链特异行，guide 自身 on-target 行不计；"
          "数值越小越安全；ω 为错配档位权重（近似 CFD 思想但非 CFD 评分）；"
          "公式同 cs_pipeline/scripts/22 轻量版"),
+        ("多组学证据状态", "该行多组学/脱靶指标的取数来源",
+         "命中预计算候选 = 与候选检索同源复用；脱靶已按需计算 = 复用既算脱靶谱，未现场基因组回贴；"
+         "未命中预计算候选库 = 快照导出不做现场全基因组扫描；序列不合法 = 未计算",
+         "仅单条/批量打分导出携带本列；用于判断同排多组学指标是实算、复用还是缺失，避免把「未计算」误读为 0"),
         ("表达证据状态", "表达证据可用性",
          "由 LsT2T↔LSA crosswalk 映射层级派生：tier1=已映射；tier2=已映射（串联簇）；"
          "tier3=已映射（未挂载 scaffold）；tier4/不可映射=表达证据缺失；无记录=未评估",
@@ -170,6 +178,9 @@ def build_methodology_frame() -> pd.DataFrame:
          "布尔标记，供实验设计过滤参考"),
         ("是否着丝粒区", "候选是否落在着丝粒不稳定区", "按着丝粒注释区间判定",
          "建议避开，但不自动剔除"),
+        ("效率百分位", "该行效率分在可比集合内的百分位（0–100）",
+         "按「百分位口径」列所述集合 rank(pct=True) 计算；无贴入集合或有效分数不足时不计算",
+         "「未计算」≠ 0：单条打分无同批集合可排名，如实标注不适用，不以 0 冒充"),
         ("百分位口径", "组织优先指数中效率百分位的计算口径标签",
          "库内该基因预计算候选分布 rank(pct=True)（基因内排名）",
          "Tab 2 自定义序列另有「现场枚举同基因候选分布」与「贴入集合（批内排名）」两种口径，"
@@ -264,6 +275,7 @@ async def generate_batch_export_bytes(
     for rank, c in enumerate(candidates, start=1):
         expr_row = expr_map.get(c.gene_id)
         _, expr_display, expr_note = derive_expression_evidence(c.expression_status, expr_row)
+        poly_t_fit = expression_fitness(c.seq20) if c.seq20 else {}
 
         # D4 缺啥写啥：逐行标注缺失原因与所需数据，不以 0 冒充
         need_parts = []
@@ -285,6 +297,9 @@ async def generate_batch_export_bytes(
             "20bp_Guide序列": c.seq20,
             "3bp_PAM(gRNA链方向，恒为NGG；负链靶点在基因组正链读作CCN)": c.pam,
             "GC含量(%)": c.gc_pct,
+            "Poly-T 硬过滤": "含 TTTT" if poly_t_fit.get("poly_t") else "无 TTTT",
+            "5'G 标记": "G-start" if poly_t_fit.get("five_prime_g") else "非 G",
+            "spacer MFE (kcal/mol)": round(poly_t_fit["mfe_kcal"], 2) if poly_t_fit.get("mfe_kcal") is not None else "未计算",
             "解链温度_Tm(C)": c.tm_c,
             "综合排序效率分": c.efficiency_score,
             "组织优先指数(叶)": c.priority_score_leaf if c.priority_score_leaf is not None else "未计算",
@@ -490,17 +505,31 @@ async def generate_scoring_job_export_bytes(
                 need_parts.append("表达矩阵+组织列映射（表达项）")
             need = "；".join(need_parts) if need_parts else "—"
 
+        if it.is_valid and it.guide_seq:
+            fit = expression_fitness(it.guide_seq)
+            poly_t_val = "含 TTTT" if fit["poly_t"] else "无 TTTT"
+            g5_val = "G-start" if fit["five_prime_g"] else "非 G"
+            mfe_val = round(fit["mfe_kcal"], 2) if fit["mfe_kcal"] is not None else "未计算"
+        else:
+            poly_t_val = g5_val = mfe_val = "不适用"
+
         rows.append({
             "实验优选推荐序": rank if it.is_valid else "不适用",
-            "样本编号": it.custom_id,
+            "靶点唯一ID": it.custom_id or "—",
             "30bp完整靶位点": it.seq30,
             "20bp_Guide序列": it.guide_seq or "—",
             "3bp_PAM(gRNA链方向)": it.pam or "—",
             "GC含量(%)": it.gc_pct if it.gc_pct is not None else "—",
+            "Poly-T 硬过滤": poly_t_val,
+            "5'G 标记": g5_val,
+            "spacer MFE (kcal/mol)": mfe_val,
             "解链温度_Tm(C)": it.tm_c if it.tm_c is not None else "—",
-            "DeepSpCas9活性分": it.deepspcas9_score if it.deepspcas9_score is not None else "未计算",
-            "CRISPRon模型来源": it.crispron_source or "未计算",
             "综合排序效率分": it.efficiency_score if it.efficiency_score is not None else "未计算",
+            "DeepSpCas9活性分": it.deepspcas9_score if it.deepspcas9_score is not None else "未计算",
+            "CRISPRon活性分": it.crispron_score if it.crispron_score is not None else (
+                cand.crispron_score if cand is not None and cand.crispron_score is not None else "未计算"
+            ),
+            "CRISPRon模型来源": it.crispron_source or "未计算",
             "效率百分位": pct_val,
             "百分位口径": basis,
             "多组学证据状态": state_display,

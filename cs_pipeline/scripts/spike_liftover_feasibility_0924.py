@@ -18,8 +18,8 @@ import csv
 import sys
 from pathlib import Path
 
-BASE = Path("D:/lifesciencechallenge/cs_pipeline")
-TMP = Path("D:/lifesciencechallenge/_scratch")
+BASE = Path(__file__).resolve().parents[1]
+TMP = Path(__file__).resolve().parents[2] / "_scratch"
 T2T_FA = BASE / "data/reference_genomes/3-1_LsT2T.genome.fa"
 V11C_FA = BASE / "data/reference_genomes/1-2_Stem_lettuce_genome.v1.1c.fa"
 V11C_GFF = BASE / "data/reference_genomes/1-1_Stem_lettuce_v1.1c.gff"

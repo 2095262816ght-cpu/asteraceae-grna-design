@@ -8,7 +8,7 @@
 
 **做了什么**（对应交付物）：
 
-1. **数据**：系统核查并更正橡胶草（TKS）Hi-TOM 实测数据（扩表至 1,368 行 / 24 批次），经独立双重审计落地裁决并剔除 90 行未确认 B 级数据，构建出 879 行 / 16 基因组的 **`noB879` 纯 A 级金标准数据集**，修复 PAM 错记、坐标偏移、链向整列反转、indel 口径低估等 7 类历史问题（`docs/problem.md`、`docs/project_progress_report.md`）。经公开渠道穷尽检索确认：**这是该物种首个成规模的 per-guide 实测效率金标准数据集**；
+1. **数据**：系统核查并更正橡胶草（TKS）Hi-TOM 实测数据（扩表至 1,368 行 / 24 批次），经独立双重审计落地裁决并剔除 90 行未确认 B 级数据，构建出 879 行 / 16 基因组的 **`noB879` 纯 A 级金标准数据集**，修复 PAM 错记、坐标偏移、链向整列反转、indel 口径低估等 7 类历史问题（`docs/data-governance/problem.md`、`docs/reports/project_progress_report.md`）。经公开渠道穷尽检索确认：**这是该物种首个成规模的 per-guide 实测效率金标准数据集**；
 2. **模型（v2.1 终版生产模型）**：双模型打分 + 8 维生物物理特征，采用**形态二（分层选择性 Beta-Binomial GLMM）**架构（`results/model_card_hier_bb_nob879_0921.md`）。通过选择性经验贝叶斯（Selective EB）批次效应收缩机制剥离批次随机扰动，推断纯序列生物学活性；独立测试集实现显著正相关 **$\rho = \mathbf{+0.342}$（$p = 7.89 \times 10^{-7}$，AUC = 0.7857）**，低混杂核心折突破至 **$\rho = \mathbf{+0.464}$**；
 3. **科学结论**：定量回答"人源模型迁移植物是否可行"——三体系对照显示预训练模型在植物体系直接迁移存在严重失效（单模型 AUC 仅约 0.52，与随机无异），人源/植物公开数据简单混合训练无法带来增量；而结合分层贝叶斯建模与真实数据校正能显著提升序列活性判别能力（`results/model_comparison_nob879_report_0924.md`）；
 4. **多组学时空决策**：整合莴苣 5 组织（根、茎、叶、花、种子）均值表达与 16 批生物学重复（方案 1/3/5），提供组织特异性敲除表型适宜性诊断与面板内功能性脱靶危害评估；结合橡胶草 S1–S9 发育时相数据（方案 6），量化产胶通路推荐转化窗口；
@@ -47,8 +47,9 @@ cs_pipeline/
 │   └── score_deepspcas9_cli.py  # 打分子进程入口（stdin 进、CSV 出）
 ├── demo/                        # demo 运行时数据（app_data.csv 等，由 prepare_demo_data.py 生成）
 ├── docs/                        # 项目资料库（索引见 docs/README.md）：plans/ 方案分工、
-│                                #   reports/ 工作报告、knowledge/ 笔记、paper/ 文献、
-│                                #   survey/ 调研、notification/ 赛事通知、_archive/ 存档
+│                                #   reports/ 工作报告、data-governance/ 数据治理、
+│                                #   knowledge/ 笔记、paper/ 文献、survey/ 调研、
+│                                #   notification/ 赛事通知、ppt/ 汇报PPT、patent/ 专利、_archive/ 存档
 ├── tools/                       # 外部工具（二进制与克隆不入 git，见「外部工具」）
 ├── README.md
 └── requirements.txt
@@ -56,17 +57,24 @@ cs_pipeline/
 
 ## 环境搭建（逐条命令，Windows + Anaconda Prompt / Git Bash）
 
+> 评委快速验证与功能覆盖矩阵见根 [`README.md`](../README.md)「评审快速验证 / 完整功能安装」。
+> 以下 conda 路线与 pip 路线**等价，二选一即可**。
+
 ```bash
-# 1) 主管线环境（打分/特征/训练/扫描）
+# 方式 A（推荐）：pip，一条命令装齐
 cd /d <本仓库所在目录>/cs_pipeline
-conda env create -f env/environment.yml        # 环境名 crispr，py3.10 + R4.3 + genet 0.17.2
+pip install -r requirements.txt    # 主管线 + Web 后端 + DeepSpCas9（genet/TF2.9.3/torch/RNAfold）
+
+# 方式 B（等价）：conda
+conda env create -f env/environment.yml   # 环境名 crispr，py3.10 + R4.3 + genet 0.17.2
 conda activate crispr
 
-# 2) CRISPRon 打分环境（WSL Ubuntu-22.04 内一次性组装，官方 TF2 仓库）
+# CRISPRon 真实打分环境（可选；TF2.14 与上面的 TF2.9.3 无法同环境，故独立）
 wsl -d Ubuntu-22.04 -- bash env/setup_crispron_wsl.sh
 ```
 
-- Python 侧直接依赖见 `requirements.txt`（仅直接依赖，非 pip freeze 全量）。
+- `requirements.txt` 为**一文件装齐**（内部 `-r requirements-score.txt`）；`requirements-crispron.txt` 为 CRISPRon 独立环境。
+- 未装 CRISPRon 环境时，`crispron` 特征降级为经验近似式并逐条标注 `approximated`，**其余全部功能不受影响**。
 - R 侧备用：`BiocManager::install("crisprScore")`（R≥4.3，安装脚本 `env/install_crisprscore.R`）。注：本项目实际打分链路为 genet（DeepSpCas9，Windows 原生）+ CRISPRon 官方仓库（WSL），crisprScore 仅备用——其 DeepSpCas9 依赖 py2.7+TF1.4.1 无 Windows 包，且任何版本均不含 CRISPRon。
 
 ## 复现流程
@@ -98,6 +106,9 @@ cd .. && powershell -NoProfile -File run_fullstack.ps1   # 或双击根目录 �
 ```
 
 - 模型训练完成后，由 `scripts/predict.py` 的 `predict_efficiency(seq30_list)` 接口统一向 Web 系统供分（支持 WSL 原生 CRISPRon 真实调用及降级来源回溯）。
+- **一键生成最终结果文件**：`python scripts/emit_results.py` → `results/results.csv`（字段规范见 [`results/RESULTS_SCHEMA.md`](results/RESULTS_SCHEMA.md)）。对**新序列**打分则用 `python scripts/predict.py` 或调用 `predict_efficiency()`。
+- **关于 Jupyter Notebook**：《附件5》第二节第（4）项规定「如主运行入口已经能够完整复现流程，Notebook 不作为所有项目的强制文件」。本项目上述 A/B/C 三段脚本已可端到端完整复现（训练 → 扫描 → 脱靶 → 多组学决策 → 结果文件），故不额外提供 Notebook，以脚本链路为准。
+- **训练 / 验证日志与随机种子**：见 [`logs/README.md`](logs/README.md)（`random_state=42` 全队统一，16 折 LOGO-CV 折级明细与运行耗时已归档）。
 
 ### 2. 历史阶段复现路径备查（v1.x / v2.0）
 - `scripts/01–06`：v1.x 早期 487 行岭回归 Stacking 原型链路；
@@ -124,15 +135,17 @@ cd .. && powershell -NoProfile -File run_fullstack.ps1   # 或双击根目录 �
 - **CRISPRon / CRISPRoff**（RTH-tools，GPL/AGPL）：仓库克隆与模型文件不入 git，由 `env/setup_crispron_wsl.sh` 在 WSL 中重建（https://github.com/RTH-tools/crispron）。
 - **genet 0.17.2**（pip）：DeepSpCas9 TF2 封装，随 `env/environment.yml` 安装；首次 predict 自动下载模型 checkpoint（约 700 KB，需联网）。
 
-## 数据说明（未随代码发布的数据）
+## 数据说明
 
-| 数据 | 原因 | 获取方式 |
-|---|---|---|
-| `data/reference_genomes/`（茎用生菜 v1.1c ~2.5 Gb、橡胶草 TKS ~1.2 Gb、莴苣 T2T ~2.5 Gb 及各自注释） | 体积过大 | 生菜两套由团队网盘提供；莴苣 T2T 在其论文 Figshare 页面下载 fasta/GFF3；`2-1_TKS.genome.fasta`/`3-1_LsT2T.*` 为 01/07 脚本的直接输入 |
-| `data/lettuce/`（Cas-OFFinder 输入 + 着丝粒 bed） | 可再生 | `casoffinder_input.txt` 由 B2 候选生成（随 git 发布于 `data/lettuce/`）；着丝粒坐标出自莴苣 T2T 论文补充表 |
-| `data/raw/`（Hi-TOM 原始测序交付 R0/R1 归档、PCR 检测图、合并源表、筛查序列） | 团队原始数据、体积大 | 团队共享网盘为权威源；`data/hitom/hitom_clean_v1.csv` 为清洗后快照，随代码发布 |
-| `results/offtarget_raw_0924.txt`（399 MB 原始脱靶输出） | 体积过大、可再生 | 由 `scripts/run_mini_batches.ps1` + `scripts/09_aggregate_offtarget.py` 复现；汇总表 `offtarget_counts_0924.csv` 随代码发布 |
-| CRISPRon 模型权重、genet checkpoint | 第三方模型文件 | 由上述安装步骤自动获取 |
+完整的数据来源、版本、获取时间、用途、许可、清洗记录、训练/验证/测试划分与去重与数据泄漏防控措施见 [`data/README.md`](data/README.md)（《附件5》第三节溯源要求）。
+
+| 数据 | 是否随包发布 | 原因 | 获取方式 |
+|---|---|---|---|
+| `data/reference_genomes/`（茎用生菜 v1.1c ~2.5 Gb、橡胶草 TKS ~1.2 Gb、莴苣 T2T ~2.5 Gb 及各自注释） | ✅ 随包发布 | — | 生菜两套由团队网盘提供；莴苣 T2T 在其论文 Figshare 页面下载 fasta/GFF3；`2-1_TKS.genome.fasta`/`3-1_LsT2T.*` 为 01/07 脚本的直接输入 |
+| `data/lettuce/`（Cas-OFFinder 输入 + 着丝粒 bed） | ✅ 随包发布 | 可再生 | `casoffinder_input.txt` 由 B2 候选生成（随 git 发布于 `data/lettuce/`）；着丝粒坐标出自莴苣 T2T 论文补充表 |
+| `data/raw/`（Hi-TOM 原始测序交付 R0/R1 归档、PCR 检测图、合并源表、筛查序列） | ❌ 不随包发布 | **团队自有未发表实验数据**、体积大 | 团队共享网盘为权威源；`data/hitom/hitom_clean_v1.csv` 为清洗后快照，随代码发布 |
+| `results/offtarget_raw_0924.txt`（399 MB 原始脱靶输出） | ❌ 不随包发布 | 体积过大、可再生 | 由 `scripts/run_mini_batches.ps1` + `scripts/09_aggregate_offtarget.py` 复现；汇总表 `offtarget_counts_0924.csv` 随代码发布 |
+| CRISPRon 模型权重、genet checkpoint | ❌ 不随包发布 | 第三方模型文件 | 由上述安装步骤自动获取 |
 
 ## 匿名化说明
 

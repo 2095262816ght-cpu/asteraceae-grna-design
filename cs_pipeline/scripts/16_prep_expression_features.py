@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """16_prep_expression_features.py — 表达数据标准化 + LSA↔T2T 生产版 crosswalk（方案1/3/5 前置）
 
-依据 docs/multiomics_implementation_plan.md（0923 修订版）与 0923 crosswalk 对比实验结论
+依据 docs/plans/multiomics_implementation_plan.md（0923 修订版）与 0923 crosswalk 对比实验结论
 （_scratch/crosswalk_compare.py 的 v3 分层设计）：
 
 产物

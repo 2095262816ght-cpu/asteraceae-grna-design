@@ -34,7 +34,7 @@
 
 ## 3. 训练数据
 
-- 来源：`data/1_Hi-results-12-20260913.xlsx`（含 2026-09-15/16 全部更正：5712 序列更正、6995/6999 窗口更正、strand 221 行、坐标 1bp、PAM CCA→ACT、5712 indel 口径写回；详见 `docs/problem.md` / `docs/problem2.md`）。
+- 来源：`data/1_Hi-results-12-20260913.xlsx`（含 2026-09-15/16 全部更正：5712 序列更正、6995/6999 窗口更正、strand 221 行、坐标 1bp、PAM CCA→ACT、5712 indel 口径写回；详见 `docs/data-governance/problem.md` / `docs/data-governance/problem2.md`）。
 - 规模：**487 行 / 14 个基因 / 23 条 distinct guide**（491 行剔 4 行非 NGG）。
 - 批次：USR-8145(112)、USR-4411(109)、USR-5713(86)、USR-23709(68)、USR-5712(61)、USR-25902(45)、USR-26162(6)。
 - 标签：`efficiency_norm = indel_pct × 100`（indel_pct 为 Hi-TOM 实测切割侧非 WT reads 占比；5712 批 61 行为右侧口径，其余为左侧口径）。

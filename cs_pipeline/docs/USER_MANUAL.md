@@ -139,7 +139,7 @@
 
 ## 2.1 系统架构矩阵
 
-系统遵循 [ADR 0004: 生产级全栈架构升级](file:///d:/lifesciencechallenge/cs_pipeline/docs/adr/0004-fullstack-postgres-fastapi-react.md)，采用生产级现代化全栈体系：
+系统遵循 [ADR 0004: 生产级全栈架构升级](adr/0004-fullstack-postgres-fastapi-react.md)，采用生产级现代化全栈体系：
 
 ```mermaid
 flowchart TD
@@ -238,14 +238,14 @@ flowchart LR
 
 ### 方式 A：Windows 双击一键启动（强烈推荐）
 
-1. 打开项目根目录 `D:\lifesciencechallenge\`；
-2. 双击 [`一键启动全栈系统.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AF%E5%8A%A8%E5%85%A8%E6%A0%88%E7%B3%BB%E7%BB%9F.bat)；
-3. 系统自动：探测科学计算环境（优先 `D:\Miniconda\envs\crispr\python.exe`，回退 `D:\Miniconda\envs\grna-demo\python.exe`）→ **秒级缓存探测**（`lifescience.db` 已完整存在则跳过重复灌库，冷启动约 1 秒）→ 启动 FastAPI（:8000）→ 启动 Vite 前端并在就绪瞬间自动打开浏览器（`http://localhost:5173`）。
+1. 打开项目根目录 `<项目根>\`；
+2. 双击 [`一键启动全栈系统.bat`](../../一键启动全栈系统.bat)；
+3. 系统自动：探测科学计算环境（优先 `crispr` 环境的 python.exe，回退 `grna-demo` 环境的 python.exe；conda 安装位置由 `CONDA_ROOT`/`CONDA_EXE`/`CONDA_PREFIX` 环境变量与各盘符常见安装目录自动发现，亦可用 `CRISPR_PYTHON` 显式指定解释器，无需修改脚本）→ **秒级缓存探测**（`lifescience.db` 已完整存在则跳过重复灌库，冷启动约 1 秒）→ 启动 FastAPI（:8000）→ 启动 Vite 前端并在就绪瞬间自动打开浏览器（`http://localhost:5173`）。
 
 ### 方式 B：PowerShell 终端启动
 
 ```powershell
-Set-Location D:\lifesciencechallenge
+Set-Location <项目根>
 .\run_fullstack.ps1
 ```
 
@@ -260,7 +260,7 @@ Set-Location D:\lifesciencechallenge
 docker-compose up --build -d
 ```
 
-一键拉起 `db`（PostgreSQL 16）、`backend`（FastAPI Uvicorn）、`frontend`（Nginx + React 静态编译）三容器。另有 `一键启动Docker.bat` / `一键停止Docker.bat` / `一键部署_国内源.bat` / `制作离线交付包.bat`（离线交付打包，双 venv 镜像）。
+一键拉起 `db`（PostgreSQL 16）、`backend`（FastAPI Uvicorn）、`frontend`（Nginx + React 静态编译）三容器。停止：`docker compose down`。
 
 ## 2.6 服务访问端点速查
 
@@ -1045,13 +1045,13 @@ python -m pytest backend/tests/test_parity_verification.py
 
 | 用途 | 位置 |
 | :--- | :--- |
-| 一键启动（全栈） | [`一键启动全栈系统.bat`](file:///d:/lifesciencechallenge/%E4%B8%80%E9%94%AF%E5%8A%A8%E5%85%A8%E6%A0%88%E7%B3%BB%E7%BB%9F.bat) / [`run_fullstack.ps1`](file:///d:/lifesciencechallenge/run_fullstack.ps1) |
-| 前端工程 | [`frontend/`](file:///d:/lifesciencechallenge/frontend/) |
-| 后端工程 | [`backend/`](file:///d:/lifesciencechallenge/backend/) |
-| 离线流水线与核心模块 | [`cs_pipeline/`](file:///d:/lifesciencechallenge/cs_pipeline/)（`core/`、`scripts/`、`results/`、`data/`） |
-| 架构决策记录 | [`ADR 0001–0004`](file:///d:/lifesciencechallenge/cs_pipeline/docs/adr/) |
-| 教师反馈闭环报告 | [`teacher_feedback_offtarget_scoring_report.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/teacher_feedback_offtarget_scoring_report.md) |
-| 多组学实施报告 | [`multiomics_five_schemes_implementation_report_0924.md`](file:///d:/lifesciencechallenge/cs_pipeline/docs/multiomics_five_schemes_implementation_report_0924.md) |
+| 一键启动（全栈） | [`一键启动全栈系统.bat`](../../一键启动全栈系统.bat) / [`run_fullstack.ps1`](../../run_fullstack.ps1) |
+| 前端工程 | [`frontend/`](../../frontend) |
+| 后端工程 | [`backend/`](../../backend) |
+| 离线流水线与核心模块 | [`cs_pipeline/`](..)（`core/`、`scripts/`、`results/`、`data/`） |
+| 架构决策记录 | [`ADR 0001–0004`](adr) |
+| 教师反馈闭环报告 | [`reports/teacher_feedback_offtarget_scoring_report.md`](reports/teacher_feedback_offtarget_scoring_report.md) |
+| 多组学实施报告 | [`reports/multiomics_five_schemes_implementation_report_0924.md`](reports/multiomics_five_schemes_implementation_report_0924.md) |
 | 模型卡 | `cs_pipeline/results/model_card_hier_bb_nob879_0921.md` |
 | 版本变更 | `cs_pipeline/results/CHANGELOG_0927.md` |
 

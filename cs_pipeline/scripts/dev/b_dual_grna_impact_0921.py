@@ -7,7 +7,7 @@
 3. downweight_dual (879行): 双 gRNA 块在似然损失中按 0.5 降权
 
 输出: results/b_dual_grna_impact_0921.csv
-运行: D:\Miniconda\envs\crispr\python.exe scripts/dev/b_dual_grna_impact_0921.py
+运行: python scripts/dev/b_dual_grna_impact_0921.py
 """
 
 from pathlib import Path

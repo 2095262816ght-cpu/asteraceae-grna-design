@@ -1,7 +1,8 @@
 """修正版：检测文件格式（文本/二进制xls），解析 USR-8145 与 USR-23709"""
 import re, glob, os
 
-RAW = r"d:\lifesciencechallenge\cs_pipeline\data\raw"
+import os
+RAW = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw")
 
 def is_text(p):
     with open(p, "rb") as f:

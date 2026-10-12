@@ -27,6 +27,47 @@ SRC_LABELS = {
     SOURCE_APPROXIMATED: "⚠️ 近似式降级",
 }
 
+_CONDA_DIR_NAMES = ("Miniconda3", "Miniconda", "anaconda3", "anaconda")
+
+
+def _conda_roots() -> list[Path]:
+    """推导 conda 安装根目录：先用环境变量，再扫描各盘符常见安装位置。
+
+    不写死绝对路径——任何盘符/安装位置都能发现，且不暴露本机目录布局。
+    """
+    roots: list[Path] = []
+
+    def add(p: Path) -> None:
+        if p not in roots:
+            roots.append(p)
+
+    for var in ("CONDA_ROOT", "CONDA_EXE", "CONDA_PREFIX", "CONDA_PREFIX_1"):
+        raw = os.environ.get(var)
+        if not raw:
+            continue
+        p = Path(raw)
+        name = p.name.lower()
+        if name in ("python.exe", "python", "conda.exe", "conda.bat"):
+            p = p.parent.parent
+        elif name in ("scripts", "condabin"):
+            p = p.parent
+        if p.parent.name == "envs":
+            p = p.parent.parent
+        add(p)
+
+    scan_bases = [Path.home(), Path.home().parent, Path(r"C:\ProgramData")]
+    scan_bases += [Path(f"{c}:\\") for c in "CDEFGH"]
+    for base in scan_bases:
+        try:
+            if not base.is_dir():
+                continue
+        except OSError:
+            continue
+        for n in _CONDA_DIR_NAMES:
+            add(base / n)
+
+    return roots
+
 COL_DISPLAY_MAP = {
     "seq30": "30bp 序列",
     "deepspcas9_score": "DeepSpCas9 分数",
@@ -97,7 +138,11 @@ class InferenceClient:
         self._crispr_python = crispr_python or self._resolve_crispr_python()
 
     def _resolve_crispr_python(self) -> str:
-        """多级探测 crispr 环境的 python.exe 路径。"""
+        """多级探测 crispr 环境的 python.exe 路径。
+
+        遵循《附件5》第六节「避免硬编码绝对路径」：显式覆盖用 CRISPR_PYTHON，
+        其余由 conda 环境变量推导 + 盘符扫描发现，不写死任何本机安装位置。
+        """
         explicit = os.environ.get("CRISPR_PYTHON")
         if explicit and Path(explicit).exists():
             return explicit
@@ -106,17 +151,9 @@ class InferenceClient:
         candidates = [
             cur_exe.parent.parent / "envs" / "crispr" / "python.exe",
             cur_exe.parent.parent / "crispr" / "python.exe",
-            Path(r"D:\Miniconda\envs\crispr\python.exe"),
-            Path.home() / "miniconda3" / "envs" / "crispr" / "python.exe",
-            Path.home() / "anaconda3" / "envs" / "crispr" / "python.exe",
-            Path(r"C:\miniconda3\envs\crispr\python.exe"),
-            Path(r"C:\anaconda3\envs\crispr\python.exe"),
-            Path(r"C:\ProgramData\miniconda3\envs\crispr\python.exe"),
-            Path(r"C:\ProgramData\anaconda3\envs\crispr\python.exe"),
         ]
-        conda_p1 = os.environ.get("CONDA_PREFIX_1")
-        if conda_p1:
-            candidates.append(Path(conda_p1) / "envs" / "crispr" / "python.exe")
+        for root in _conda_roots():
+            candidates.append(root / "envs" / "crispr" / "python.exe")
 
         for cand in candidates:
             if cand.exists():

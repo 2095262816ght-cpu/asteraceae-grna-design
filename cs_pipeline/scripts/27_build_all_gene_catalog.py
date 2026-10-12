@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-base = Path(r"D:\lifesciencechallenge\cs_pipeline")
+base = Path(__file__).resolve().parents[1]
 parts = sorted((base / "results" / "scored_genome").glob("part_*.csv"))
 print("loading parts...", len(parts), flush=True)
 

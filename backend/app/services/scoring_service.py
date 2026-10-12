@@ -168,6 +168,7 @@ async def execute_single_scoring(
         gc_pct=gc_pct,
         tm_c=tm_c,
         deepspcas9_score=deepspcas9_score,
+        crispron_score=crispron_score,
         crispron_source=crispron_source,
         efficiency_score=efficiency_score,
     )

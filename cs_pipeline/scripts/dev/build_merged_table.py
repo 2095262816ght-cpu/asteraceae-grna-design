@@ -15,7 +15,7 @@ import pandas as pd
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-BASE_DIR = r'd:\lifesciencechallenge\cs_pipeline'
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OLD_PATH = os.path.join(BASE_DIR, 'data', '1_Hi-results-12-20260913.xlsx')
 NEW_PATH = os.path.join(BASE_DIR, 'data', '1_Hi-results-13-NEWdata-20260918.xlsx')
 OUT_PATH = os.path.join(BASE_DIR, 'data', '1_Hi-results-13-merged-20260918.xlsx')

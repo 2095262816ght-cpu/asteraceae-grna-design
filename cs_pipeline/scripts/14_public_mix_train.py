@@ -80,7 +80,7 @@ def stage_crisp():
         for _, r in df.iterrows():
             f.write(f">{r.pub_id}\n{r.seq30}\n")
     subprocess.run(["wsl", "-d", "Ubuntu-22.04", "bash",
-                    "/mnt/d/lifesciencechallenge/cs_pipeline/env/run_crispron_wsl.sh"], check=True)
+                    "/mnt/" + str(BASE).replace("\\", "/").replace(":", "").lower() + "/env/run_crispron_wsl.sh"], check=True)
     res = pd.read_csv(IO / "out" / "crispron.csv")
     res["pub_id"] = res["ID"].str.replace(r"_[pm]_[0-9]+$", "", regex=True)
     res = res.merge(df[["pub_id", "seq30"]], on="pub_id")

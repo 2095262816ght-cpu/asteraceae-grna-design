@@ -646,14 +646,14 @@ export const BatchUploadCard: React.FC = () => {
                                   : 'bg-amber-100 text-amber-800'
                               }`}
                             >
-                              {item.efficiency_score.toFixed(2)}
+                              {Number(item.efficiency_score).toFixed(2)}
                             </span>
                           ) : (
                             <span className="text-ink-faint">--</span>
                           )}
                         </td>
                         <td className="px-3 py-2.5 text-center font-sans">
-                          {item.deepspcas9_score !== null ? item.deepspcas9_score.toFixed(2) : '--'}
+                          {item.deepspcas9_score !== null ? Number(item.deepspcas9_score).toFixed(2) : '--'}
                         </td>
                         <td className="px-3 py-2.5 text-center font-sans">
                           {item.is_valid ? (

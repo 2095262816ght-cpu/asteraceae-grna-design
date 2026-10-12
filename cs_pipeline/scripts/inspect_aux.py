@@ -1,5 +1,6 @@
 import openpyxl
-wb = openpyxl.load_workbook(r"d:\lifesciencechallenge\cs_pipeline\data\1_Hi-results-12-20260913.xlsx", data_only=False)
+from pathlib import Path
+wb = openpyxl.load_workbook(str(Path(__file__).resolve().parents[1] / "data" / "1_Hi-results-12-20260913.xlsx"), data_only=False)
 
 for sn in ["Sheet2", "Sheet3", "Sheet4", "Sheet5"]:
     ws = wb[sn]
