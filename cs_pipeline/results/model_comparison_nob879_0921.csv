@@ -1,0 +1,4 @@
+model,cohort,n_train,n_test,spearman_rho_test,spearman_p_test,n_distinct_guide_test,spearman_rho_test_dedup,spearman_p_test_dedup,auc_test,rho_logo_cv_median,rho_logo_class_a_median,valid_folds
+DeepSpCas9 单用,noB879,681,198,-0.1167,0.10156979046141831,7,-0.4505,0.3104293018513229,0.5242,-0.0632,-0.3666,10/16
+CRISPRon 单用,noB879,681,198,-0.1153,0.10585659952441402,7,-0.3964,0.378634709500413,0.5246,-0.2204,-0.3666,9/16
+形态二 GLMM（本工作 · 生产模型）,noB879,681,198,0.3424,7.888848385712791e-07,7,0.3063,0.5040270086665881,0.7857,0.3635,0.4636,9/16

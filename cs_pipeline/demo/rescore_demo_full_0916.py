@@ -19,6 +19,8 @@ import numpy as np
 import pandas as pd
 
 BASE = Path(__file__).resolve().parent.parent          # cs_pipeline/
+sys.path.insert(0, str(BASE))
+from scripts.features_common import seq_features  # noqa: E402
 APP_DATA = BASE / "demo" / "app_data.csv"
 DEEP_OUT = BASE / "results" / "demo_score_deep_full_0916.csv"
 CRISP_OUT = BASE / "results" / "demo_score_crisp_full_0916.csv"
@@ -49,8 +51,8 @@ def stage_crisp():
     with open(IO / "seq30_in.fa", "w") as f:
         for _, r in df.iterrows():
             f.write(f">{r.guide_id}\n{r.seq30}\n")
-    subprocess.run(["wsl", "-d", "Ubuntu-22.04", "bash",
-                    "/mnt/d/lifesciencechallenge/cs_pipeline/env/run_crispron_wsl.sh"], check=True)
+    _wsl_script = "/mnt/" + str(BASE).replace("\\", "/").replace(":", "").lower() + "/env/run_crispron_wsl.sh"
+    subprocess.run(["wsl", "-d", "Ubuntu-22.04", "bash", _wsl_script], check=True)
     res = pd.read_csv(IO / "out" / "crispron.csv")
     res["guide_id"] = res["ID"].str.replace(r"_[pm]_[0-9]+$", "", regex=True)
     res = res.merge(df[["guide_id", "seq30"]], on="guide_id")
@@ -63,26 +65,17 @@ def stage_crisp():
 
 def stage_assemble():
     import joblib
-    from Bio.SeqUtils import gc_fraction
-    from Bio.SeqUtils.MeltingTemp import Tm_NN
 
     df = load_candidates()
     deep = pd.read_csv(DEEP_OUT)
     crisp = pd.read_csv(CRISP_OUT)
     df = df.merge(deep, on="guide_id", validate="1:1").merge(crisp, on="guide_id", validate="1:1")
 
-    seq20 = df.seq30.str[4:24]
-    feat = pd.DataFrame({
-        "deepspcas9_score": df["deepspcas9_score"].astype(float),
-        "crispron_score": df["crispron_score"].astype(float),
-        "gc_total": seq20.map(gc_fraction),
-        "gc_seed": df.seq30.str[18:24].map(gc_fraction),
-        "tm": seq20.map(Tm_NN),
-        "poly_t": seq20.str.contains("TTTT").astype(int),
-        "pam_n_A": (df.seq30.str[24] == "A").astype(float),
-        "pam_n_C": (df.seq30.str[24] == "C").astype(float),
-        "pam_n_T": (df.seq30.str[24] == "T").astype(float),
-    })
+    # 特征语义单点定义在 core.sequence_spec，经 seq_features 适配器取值（旧模型 FEATS 为 9 维子集）
+    feat = pd.concat([
+        df[["deepspcas9_score", "crispron_score"]].astype(float),
+        seq_features(df["seq30"]),
+    ], axis=1)
     FEATS = ["deepspcas9_score", "crispron_score", "gc_total", "gc_seed",
              "tm", "poly_t", "pam_n_A", "pam_n_C", "pam_n_T"]
     meta = joblib.load(MODEL)

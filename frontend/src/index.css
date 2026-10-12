@@ -1,0 +1,358 @@
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* 设计 token 底层：Tailwind surface/line/ink 色板引用这些变量（RGB 三元组） */
+  --surface: 255 255 255;
+  --surface-sunken: 248 250 249;
+  --line: 226 232 240;
+  --line-strong: 203 213 225;
+  --ink: 15 23 42;
+  --ink-muted: 100 116 139;
+  --ink-faint: 107 114 128;
+
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  @apply text-ink antialiased;
+  background-color: #fdf6f9;
+}
+
+/* 毛玻璃需要"背后有内容"才显形：柔和多色渐变底（粉→紫→天蓝→薄荷→暖黄）。
+   必须放在 fixed 图层而不是 body 的 background-attachment: fixed——
+   后者会被 backdrop-filter 漏采样，表现为"悬停才出现玻璃"的合成伪影 */
+.bg-motion {
+  background: linear-gradient(
+    135deg,
+    #fce7f3 0%,
+    #ede9fe 28%,
+    #e0f2fe 55%,
+    #dcfce7 80%,
+    #fef9c3 100%
+  );
+}
+
+@layer base {
+  /* 键盘导航统一焦点环（鼠标点击不显示） */
+  button,
+  [role='tab'],
+  input,
+  select,
+  textarea,
+  a[href] {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40;
+  }
+
+  /* 浏览器表面也属于设计：选区、滚动条、标题字距、链接下划线 */
+  ::selection {
+    background-color: rgb(34 197 94 / 0.22);
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.011em;
+    text-wrap: balance;
+  }
+
+  a {
+    text-underline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(148 163 184 / 0.45);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(100 116 139 / 0.6);
+    background-clip: content-box;
+  }
+  aside ::-webkit-scrollbar-thumb {
+    background: rgb(100 116 139 / 0.35);
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  /* ============================================================
+     液态玻璃材质（配方移植自「毛玻璃」参考稿）
+     背景层：分层半透明底 + 指针追光 + 顶部镜面（始终位于文字之下）
+     材质层：backdrop 模糊 / 饱和 / 提亮 + 多层内高光阴影
+     边缘层：1px 渐变反光环 ::before（上亮下暗 = 玻璃边缘折射光源）
+     ============================================================ */
+  .card {
+    @apply rounded-card border border-white/35;
+    overflow: visible;
+    /* 光照方向：右上角射入。白浊压低（常态透光率 ~82%），背景色场要能穿过玻璃 */
+    background-image:
+      radial-gradient(
+        340px circle at var(--mx, 78%) var(--my, -12%),
+        rgb(255 255 255 / 0.34) 0%,
+        rgb(255 255 255 / 0.12) 46%,
+        transparent 72%
+      ),
+      radial-gradient(
+        130% 95% at 86% -16%,
+        rgb(255 255 255 / 0.28) 0%,
+        rgb(255 255 255 / 0.07) 42%,
+        transparent 62%
+      ),
+      linear-gradient(
+        215deg,
+        rgb(255 255 255 / 0.4) 0%,
+        rgb(255 255 255 / 0.17) 45%,
+        rgb(255 255 255 / 0.29) 100%
+      );
+    -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(1.06);
+    backdrop-filter: blur(16px) saturate(180%) brightness(1.06);
+    /* 外投影（朝左下偏移，与右上光源呼应）+ 顶部内高光 + 底部内暗边 */
+    box-shadow:
+      -12px 24px 48px -24px rgb(15 23 42 / 0.3),
+      -4px 6px 16px -8px rgb(15 23 42 / 0.12),
+      inset 0 1px 0 rgb(255 255 255 / 0.9),
+      inset 0 -1px 0 rgb(255 255 255 / 0.32);
+    position: relative;
+  }
+
+  /* 浅松绿签名玻璃：侧栏 / 基因组图谱卡（融入浅色世界） */
+  .glass-panel {
+    position: relative;
+    /* 固定层上的 backdrop-filter 需要主动建合成层，否则要等重绘（悬停）玻璃才显形 */
+    transform: translateZ(0);
+    /* 面板自身不做指针追光：悬停时刻意零变化，透明度恒定 */
+    border: 1px solid rgb(255 255 255 / 0.55);
+    background-color: rgb(240 253 244 / 0.46);
+    background-image:
+      radial-gradient(
+        130% 95% at 86% -16%,
+        rgb(255 255 255 / 0.28) 0%,
+        rgb(255 255 255 / 0.08) 42%,
+        transparent 62%
+      ),
+      linear-gradient(
+        215deg,
+        rgb(255 255 255 / 0.3) 0%,
+        rgb(255 255 255 / 0.05) 45%,
+        rgb(255 255 255 / 0.18) 100%
+      );
+    -webkit-backdrop-filter: blur(18px) saturate(185%) brightness(1.04);
+    backdrop-filter: blur(18px) saturate(185%) brightness(1.04);
+    box-shadow:
+      -12px 24px 48px -24px rgb(15 23 42 / 0.24),
+      -4px 6px 16px -8px rgb(15 23 42 / 0.1),
+      inset 0 1px 0 rgb(255 255 255 / 0.8),
+      inset 0 -1px 0 rgb(255 255 255 / 0.3);
+  }
+
+  /* 嵌套玻璃小卡：卡内分区 / 统计块 / 列表项 / 结果面板（比外层多一点白浊护内容对比） */
+  .glass-inner {
+    position: relative;
+    border: 1px solid rgb(255 255 255 / 0.55);
+    background-color: rgb(255 255 255 / 0.34);
+    background-image:
+      radial-gradient(
+        120% 90% at 86% -16%,
+        rgb(255 255 255 / 0.28) 0%,
+        rgb(255 255 255 / 0.07) 46%,
+        transparent 64%
+      ),
+      linear-gradient(
+        215deg,
+        rgb(255 255 255 / 0.26) 0%,
+        rgb(255 255 255 / 0.08) 50%,
+        rgb(255 255 255 / 0.2) 100%
+      );
+    -webkit-backdrop-filter: blur(10px) saturate(170%);
+    backdrop-filter: blur(10px) saturate(170%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.6),
+      -4px 2px 8px -4px rgb(15 23 42 / 0.12);
+  }
+
+  /* 浮层玻璃：Dialog / Drawer / 浮动导出条（更高白度护正文对比） */
+  .glass-pop {
+    position: relative;
+    border: 1px solid rgb(255 255 255 / 0.5);
+    background-color: rgb(255 255 255 / 0.6);
+    background-image:
+      radial-gradient(
+        130% 95% at 86% -16%,
+        rgb(255 255 255 / 0.32) 0%,
+        rgb(255 255 255 / 0.08) 46%,
+        transparent 64%
+      ),
+      linear-gradient(
+        215deg,
+        rgb(255 255 255 / 0.3) 0%,
+        rgb(255 255 255 / 0.08) 46%,
+        rgb(255 255 255 / 0.24) 100%
+      );
+    -webkit-backdrop-filter: blur(18px) saturate(180%) brightness(1.03);
+    backdrop-filter: blur(18px) saturate(180%) brightness(1.03);
+    box-shadow:
+      -12px 8px 24px rgb(15 23 42 / 0.12),
+      -12px 24px 48px -24px rgb(15 23 42 / 0.22),
+      inset 0 1px 0 rgb(255 255 255 / 0.85),
+      inset 0 -1px 0 rgb(255 255 255 / 0.3);
+  }
+
+  /* 边缘反光环：1px 渐变，右上亮（受光面）→ 左下柔（背光面） */
+  .card::before,
+  .glass-panel::before,
+  .glass-pop::before,
+  .glass-inner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      215deg,
+      rgb(255 255 255 / 0.95) 0%,
+      rgb(255 255 255 / 0.28) 28%,
+      rgb(255 255 255 / 0.06) 55%,
+      rgb(255 255 255 / 0.2) 80%,
+      rgb(255 255 255 / 0.65) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* 工作台入场：唯一的授权动效，内容默认可见、快速落位 */
+  .rise {
+    animation: rise 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0.65;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rise {
+      animation: none;
+    }
+    .bg-motion *,
+    .bg-motion *::before {
+      animation: none !important;
+    }
+  }
+
+  /* 背景动效（授权动效之二：毛玻璃背后的运动内容） */
+  /* 大双螺旋绕垂直中轴 3D 旋转（横档相位差在 JSX 中按螺旋规律摆放） */
+  @keyframes helix-axis {
+    from {
+      transform: rotateY(0deg);
+    }
+    to {
+      transform: rotateY(360deg);
+    }
+  }
+
+  /* 球珠 billboard 用的镜像自转：与 helix-axis 同速反向，抵消自转让球体始终正对镜头 */
+  @keyframes helix-axis-reverse {
+    from {
+      transform: rotateY(0deg);
+    }
+    to {
+      transform: rotateY(-360deg);
+    }
+  }
+
+  @keyframes bg-float {
+    from {
+      transform: translateY(-14px);
+    }
+    to {
+      transform: translateY(14px);
+    }
+  }
+
+  /* 细胞器点缀：双层漂浮——外层慢速游走（多段路径不停顿）+ 内层轻快上下浮沉 */
+  @keyframes organelle-drift {
+    0%,
+    100% {
+      transform: translate(-10px, -14px) rotate(-5deg);
+    }
+    33% {
+      transform: translate(14px, 12px) rotate(4deg);
+    }
+    66% {
+      transform: translate(-8px, 20px) rotate(-2deg);
+    }
+  }
+
+  @keyframes organelle-bob {
+    0%,
+    100% {
+      transform: translateY(-10px);
+    }
+    50% {
+      transform: translateY(10px);
+    }
+  }
+
+  @keyframes bg-breathe {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    50% {
+      transform: scale(1.18);
+      opacity: 0.9;
+    }
+  }
+
+  @keyframes bg-drift-up {
+    0% {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+    15% {
+      opacity: 0.7;
+    }
+    85% {
+      opacity: 0.7;
+    }
+    100% {
+      transform: translateY(-70px);
+      opacity: 0;
+    }
+  }
+}

@@ -1,7 +1,8 @@
 """分节解析 Hi-TOM 文件 + xlrd 读二进制"""
 import re, glob, os
 
-RAW = r"d:\lifesciencechallenge\cs_pipeline\data\raw"
+import os
+RAW = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw")
 
 def parse_section(lines, lo, hi, label):
     print(f"  --- {label} 节 (行 {lo}~{hi}) ---")

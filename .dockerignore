@@ -1,0 +1,97 @@
+# ============================================================
+# Docker 打包清单（backend 构建上下文 = 仓库根，逐项对照运行时实际读取路径）
+# 语义提醒：裸模式（*.db、results/）只匹配上下文根级，递归须写 **/xxx，
+# 两者并列写死，避免 2GB 测试库之类的文件误入包
+# ============================================================
+
+# ---------- Git / IDE / 开发缓存 ----------
+.git
+.gitignore
+.agents
+.claude
+.idea
+.vscode
+.scratch
+_scratch
+.pytest_cache
+**/__pycache__
+*.pyc
+**/*.pyc
+*.pyo
+*.pyd
+
+# ---------- 本地 SQLite 数据库（根级 2GB×3 + backend/ 下 2GB 测试库）----------
+*.db
+**/*.db
+*.db-journal
+**/*.db-journal
+*.sqlite
+**/*.sqlite
+
+# ---------- 打包产物 / 离线交付目录 ----------
+*.tar
+deploy_offline/
+
+# ---------- 仓库根：一次性调试脚本、分析产物、临时目录 ----------
+_check_*.py
+_fix_*.py
+_verify_*.py
+_inspect_*.py
+_list_*.py
+_pam_*.py
+_diff_*.py
+_genome_verify.py
+_gff_peek.py
+_scratchprobe_*.txt
+*.ps1
+*.bat
+output/
+results/
+tmp/
+vibe_images/
+CONTEXT.md
+
+# ---------- 前端（前端构建上下文是 ./frontend，另见 frontend/.dockerignore）----------
+node_modules
+frontend/node_modules
+frontend/dist
+
+# ---------- 后端开发测试（验收跑在宿主机，容器运行时不引用）----------
+backend/tests/
+
+# ---------- cs_pipeline 宿主机/离线工具链（容器运行时零引用）----------
+cs_pipeline/env/
+cs_pipeline/docs/
+cs_pipeline/tests/
+cs_pipeline/tools/win-shims
+
+# ---------- cs_pipeline/data：原始测序与离线分析数据不进包 ----------
+# 运行时只读小文件：表达矩阵、注释旁路表、GFF3、ATAC 表；
+# 两个基因组 FASTA（LsT2T 2.5GB + TKS 1.2GB）外挂数据卷（见 docker-compose.yml）
+cs_pipeline/data/*
+!cs_pipeline/data/expression
+!cs_pipeline/data/reference_genomes
+cs_pipeline/data/reference_genomes/*
+!cs_pipeline/data/reference_genomes/domain_annotations.csv
+!cs_pipeline/data/reference_genomes/nlr_gene_loci.csv
+!cs_pipeline/data/reference_genomes/3-1_LsT2T.annotation.gff3
+!cs_pipeline/data/reference_genomes/2-2_TKS.genome.gff3
+!cs_pipeline/data/reference_genomes/1-3_Stem_lettuce_ATAC_peaks.xlsx
+# expression/ 整目录放行（29MB）：1-3 五组织表达矩阵（灌库表达证据）、
+# 2-3 TKS 表达 xlsx（TKS 预置包表达证据）；括号文件名写白名单易踩转义问题，整目录放行更稳
+
+# ---------- cs_pipeline/results：只带灌库/推理/导出实际引用的产物 ----------
+# 灌库 2 个 CSV + demo 合并 2 个 CSV + GLMM joblib ×2 + model_card；
+# lettuce_all_genes_top100_candidates.csv（868MB）外挂数据卷不进镜像；
+# scored_genome/、backup/、grna 大表、real_crispron 产物、分析中间件全不进包
+cs_pipeline/results/*
+!cs_pipeline/results/lettuce_all_genes_catalog.csv
+!cs_pipeline/results/offtarget_functional_hazard_0923.csv
+!cs_pipeline/results/crosswalk_lsa_t2t_0923.csv
+!cs_pipeline/results/crosswalk_lsa_t2t_genome.csv
+!cs_pipeline/results/meta_model_hier_bb_nob879_0921.joblib
+!cs_pipeline/results/meta_model_ridge_full_0916.joblib
+!cs_pipeline/results/model_card_hier_bb_nob879_0921.md
+
+# demo 历史备份无用（app_data.csv / app_data_tissue_priority.csv / app_genes.csv 是灌库刚需）
+cs_pipeline/demo/*backup*

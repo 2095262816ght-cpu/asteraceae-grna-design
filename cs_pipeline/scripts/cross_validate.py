@@ -1,7 +1,8 @@
 """解析 USR-25902 原始文件全部块头 + 每块非WT比例（统一口径: 左侧非WT reads/总reads）"""
 import re
+from pathlib import Path
 
-path = r"d:\lifesciencechallenge\cs_pipeline\data\raw\consolidation_sources\all-SY13249-USR-25902-Hi-TOM-sequencing-result_original.xls"
+path = str(Path(__file__).resolve().parents[1] / "data" / "raw" / "consolidation_sources" / "all-SY13249-USR-25902-Hi-TOM-sequencing-result_original.xls")
 with open(path, "r", encoding="utf-8", errors="replace") as fh:
     lines = fh.read().splitlines()
 

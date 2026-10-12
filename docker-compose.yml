@@ -1,0 +1,63 @@
+services:
+  # 1. 生产级持久化关系型数据库 PostgreSQL 16
+  db:
+    image: postgres:16-alpine
+    container_name: crispr_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: lifescience
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lifescience"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. FastAPI 后端服务 (挂载算法内核与数据入库)
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: crispr_backend:latest
+    container_name: crispr_backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/lifescience
+      - ENVIRONMENT=production
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      # 大数据外挂（不进镜像，见 .dockerignore；离线交付时随包按相同相对路径分发）：
+      # 缺任一文件对应功能降级 —— LsT2T FASTA=脱靶计数/Tab2 基因组回贴，
+      # TKS FASTA=橡胶草预置包，top100 CSV=全基因组灌库（缺失时仅灌 49 NLR demo）
+      - ./cs_pipeline/data/reference_genomes/3-1_LsT2T.genome.fa:/app/cs_pipeline/data/reference_genomes/3-1_LsT2T.genome.fa:ro
+      - ./cs_pipeline/data/reference_genomes/3-1_LsT2T.genome.fa.fai:/app/cs_pipeline/data/reference_genomes/3-1_LsT2T.genome.fa.fai:ro
+      - ./cs_pipeline/data/reference_genomes/2-1_TKS.genome.fasta:/app/cs_pipeline/data/reference_genomes/2-1_TKS.genome.fasta:ro
+      - ./cs_pipeline/data/reference_genomes/2-1_TKS.genome.fasta.fai:/app/cs_pipeline/data/reference_genomes/2-1_TKS.genome.fasta.fai:ro
+      - ./cs_pipeline/results/lettuce_all_genes_top100_candidates.csv:/app/cs_pipeline/results/lettuce_all_genes_top100_candidates.csv:ro
+
+  # 3. 前端现代 React 19 SPA (Nginx 静态托管与 API 代理)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: crispr_frontend:latest
+    container_name: crispr_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "3000:80"
+
+volumes:
+  postgres_data:
+    driver: local

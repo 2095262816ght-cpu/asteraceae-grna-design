@@ -1,2 +1,7 @@
 @echo off
-"C:\Users\Lenovo\anaconda3\envs\crispron-win\python.exe" "D:\lifesciencechallenge\cs_pipeline\tools\ViennaRNA\bin\RNAfold_shim.py" %*
+setlocal
+if defined PYTHON_EXE (
+    "%PYTHON_EXE%" "%~dp0RNAfold_shim.py" %*
+) else (
+    python "%~dp0RNAfold_shim.py" %*
+)

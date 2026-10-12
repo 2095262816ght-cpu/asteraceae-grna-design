@@ -13,6 +13,7 @@
 """
 import re
 import time
+from pathlib import Path
 
 import pandas as pd
 from Bio.Seq import Seq
@@ -29,16 +30,16 @@ gff = pd.read_csv(GFF_PATH, sep="\t", comment="#", header=None, names=GFF_COLS, 
 fasta = Fasta(FA_PATH, as_raw=True)
 
 genes = gff[gff.feature == "gene"].copy()
-genes["gene_id"] = genes.attr.str.extract(r"ID=([^;]+)")
+genes["gene_id"] = genes.attr.str.extract(r"ID=([^;]+)", expand=False)
 
 # exon.Parent -> mRNA.ID -> mRNA.Parent(gene) 两层映射
 mrna = gff[gff.feature.isin(["mRNA", "transcript"])].copy()
-mrna["mrna_id"] = mrna.attr.str.extract(r"ID=([^;]+)")
-mrna["gene_id"] = mrna.attr.str.extract(r"Parent=([^;]+)")
+mrna["mrna_id"] = mrna.attr.str.extract(r"ID=([^;]+)", expand=False)
+mrna["gene_id"] = mrna.attr.str.extract(r"Parent=([^;]+)", expand=False)
 mrna_map = dict(zip(mrna.mrna_id, mrna.gene_id))
 
 exons = gff[gff.feature == "exon"].copy()
-exons["gene_id"] = exons.attr.str.extract(r"Parent=([^;]+)").map(mrna_map)
+exons["gene_id"] = exons.attr.str.extract(r"Parent=([^;]+)", expand=False).map(mrna_map)
 
 
 def regions_of(g):
@@ -85,20 +86,53 @@ elapsed = time.time() - t0
 cols = ["gene_id", "chrom", "start", "end", "strand", "seq20", "pam", "region_type"]
 cand = pd.DataFrame(rows, columns=cols).drop_duplicates(["chrom", "start", "end", "strand"])
 
-
-def get_seq30(r):
-    # 与 01 脚本同一约定：+链取 [start-4, end+3]，-链取 [start-3, end+4] 再反向互补
-    if r.strand == "+":
-        return str(fasta[r.chrom][r.start - 5: r.end + 3]).upper()
-    s = str(fasta[r.chrom][r.start - 4: r.end + 4]).upper()
-    return str(Seq(s).reverse_complement())
+# 先落盘中间表（无 seq30），避免后续慢步骤超时后重扫
+OUT_RAW = OUT_CSV.replace(".csv", "_raw_no_seq30.csv")
+cand.to_csv(OUT_RAW, index=False)
+print(f"OK raw: {len(cand)} candidates -> {OUT_RAW}", flush=True)
 
 
-cand["seq30"] = cand.apply(get_seq30, axis=1)
-cand = cand[cand.seq30.str.fullmatch(r"[ACGT]{30}")]  # 边界截断的丢弃
+def get_seq30_fast(df: pd.DataFrame) -> pd.Series:
+    """按染色体缓存整条序列后向量化提取 seq30，避免 1380 万次 pyfaidx 随机访问。
+
+    与 01 脚本同一约定：+链取 [start-4, end+3]，-链取 [start-3, end+4] 再反向互补。
+    """
+    out = []
+    for chrom, sub in df.groupby("chrom", sort=False):
+        chrom_seq = str(fasta[chrom]).upper()
+        n = len(chrom_seq)
+        vals = []
+        for start, end, strand in zip(sub["start"], sub["end"], sub["strand"]):
+            if strand == "+":
+                a, b = start - 5, end + 3
+                if a < 0 or b > n:
+                    vals.append("")
+                    continue
+                vals.append(chrom_seq[a:b])
+            else:
+                a, b = start - 4, end + 4
+                if a < 0 or b > n:
+                    vals.append("")
+                    continue
+                s = chrom_seq[a:b]
+                vals.append(str(Seq(s).reverse_complement()))
+        out.append(pd.Series(vals, index=sub.index))
+        print(f"  seq30 {chrom} done", flush=True)
+    return pd.concat(out).sort_index()
+
+
+cand["seq30"] = get_seq30_fast(cand)
+cand = cand[cand.seq30.str.fullmatch(r"[ACGT]{30}", na=False)]  # 边界截断的丢弃
 cand.insert(0, "guide_id", [f"Lsat_{i:06d}" for i in range(len(cand))])
 cand.to_csv(OUT_CSV, index=False)
-print(f"OK: {len(cand)} candidates -> {OUT_CSV}")
+print(f"OK: {len(cand)} candidates -> {OUT_CSV}", flush=True)
+
+# 项目根 results/ 再留一份（用户要求：扫描产物保留、勿删）
+ROOT_RESULTS = Path(__file__).resolve().parents[2] / "results"
+ROOT_RESULTS.mkdir(parents=True, exist_ok=True)
+root_copy = ROOT_RESULTS / Path(OUT_CSV).name
+cand.to_csv(root_copy, index=False)
+print(f"OK copy: {root_copy}", flush=True)
 
 # 统计产出（B2 验收项：每基因候选数分布）
 per_gene = cand.groupby("gene_id").size()

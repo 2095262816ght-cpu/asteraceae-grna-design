@@ -5,6 +5,6 @@
 set -euo pipefail
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate crispron
-D=/mnt/d/lifesciencechallenge/cs_pipeline
+D=$(cd "$(dirname "$0")/.." && pwd)
 cd "$D/tools/CRISPRon"
 bash bin/CRISPRon.sh "$D/data/hitom/crispron_io/seq30_in.fa" "$D/data/hitom/crispron_io/out"

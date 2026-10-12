@@ -22,7 +22,7 @@ with open(IN_FA, "w") as f:
 
 subprocess.run(
     ["wsl", "-d", "Ubuntu-22.04", "bash",
-     "/mnt/d/lifesciencechallenge/cs_pipeline/env/run_crispron_wsl.sh"],
+     "/mnt/" + str(ROOT).replace("\\", "/").replace(":", "").lower() + "/env/run_crispron_wsl.sh"],
     check=True)
 
 res = pd.read_csv(OUT_DIR / "crispron.csv")

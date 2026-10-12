@@ -24,6 +24,8 @@ import numpy as np
 import pandas as pd
 
 BASE = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE))
+from core.sequence_spec import seq_feature_dict  # noqa: E402
 XLSX = BASE / "data" / "raw" / "public_datasets" / "Luo2020_Kim2019.xlsx"
 PUB_CSV = BASE / "data" / "hitom" / "public_luo2020_kim2019_clean.csv"
 IO = BASE / "data" / "hitom" / "crispron_io"
@@ -78,7 +80,7 @@ def stage_crisp():
         for _, r in df.iterrows():
             f.write(f">{r.pub_id}\n{r.seq30}\n")
     subprocess.run(["wsl", "-d", "Ubuntu-22.04", "bash",
-                    "/mnt/d/lifesciencechallenge/cs_pipeline/env/run_crispron_wsl.sh"], check=True)
+                    "/mnt/" + str(BASE).replace("\\", "/").replace(":", "").lower() + "/env/run_crispron_wsl.sh"], check=True)
     res = pd.read_csv(IO / "out" / "crispron.csv")
     res["pub_id"] = res["ID"].str.replace(r"_[pm]_[0-9]+$", "", regex=True)
     res = res.merge(df[["pub_id", "seq30"]], on="pub_id")
@@ -90,20 +92,16 @@ def stage_crisp():
 
 
 def _build_pub_features():
-    from Bio.SeqUtils import gc_fraction
-    from Bio.SeqUtils.MeltingTemp import Tm_NN
     df = _load_pub()
     deep = pd.read_csv(DEEP_OUT)
     crisp = pd.read_csv(CRISP_OUT)
     df = df.merge(deep, on="pub_id", validate="1:1").merge(crisp, on="pub_id", validate="1:1")
-    seq20 = df.seq30.str[4:24]
-    df["gc_total"] = seq20.map(gc_fraction)
-    df["gc_seed"] = df.seq30.str[18:24].map(gc_fraction)
-    df["tm"] = seq20.map(Tm_NN)
-    df["poly_t"] = seq20.str.contains("TTTT").astype(int)
-    df["pam_n_A"] = (df.seq30.str[24] == "A").astype(float)
-    df["pam_n_C"] = (df.seq30.str[24] == "C").astype(float)
-    df["pam_n_T"] = (df.seq30.str[24] == "T").astype(float)
+    # 特征语义单点定义在 core.sequence_spec；只取本模型 FEATS 用到的列，输出 schema 不变
+    seqf = pd.DataFrame.from_records(
+        [seq_feature_dict(s) for s in df["seq30"]], index=df.index
+    )
+    for c in ("gc_total", "gc_seed", "tm", "poly_t", "pam_n_A", "pam_n_C", "pam_n_T"):
+        df[c] = seqf[c]
     df["y_pub"] = df["indel_freq"].rank(pct=True) * 100
     assert not df[FEATS + ["y_pub"]].isna().any().any()
     df.to_csv(FEAT_OUT, index=False)

@@ -1,4 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Git Bash side wrapper so `RNAfold --version` in CRISPRon.sh works.
-exec "/c/Users/Lenovo/anaconda3/envs/crispron-win/python.exe" \
-     "/d/lifesciencechallenge/cs_pipeline/tools/ViennaRNA/bin/RNAfold_shim.py" "$@"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -n "$PYTHON_EXE" ]; then
+    exec "$PYTHON_EXE" "$DIR/RNAfold_shim.py" "$@"
+elif command -v python3 >/dev/null 2>&1; then
+    exec python3 "$DIR/RNAfold_shim.py" "$@"
+else
+    exec python "$DIR/RNAfold_shim.py" "$@"
+fi

@@ -1,6 +1,7 @@
 import openpyxl, shutil, os, datetime
+from pathlib import Path
 
-SRC = r"d:\lifesciencechallenge\cs_pipeline\data\1_Hi-results-12-20260913.xlsx"
+SRC = str(Path(__file__).resolve().parents[1] / "data" / "1_Hi-results-12-20260913.xlsx")
 
 # 备份
 ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

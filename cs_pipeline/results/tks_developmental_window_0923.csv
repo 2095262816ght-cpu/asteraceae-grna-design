@@ -1,0 +1,4 @@
+family,root_peak_tpm,root_peak_stage,root_first_stage,root_fold_peak_vs_first,root_onset_stage,root_burst_stage,root_trend,latex_peak_tpm,latex_peak_stage,latex_first_stage,latex_fold_peak_vs_first,latex_onset_stage,latex_burst_stage,latex_trend,recommended_stage,card_text
+REF,822.25,S7,S1,2.0,S1,S6,rising,6225.47,S4,S4,1.0,S4,S4,declining-from-first-sample,S4,推荐在 S4 期启动 Cas9 诱导表达：胶乳通路在首个胶乳采样时相 S4 即已高活跃（峰值 S4），此后单调下降，故诱导应不晚于 S4；胶乳峰值 6225.47 TPM（S4），根爆发期 S6、根峰值 822.25 TPM（S7）。
+SRPP,525.0,S7,S1,2.4,S4,S4,rising,2138.77,S5,S4,1.0,S4,S4,rising,S4,推荐在 S4 期启动 Cas9 诱导表达：胶乳转录爆发期位于 S4，onset（≥50% 峰）为 S4，在 onset 期诱导兼顾通路活跃度与组织再生能力；胶乳峰值 2138.77 TPM（S5），根爆发期 S4、根峰值 525.0 TPM（S7）。
+CPT,172.1,S7,S1,6.4,S4,S4,rising,1467.39,S4,S4,1.0,S4,S4,declining-from-first-sample,S4,推荐在 S4 期启动 Cas9 诱导表达：胶乳通路在首个胶乳采样时相 S4 即已高活跃（峰值 S4），此后单调下降，故诱导应不晚于 S4；胶乳峰值 1467.39 TPM（S4），根爆发期 S4、根峰值 172.1 TPM（S7）。

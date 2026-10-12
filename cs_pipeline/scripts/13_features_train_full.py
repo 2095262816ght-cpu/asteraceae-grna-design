@@ -14,12 +14,15 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from Bio.SeqUtils import gc_fraction
-from Bio.SeqUtils.MeltingTemp import Tm_NN
+import sys
+from pathlib import Path
 from scipy.stats import spearmanr
 from sklearn.linear_model import Ridge
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GridSearchCV, GroupKFold, GroupShuffleSplit, LeaveOneGroupOut
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from scripts.features_common import seq_features  # noqa: E402
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
@@ -34,12 +37,8 @@ df = df.merge(deep, on="guide_id", validate="1:1").merge(crisp, on="guide_id", v
 df["note"] = df["note"].fillna("")
 df.to_csv(f"results/scores_merged_{SUFFIX}.csv", index=False)
 
-# ---- 特征（同 05）----
-df["gc_total"] = df.seq20.map(gc_fraction)
-df["gc_seed"] = df.seq30.str[18:24].map(gc_fraction)
-df["tm"] = df.seq20.map(Tm_NN)
-df["poly_t"] = df.seq20.str.contains("TTTT").astype(int)
-df = pd.concat([df, pd.get_dummies(df.pam.str[0], prefix="pam_n")], axis=1)
+# ---- 特征（语义单点定义在 core.sequence_spec，经 seq_features 适配器产出）----
+df = pd.concat([df, seq_features(df.seq30)], axis=1)
 df.to_csv(f"results/feature_matrix_{SUFFIX}.csv", index=False)
 print(f"特征矩阵: {df.shape[0]} rows x {df.shape[1]} cols")
 

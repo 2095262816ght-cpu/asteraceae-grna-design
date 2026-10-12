@@ -1,7 +1,8 @@
 """修正: reads行无前导tab -> f[1]=reads, f[3]=Ltype"""
 import re, os
 
-RAW = r"d:\lifesciencechallenge\cs_pipeline\data\raw"
+import os
+RAW = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw")
 
 def parse_text_blocks(path):
     with open(path, encoding="utf-8", errors="replace") as fh:

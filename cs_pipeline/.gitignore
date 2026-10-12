@@ -48,3 +48,18 @@ data/expression/*.csv
 
 # 0923：第三方 DeepSpCas9 预训练权重（由 crispr 环境的 genet 包加载，仓库内无引用）
 models/
+
+# 提交口径对齐交付副本：大表与分析中间产物（可再生；网盘/离线交付包分发）
+results/backup/
+results/scored_genome/
+results/grna_candidates_lettuce_0923.csv
+results/grna_candidates_lettuce_0923_raw_no_seq30.csv
+results/real_crispron_top100_0927.csv
+results/lettuce_all_genes_top100_candidates.csv
+results/_votes_*.parquet*
+
+# 赛事材料/文献/演示文档与历史归档（文档库网盘留存，不入代码仓）
+docs/notification/
+docs/paper/
+docs/ppt/
+docs/_archive/

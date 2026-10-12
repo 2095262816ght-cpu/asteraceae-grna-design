@@ -62,11 +62,11 @@ ATCGGCTAAGCTAGGCTAGCATCGTGGATC
 ## 运行方式（复现）
 
 ```bash
-export PATH="/d/lifesciencechallenge/cs_pipeline/tools/win-shims:\
-/d/lifesciencechallenge/cs_pipeline/tools/ViennaRNA/bin:\
+export PATH="<项目根>/cs_pipeline/tools/win-shims:\
+<项目根>/cs_pipeline/tools/ViennaRNA/bin:\
 /c/Users/<用户>/anaconda3/envs/crispron-win:\
 /c/Users/<用户>/anaconda3/envs/crispron-win/Scripts:$PATH"
-cd /d/lifesciencechallenge/cs_pipeline/tools/CRISPRon
+cd <项目根>/cs_pipeline/tools/CRISPRon
 bash bin/CRISPRon.sh <input.fa> <outdir>
 ```
 

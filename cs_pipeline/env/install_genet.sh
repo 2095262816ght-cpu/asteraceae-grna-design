@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-cd /d/lifesciencechallenge/cs_pipeline || exit 1
+cd "$(dirname "$0")/.." || exit 1
 source /d/Miniconda/etc/profile.d/conda.sh
 conda activate crispr
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple genet > env/pip_genet.log 2>&1

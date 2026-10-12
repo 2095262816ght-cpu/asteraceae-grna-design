@@ -35,7 +35,7 @@ GFF 结构核对（分工详案要求"必须先看实际文件再写死"）：
 
 ### 3.1 脚本实现
 
-产物脚本：[`scripts/07_scan_lettuce.py`](computer://d:\生物\LSC_共享\data\lettuce_t2t\mapping\07_scan_lettuce.py)
+产物脚本：[`scripts/07_scan_lettuce.py`](../../scripts/07_scan_lettuce.py)
 
 按分工详案骨架实现，关键点：
 1. `pd.read_csv` 解析 GFF，`feature == "gene"` 提取 45,770 个基因
@@ -120,9 +120,9 @@ PASS Lsat_3056907  LsaT2T03G004960  Chr03:22250283-22250305(+)  AGCGGTGGGATTAGCC
 
 用已完成的 de novo NLR 鉴定结果（661 个带 T2T 坐标的 NLR）作为替代回填：
 
-- 输出：[`nlr_genes_514_with_coords.csv`](computer://d:\生物\LSC_共享\data\lettuce_t2t\nlr_genes_514_with_coords.csv)（661 行）
-- 说明文档：[`nlr_backfill_notes.md`](computer://d:\生物\LSC_共享\data\lettuce_t2t\nlr_backfill_notes.md)
-- 回填脚本：[`backfill_nlr_514.py`](computer://d:\生物\LSC_共享\data\lettuce_t2t\mapping\backfill_nlr_514.py)
+- 输出：`nlr_genes_514_with_coords.csv`（661 行，团队网盘 `data/lettuce_t2t/`）
+- 说明文档：`nlr_backfill_notes.md`（团队网盘）
+- 回填脚本：`backfill_nlr_514.py`（团队网盘 `mapping/`）
 
 **注意**：这 661 个是 de novo 鉴定的 T2T NLR（与论文 514 个数量级吻合，1.29x），不是原 lettuce_v2 ID 的直接回填。如需精确对应，需向作者索要 lettuce_v2.gff3。此替代方案需与生B 确认是否接受。
 
