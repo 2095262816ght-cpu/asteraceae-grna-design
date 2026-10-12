@@ -15,7 +15,7 @@
   noB879     = train969 − B级90行 (879行)
 
 输出: results/b_batch_effect_comparison_0921.csv
-运行: D:\Miniconda\envs\crispr\python.exe scripts/dev/b_batch_effect_comparison_0921.py
+运行: python scripts/dev/b_batch_effect_comparison_0921.py
 """
 import os
 import sys

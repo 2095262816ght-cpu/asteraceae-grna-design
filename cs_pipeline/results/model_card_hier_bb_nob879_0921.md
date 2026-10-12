@@ -4,7 +4,7 @@
 > **模型名称**：`meta_model_hier_bb_nob879_0921.joblib`  
 > **训练集口径**：`noB879`（879 行，16.1 全部打分中剔除 90 行未经设计表确认的 B 级脏数据，纯 A 级金标准）  
 > **架构类型**：端到端分层广义线性混合模型（Hierarchical GLMM with Selective Empirical Bayes Prior）  
-> **接口代码**：[`scripts/predict.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/predict.py) / 训练脚本 [`scripts/15_train_hierarchical_bb_nob879.py`](file:///d:/lifesciencechallenge/cs_pipeline/scripts/15_train_hierarchical_bb_nob879.py)
+> **接口代码**：[`scripts/predict.py`](../scripts/predict.py) / 训练脚本 [`scripts/15_train_hierarchical_bb_nob879.py`](../scripts/15_train_hierarchical_bb_nob879.py)
 
 ---
 
@@ -14,7 +14,8 @@
 
 1. **剔除 B 级脏数据（`noB879`）**：彻底排除了 90 行“多候选竞争未经设计表确认”的低置信样本，杜绝了张冠李戴的伪特征对优化梯度的污染。
 2. **端到端贝叶斯似然（形态二）**：取代了传统“先减中位数、再做回归”的脆弱两步法，直接基于测序物理产生机制建模编辑 reads 数与总深度。
-3. **彻底治愈测试集崩溃**：传统锚定方法在 20% 留出测试集上呈现严重负相关（$\rho = -0.5057$），本模型直接逆转为 **$\rho = \mathbf{+0.3424} \sim \mathbf{+0.3963}$**，且低混杂多批折（Class A）真实生物学上限达到 **$\rho = \mathbf{+0.4636}$**。
+3. **留出测试集由负转正**：传统锚定方法在 20% 留出测试集上呈现负相关（$\rho = -0.5057$），本模型逆转为 **$\rho = \mathbf{+0.3424} \sim \mathbf{+0.3963}$**；低混杂多批折（Class A）中位相关达 **$\rho = \mathbf{+0.4636}$**（低混杂核心折上的上限**估计**，5 折、每折仅 1–4 条 distinct guide）。
+   > **口径提示（2026-10-10 敏感性诊断，`results/sensitivity_glmm_1010.md`）**：留出测试集 198 行仅覆盖 7 条 distinct guide，且该 $\rho$ 对批次先验来源敏感（折内重算先验后转为 −0.064）——**泛化证据以 LOGO-CV 与 Class A 分层为准**，单一留出分割数字仅作方向参考。
 
 ---
 
@@ -63,15 +64,15 @@ $$\text{score} = \frac{100}{1 + \exp(-\hat{\eta})} \in [0, 100]$$
 
 ## 4. 评估指标与横向基准对比 (Evaluation & Benchmarks)
 
-指标来源：[`results/metrics_hier_bb_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/metrics_hier_bb_nob879_0921.csv) 及折级明细 [`results/folds_hier_bb_nob879_0921.csv`](file:///d:/lifesciencechallenge/cs_pipeline/results/folds_hier_bb_nob879_0921.csv)。
+指标来源：[`results/metrics_hier_bb_nob879_0921.csv`](metrics_hier_bb_nob879_0921.csv) 及折级明细 [`results/folds_hier_bb_nob879_0921.csv`](folds_hier_bb_nob879_0921.csv)。
 
 ### 4.1 在 `noB879` 纯金标准上的对比表
 
 | 评估维度 / 指标 | 既有基准 (Anchor) | 深度加权 (Method A2) | **形态二 (本模型)** | 优势与结论 |
 | :--- | :---: | :---: | :---: | :--- |
-| **独立留出测试集 (Test $\rho$)** | -0.5057 (崩溃) | -0.5088 (崩溃) | **+0.3424** (p=7.89e-7) | **彻底治愈泛化倒挂** |
+| **独立留出测试集 (Test $\rho$)** | -0.5057 (崩溃) | -0.5088 (崩溃) | **+0.3424** (p=7.89e-7) | 由负转正（该数字对先验来源敏感，见 §1 口径提示） |
 | **LOGO 留一基因交叉验证中位 $\rho$** | +0.2970 | +0.2166 | **+0.3635** | 提升 +0.0665，稳健领先 |
-| **Class A (低混杂多批折) 中位 $\rho$** | +0.2653 | +0.2592 | **+0.4636** | **打破天花板，证实真实生物学上限高达 0.46** |
+| **Class A (低混杂多批折) 中位 $\rho$** | +0.2653 | +0.2592 | **+0.4636** | 低混杂核心折上的上限估计（5 折） |
 | **有效折数 (Valid Folds)** | 10/16 | 10/16 | 9/16 | 满足 double-sided round(6) 守卫 |
 
 ### 4.2 Class A (低混杂核心折) 逐折明细
@@ -98,7 +99,7 @@ $$\text{score} = \frac{100}{1 + \exp(-\hat{\eta})} \in [0, 100]$$
   - `pam_n_C`: -0.3057
   - `pam_n_G`: +0.1092
   - `pam_n_T`: -0.1407
-- 过离散度参数 $s \approx 20.08$
+- 过离散度参数（Beta-Binomial 集中度）$s$：**落盘实测 `dispersion_s` = 0.632**（⚠️ 早期文档误写 20.08，实为拟合初值 $e^{3}$）。注意该参数化下 **$s$ 越小过离散越大**；`hier_bb_model.py` 的 `clamp(1.0, 500)` 使生效值为 $1.0$（允许的过离散上限，即过离散顶在参数化允许的最大值附近，拟合还想要更小的 $s$）。敏感性验证（放开下界后 $s$ 收敛 0.93、$\beta$ 变动 ≤0.06、指标变动 ≤0.02）见 `results/sensitivity_glmm_1010.md`——**$s$ 属方差结构参数，指标对其不敏感**，结论不依赖其精确取值。（2026-10-11 更正：原文"近似退化为二项"方向有误，$s \approx 1$ 是过离散最大值而非二项退化。）
 
 ---
 

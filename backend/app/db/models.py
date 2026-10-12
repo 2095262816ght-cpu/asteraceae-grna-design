@@ -168,6 +168,7 @@ class ScoringJobItem(Base):
     gc_pct = Column(Float, nullable=True)
     tm_c = Column(Float, nullable=True)
     deepspcas9_score = Column(Float, nullable=True)
+    crispron_score = Column(Float, nullable=True, doc="CRISPRon 模型预测活性分")
     crispron_source = Column(String(32), nullable=True)
     efficiency_score = Column(Float, nullable=True)
     is_valid = Column(Boolean, default=True, doc="序列格式是否合法")

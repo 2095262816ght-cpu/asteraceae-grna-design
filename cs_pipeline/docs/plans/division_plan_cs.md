@@ -54,7 +54,7 @@ CRISPRon 打分 ───┼→ 特征矩阵 → 岭回归元模型(Stacking) �
 
 ### 0.4 公共约定（目录、列名、接口）
 
-项目工作目录统一为 `D:\lifesciencechallenge\cs_pipeline\`，结构如下（9.9 由计A创建并初始化 git 仓库，注意：**不进 git 的目录写入 .gitignore**：`data/lettuce/` 基因组大文件、`env/` 下的缓存（`env/environment.yml` 本身必须进 git，它是交付物））：
+项目工作目录统一为 `<项目根>\cs_pipeline\`，结构如下（9.9 由计A创建并初始化 git 仓库，注意：**不进 git 的目录写入 .gitignore**：`data/lettuce/` 基因组大文件、`env/` 下的缓存（`env/environment.yml` 本身必须进 git，它是交付物））：
 
 ```
 cs_pipeline/
@@ -130,7 +130,7 @@ def predict_efficiency(seq30_list: list[str]) -> list[float]:
 **环境命令（Anaconda Prompt）**：
 
 ```bash
-cd /d D:\lifesciencechallenge\cs_pipeline
+cd /d <项目根>\cs_pipeline
 conda create -n crispr python=3.10 r-base=4.3 pandas scikit-learn biopython matplotlib joblib r-essentials -c conda-forge -y
 conda activate crispr
 ```
@@ -430,7 +430,7 @@ rho_mixed, _ = spearmanr(m.predict(X[te]), y[te])        # 评估仍只用自有
 ```bash
 conda activate crispr
 conda install -c bioconda pyfaidx samtools -y
-cd /d D:\lifesciencechallenge\cs_pipeline
+cd /d <项目根>\cs_pipeline
 samtools faidx data/reference_genomes/3-1_LsT2T.genome.fa        # 生成 .fai 索引，2.59Gb 约几分钟
 python -c "from pyfaidx import Fasta; f=Fasta('data/reference_genomes/3-1_LsT2T.genome.fa'); print(len(f.keys()), '条序列')"
 ```
@@ -539,7 +539,7 @@ mkdir -p data/lettuce/chrs && cp data/reference_genomes/3-1_LsT2T.genome.fa data
 **输入文件格式（`data/lettuce/casoffinder_input.txt`）**：
 
 ```
-D:\lifesciencechallenge\cs_pipeline\data\lettuce\chrs
+<项目根>\cs_pipeline\data\lettuce\chrs
 NNNNNNNNNNNNNNNNNNNNNNNGG
 ACGTACGTACGTACGTACGT 3
 ```
@@ -613,7 +613,7 @@ with tab2:
 ```
 
 ```bash
-cd /d D:\lifesciencechallenge\cs_pipeline\app
+cd /d <项目根>\cs_pipeline\app
 streamlit run app.py        # 浏览器自动打开 http://localhost:8501
 ```
 
@@ -671,7 +671,7 @@ scipy>=1.11
 计算机系负责的范围：**代码包、demo 录屏、PPT 中的代码截图**。
 
 ```bash
-cd /d D:\lifesciencechallenge
+cd /d <项目根>
 # 在代码包和文档中搜索身份信息（把示例词换成真实校名/姓名逐一查）
 grep -ri --include="*.py" --include="*.R" --include="*.md" --include="*.txt" \
      --include="*.yml" -E "大学|学院|教授|老师|@.*\.edu" cs_pipeline/ | grep -v "BiocManager\|bioconductor\|github"

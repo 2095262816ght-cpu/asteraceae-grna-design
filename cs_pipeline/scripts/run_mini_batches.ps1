@@ -1,4 +1,4 @@
-$base = "D:\lifesciencechallenge\cs_pipeline"
+﻿$base = Split-Path -Parent $PSScriptRoot
 $sw = [Diagnostics.Stopwatch]::StartNew()
 $ok = 0
 foreach ($i in 0..39) {

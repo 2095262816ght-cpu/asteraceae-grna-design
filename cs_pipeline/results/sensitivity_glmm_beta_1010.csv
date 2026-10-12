@@ -1,0 +1,5 @@
+experiment,s_raw,s_effective,beta0,beta_deepspcas9_score,beta_crispron_score,beta_gc_total,beta_gc_seed,beta_tm,beta_poly_t,beta_pam_n_A,beta_pam_n_C,beta_pam_n_G,beta_pam_n_T
+E0_fullprior_sfloor1,0.627,1.0,-0.5053,-0.2058,-0.2189,-0.6671,0.2237,0.8714,-0.1698,0.4258,-0.3079,0.1012,-0.1369
+E1_foldprior_sfloor1,0.627,1.0,-0.5053,-0.2058,-0.2189,-0.6671,0.2237,0.8714,-0.1698,0.4258,-0.3079,0.1012,-0.1369
+E2_fullprior_sfloor001,0.9275,0.9275,-0.4968,-0.1414,-0.2435,-0.656,0.2165,0.8328,-0.1595,0.4157,-0.2982,0.0969,-0.1354
+E3_foldprior_sfloor001,0.9275,0.9275,-0.4968,-0.1414,-0.2435,-0.656,0.2165,0.8328,-0.1595,0.4157,-0.2982,0.0969,-0.1354

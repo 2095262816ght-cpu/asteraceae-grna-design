@@ -1,8 +1,9 @@
 """逐项核对 problem.md 中的问题在 data\\1_Hi-results-12-20260913.xlsx 当前状态"""
 import openpyxl
 from collections import Counter
+from pathlib import Path
 
-PATH = r"d:\lifesciencechallenge\cs_pipeline\data\1_Hi-results-12-20260913.xlsx"
+PATH = str(Path(__file__).resolve().parents[1] / "data" / "1_Hi-results-12-20260913.xlsx")
 wb = openpyxl.load_workbook(PATH)
 print("Sheets:", wb.sheetnames)
 

@@ -44,6 +44,7 @@ native 模式需要 `bash` + `CRISPRON_PYTHON` 指向的 TF2.14 python3 + PATH �
 ≤0.01（均值 0.0007），来自产物 CSV 两位小数舍入处的 TF 浮点噪声，量级为满量程的 0.01%。
 """
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -139,8 +140,10 @@ def score(seq30_list, timeout_s: int = DEFAULT_TIMEOUT_S, chunk_size: int = CHUN
 
 
 def _run_wsl(in_fa: Path, out_dir: Path, timeout_s: int) -> bool:
-    cmd = (f"{_ACTIVATE} && cd {_to_wsl(CRISPRON_DIR)} && "
-           f"bash bin/CRISPRon.sh {_to_wsl(in_fa)} {_to_wsl(out_dir)}")
+    # 路径必须 shell 引用：交付包解压目录常含中文/空格/全角括号（如「XXX+参赛代码（区赛）」），
+    # 未引用的 `cd <path>` 会被 word splitting 截断 -> CRISPRon 静默失败 -> 全量降级为近似式。
+    cmd = (f"{_ACTIVATE} && cd {shlex.quote(_to_wsl(CRISPRON_DIR))} && "
+           f"bash bin/CRISPRon.sh {shlex.quote(_to_wsl(in_fa))} {shlex.quote(_to_wsl(out_dir))}")
     try:
         r = subprocess.run(["wsl", "-d", WSL_DISTRO, "bash", "-lc", cmd],
                            capture_output=True, timeout=timeout_s)

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # 在 WSL Ubuntu 中搭建 CRISPRon 环境（降级方案1的 CRISPRon 部分）
 # 用法（Windows 侧）：
-#   wsl -d Ubuntu-22.04 -- bash /mnt/d/lifesciencechallenge/cs_pipeline/env/setup_crispron_wsl.sh
+#   wsl -d Ubuntu-22.04 -- bash <项目根>/cs_pipeline/env/setup_crispron_wsl.sh
 set -euo pipefail
 
 source ~/miniconda3/etc/profile.d/conda.sh
-D=/mnt/d/lifesciencechallenge/cs_pipeline/tools/CRISPRon
+D=$(cd "$(dirname "$0")/../tools/CRISPRon" && pwd)
 
 echo "[1/5] create crispron env"
 if conda env list | grep -q "^crispron "; then

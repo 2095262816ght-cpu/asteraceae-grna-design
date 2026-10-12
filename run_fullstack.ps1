@@ -22,7 +22,7 @@ Write-Host "==========================================================" -Foregro
 
 $ProjectRoot = $PSScriptRoot
 if (-not $ProjectRoot) {
-    $ProjectRoot = "d:\lifesciencechallenge"
+    $ProjectRoot = (Get-Location).Path
 }
 Set-Location $ProjectRoot
 $env:PYTHONPATH = $ProjectRoot
@@ -36,11 +36,32 @@ function Test-BackendDeps([string]$Exe) {
     return ($LASTEXITCODE -eq 0)
 }
 
-$PythonCandidates = @(
-    "$env:CONDA_PREFIX\python.exe",
-    "D:\Miniconda\envs\crispr\python.exe",
-    "D:\Miniconda\envs\grna-demo\python.exe"
-)
+# 解释器探测：由环境变量推导 + 扫描各盘符常见 conda 安装位置，不写死本机绝对路径
+$CondaRoots = @()
+foreach ($v in @($env:CONDA_ROOT, $env:CONDA_EXE, $env:CONDA_PREFIX, $env:CONDA_PREFIX_1)) {
+    if (-not $v) { continue }
+    $leaf = [IO.Path]::GetFileName($v).ToLower()
+    if (@('python.exe','python','conda.exe','conda.bat') -contains $leaf) { $p = Split-Path -Parent (Split-Path -Parent $v) }
+    elseif (@('scripts','condabin') -contains $leaf) { $p = Split-Path -Parent $v }
+    else { $p = $v }
+    if ((Split-Path -Leaf $p) -eq 'envs') { $p = Split-Path -Parent (Split-Path -Parent $p) }
+    if ($p -and ($CondaRoots -notcontains $p)) { $CondaRoots += $p }
+}
+$driveRoots = @('C:\', 'D:\', 'E:\', 'F:\', 'G:\', 'H:\')
+foreach ($base in (@($env:USERPROFILE, 'C:\ProgramData') + $driveRoots)) {
+    if (-not (Test-Path $base)) { continue }
+    foreach ($n in @('Miniconda3','Miniconda','anaconda3','anaconda')) {
+        $p = Join-Path $base $n
+        if ((Test-Path $p) -and ($CondaRoots -notcontains $p)) { $CondaRoots += $p }
+    }
+}
+
+$PythonCandidates = @()
+if ($env:CONDA_PREFIX) { $PythonCandidates += "$env:CONDA_PREFIX\python.exe" }
+foreach ($r in $CondaRoots) {
+    $PythonCandidates += (Join-Path $r 'envs\crispr\python.exe')
+    $PythonCandidates += (Join-Path $r 'envs\grna-demo\python.exe')
+}
 
 $PythonExe = $null
 foreach ($cand in $PythonCandidates) {
@@ -94,7 +115,16 @@ Write-Host "[3/4] 检查前端构建环境..." -ForegroundColor Yellow
 $FrontendDir = Join-Path $ProjectRoot "frontend"
 if (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
     Write-Host "      正在安装前端依赖 (npm install)..." -ForegroundColor Gray
-    npm --prefix $FrontendDir install
+    # npm 10.x 的 --prefix 对 install 不生效（仍查 cwd 的 package.json），必须进入目录执行
+    Push-Location $FrontendDir
+    try {
+        npm install
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "前端依赖安装失败，请检查网络后重试。"
+        }
+    } finally {
+        Pop-Location
+    }
 }
 
 # 4. 并发拉起后端与前端服务
@@ -110,14 +140,16 @@ Write-Host "----------------------------------------------------------" -Foregro
 $BackendProcess = Start-Process -FilePath $PythonExe -ArgumentList "-m", "uvicorn", "backend.app.main:app", "--port", "8000", "--reload", "--reload-dir", "backend", "--reload-dir", "cs_pipeline" -WorkingDirectory $ProjectRoot -PassThru -NoNewWindow
 
 # 启动前端子进程 (Vite 准备就绪后自动秒开浏览器，避免提前打开造成白屏与卡顿)
+Push-Location $FrontendDir
 try {
     if ($NoBrowser) {
-        npm --prefix $FrontendDir run dev
+        npm run dev
     } else {
-        npm --prefix $FrontendDir run dev -- --open
+        npm run dev -- --open
     }
 }
 finally {
+    Pop-Location
     Write-Host "`n正在停止全栈服务..." -ForegroundColor Yellow
     if ($BackendProcess -and -not $BackendProcess.HasExited) {
         Stop-Process -Id $BackendProcess.Id -Force -ErrorAction SilentlyContinue

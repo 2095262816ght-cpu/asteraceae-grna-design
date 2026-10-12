@@ -355,7 +355,7 @@ async def seed_candidates_if_empty(base_dir: Path | None = None, force_reseed: b
     任一数据源缺失则跳过该路，两路都缺失时返回 0。
     """
     if base_dir is None:
-        # 当前根目录 d:\lifesciencechallenge\
+        # 当前根目录（项目根）
         base_dir = Path(__file__).resolve().parent.parent.parent.parent
 
     async with AsyncSessionLocal() as session:

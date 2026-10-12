@@ -101,12 +101,19 @@ def lbeta_torch(a, b):
 
 
 def fit_hierarchical_selective_bb(X_tr, n_tr, k_tr, b_tr, n_b, u_p, u_prc, lp0,
-                                  l2_beta=0.01, prior_scale=5.0, max_iter=200):
+                                  l2_beta=0.01, prior_scale=5.0, max_iter=200,
+                                  s_floor=1.0):
     """拟合形态二 GLMM（原 scripts/15 第 5 节，逐行等价）。
 
     X_tr 为原始（未标准化）特征矩阵；标准化用的 mu/std 在函数内由训练折自身算出并一并返回，
     以便对留出折做同一变换——这是避免测试集泄漏进标准化统计量的关键。
     返回 (beta0, beta, mu, std, dispersion_s)。
+
+    s_floor  过离散集中度 s 的 clamp 下界。默认 1.0 与 0921 生产拟合逐值等价（生产脚本
+             不传该参数，产物不变）；诊断用途可放宽（如 0.01）——s<1 数学上合法且表示
+             更大过离散，0921 拟合的 s 实测 0.632 被下界 1.0 顶回，见
+             results/sensitivity_glmm_1010.md。注意返回值是 clamp 前的原始 exp(log_s)，
+             进入似然的生效值为 clamp 后取值。
     """
     mu = X_tr.mean(axis=0)
     std = X_tr.std(axis=0) + 1e-6
@@ -130,7 +137,7 @@ def fit_hierarchical_selective_bb(X_tr, n_tr, k_tr, b_tr, n_b, u_p, u_prc, lp0,
 
     def closure():
         optimizer.zero_grad()
-        s = torch.exp(log_s).clamp(1.0, 500.0)
+        s = torch.exp(log_s).clamp(s_floor, 500.0)
         eta = beta0 + torch.matmul(X_t, beta) + u[b_t]
         p = torch.sigmoid(eta).clamp(1e-5, 1.0 - 1e-5)
         alpha = p * s

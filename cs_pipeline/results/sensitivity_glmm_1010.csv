@@ -1,0 +1,5 @@
+experiment,prior_mode,s_floor,test_rho,test_p,logo_median_rho,classa_median_rho,classb_median_rho,valid_folds
+E0_fullprior_sfloor1,full,1.0,0.3424,7.888848385712806e-07,0.3716,0.4636,-0.0508,9/16
+E1_foldprior_sfloor1,fold,1.0,-0.0642,0.3685815913514015,0.3635,0.4636,0.1012,9/16
+E2_fullprior_sfloor001,full,0.01,0.3424,7.888848385712806e-07,0.3516,0.4636,-0.0508,9/16
+E3_foldprior_sfloor001,fold,0.01,-0.0642,0.3685815913514015,0.3711,0.4636,0.0664,9/16
